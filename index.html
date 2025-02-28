@@ -15,6 +15,107 @@
     <div id="root"></div>
     <script type="text/babel">
         // Your React code will go here
+const australianCities = [
+    {
+        name: "Melbourne",
+        state: "Victoria",
+        averageRent: 520,
+        transportScore: 9,
+        socialScene: 9,
+        jobMarketStrength: 8,
+        remoteWorkFriendly: true,
+        uniqueAppeal: "Culture capital, coffee scene"
+    },
+    {
+        name: "Sydney",
+        state: "NSW",
+        averageRent: 650,
+        transportScore: 8,
+        socialScene: 9,
+        jobMarketStrength: 9,
+        remoteWorkFriendly: true,
+        uniqueAppeal: "Harbour city, beaches"
+    },
+    {
+        name: "Brisbane",
+        state: "QLD",
+        averageRent: 480,
+        transportScore: 7,
+        socialScene: 8,
+        jobMarketStrength: 7,
+        remoteWorkFriendly: true,
+        uniqueAppeal: "Subtropical climate"
+    },
+    {
+        name: "Perth",
+        state: "WA",
+        averageRent: 470,
+        transportScore: 6,
+        socialScene: 7,
+        jobMarketStrength: 7,
+        remoteWorkFriendly: true,
+        uniqueAppeal: "Beautiful beaches"
+    },
+    {
+        name: "Adelaide",
+        state: "SA",
+        averageRent: 450,
+        transportScore: 7,
+        socialScene: 7,
+        jobMarketStrength: 6,
+        remoteWorkFriendly: true,
+        uniqueAppeal: "Wine regions, festivals"
+    }
+];
+
+function CityRanker() {
+    const [rankedCities, setRankedCities] = React.useState([]);
+    const [filterRent, setFilterRent] = React.useState(500);
+
+    const rankCities = () => {
+        const filtered = australianCities.filter(city => city.averageRent <= filterRent);
+        
+        const sorted = filtered.sort((a, b) => {
+            const scoreA = (1000 / a.averageRent) + (a.transportScore * 2) + (a.socialScene * 1.5) + (a.jobMarketStrength * 1.2);
+            const scoreB = (1000 / b.averageRent) + (b.transportScore * 2) + (b.socialScene * 1.5) + (b.jobMarketStrength * 1.2);
+            return scoreB - scoreA;
+        });
+
+        setRankedCities(sorted);
+    };
+
+    return (
+        <div>
+            <h1>Australian City Ranker</h1>
+            <div>
+                <label>
+                    Max Weekly Rent: $
+                    <input 
+                        type="number" 
+                        value={filterRent} 
+                        onChange={(e) => setFilterRent(Number(e.target.value))}
+                    />
+                </label>
+                <button onClick={rankCities}>Rank Cities</button>
+            </div>
+            <div>
+                {rankedCities.map((city, index) => (
+                    <div key={city.name} className="city-card">
+                        <h3>{index + 1}. {city.name}</h3>
+                        <p>Weekly Rent: ${city.averageRent}</p>
+                        <p>State: {city.state}</p>
+                        <p>Transport: {city.transportScore}/10</p>
+                        <p>Social: {city.socialScene}/10</p>
+                        <p>{city.uniqueAppeal}</p>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+ReactDOM.render(<CityRanker />, document.getElementById('root'));
+        
     </script>
 </body>
 </html>
