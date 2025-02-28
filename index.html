@@ -249,115 +249,110 @@
     <div id="root"></div>
     <script type="text/babel">
         // City Data
-        const australianCities = [
-            {
-                name: "Melbourne",
-                state: "Victoria",
-                imageUrl: "https://images.unsplash.com/photo-1514395462725-fb4566210144?w=800",
-                averageRent: 520,
-                transportScore: 9,
-                socialScene: 9,
-                jobMarketStrength: 8,
-                climate: {
-                    summer: { avg: 25, high: 35, low: 15 },
-                    winter: { avg: 14, high: 18, low: 6 },
-                    rainfall: 648,
-                    sunnyDays: 185
-                },
-                lifestyle: {
-                    coffee: 5,
-                    dining: 5,
-                    nightlife: 5,
-                    culture: 5,
-                    outdoor: 4
-                },
-                costOfLiving: {
-                    coffee: 4.50,
-                    meal: 25,
-                    transport: 9,
-                    utilities: 175
-                },
-                highlights: [
-                    "World's most liveable city",
-                    "Incredible food scene",
-                    "Extensive tram network",
-                    "Cultural capital"
-                ]
-            },
-            // More cities...
-        ];
-
-            {
-                name: "Sydney",
-                state: "New South Wales",
-                imageUrl: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=800",
-                averageRent: 650,
-                transportScore: 8,
-                socialScene: 9,
-                jobMarketStrength: 9,
-                climate: {
-                    summer: { avg: 26, high: 40, low: 16 },
-                    winter: { avg: 13, high: 19, low: 8 },
-                    rainfall: 1213,
-                    sunnyDays: 236
-                },
-                lifestyle: {
-                    coffee: 4,
-                    dining: 5,
-                    nightlife: 5,
-                    culture: 5,
-                    outdoor: 5
-                },
-                costOfLiving: {
-                    coffee: 4.80,
-                    meal: 28,
-                    transport: 10,
-                    utilities: 185
-                },
-                highlights: [
-                    "Iconic harbour",
-                    "Beautiful beaches",
-                    "Global business hub",
-                    "Vibrant arts scene"
-                ]
-            },
-            {
-                name: "Brisbane",
-                state: "Queensland",
-                imageUrl: "https://images.unsplash.com/photo-1566734904496-902f0b6e235c?w=800",
-                averageRent: 480,
-                transportScore: 7,
-                socialScene: 8,
-                jobMarketStrength: 7,
-                climate: {
-                    summer: { avg: 30, high: 45, low: 20 },
-                    winter: { avg: 15, high: 22, low: 9 },
-                    rainfall: 1090,
-                    sunnyDays: 283
-                },
-                lifestyle: {
-                    coffee: 4,
-                    dining: 4,
-                    nightlife: 4,
-                    culture: 3,
-                    outdoor: 5
-                },
-                costOfLiving: {
-                    coffee: 4.20,
-                    meal: 23,
-                    transport: 8,
-                    utilities: 165
-                },
-                highlights: [
-                    "Subtropical climate",
-                    "Outdoor lifestyle",
-                    "Growing tech scene",
-                    "South Bank cultural precinct"
-                ]
-            }
-            // Add more cities as needed
-        ];
-
+    const australianCities = [
+    {
+        name: "Melbourne",
+        state: "Victoria",
+        imageUrl: "https://images.unsplash.com/photo-1514395462725-fb4566210144?w=800",
+        averageRent: 520,
+        transportScore: 9,
+        socialScene: 9,
+        jobMarketStrength: 8,
+        climate: {
+            summer: { avg: 25, high: 35, low: 15 },
+            winter: { avg: 14, high: 18, low: 6 },
+            rainfall: 648,
+            sunnyDays: 185
+        },
+        lifestyle: {
+            coffee: 5,
+            dining: 5,
+            nightlife: 5,
+            culture: 5,
+            outdoor: 4
+        },
+        costOfLiving: {
+            coffee: 4.50,
+            meal: 25,
+            transport: 9,
+            utilities: 175
+        },
+        highlights: [
+            "World's most liveable city",
+            "Incredible food scene",
+            "Extensive tram network",
+            "Cultural capital"
+        ]
+    },
+    {
+        name: "Sydney",
+        state: "New South Wales",
+        imageUrl: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9?w=800",
+        averageRent: 650,
+        transportScore: 8,
+        socialScene: 9,
+        jobMarketStrength: 9,
+        climate: {
+            summer: { avg: 26, high: 40, low: 16 },
+            winter: { avg: 13, high: 19, low: 8 },
+            rainfall: 1213,
+            sunnyDays: 236
+        },
+        lifestyle: {
+            coffee: 4,
+            dining: 5,
+            nightlife: 5,
+            culture: 5,
+            outdoor: 5
+        },
+        costOfLiving: {
+            coffee: 4.80,
+            meal: 28,
+            transport: 10,
+            utilities: 185
+        },
+        highlights: [
+            "Iconic harbour",
+            "Beautiful beaches",
+            "Global business hub",
+            "Vibrant arts scene"
+        ]
+    },
+    {
+        name: "Brisbane",
+        state: "Queensland",
+        imageUrl: "https://images.unsplash.com/photo-1566734904496-902f0b6e235c?w=800",
+        averageRent: 480,
+        transportScore: 7,
+        socialScene: 8,
+        jobMarketStrength: 7,
+        climate: {
+            summer: { avg: 30, high: 45, low: 20 },
+            winter: { avg: 15, high: 22, low: 9 },
+            rainfall: 1090,
+            sunnyDays: 283
+        },
+        lifestyle: {
+            coffee: 4,
+            dining: 4,
+            nightlife: 4,
+            culture: 3,
+            outdoor: 5
+        },
+        costOfLiving: {
+            coffee: 4.20,
+            meal: 23,
+            transport: 8,
+            utilities: 165
+        },
+        highlights: [
+            "Subtropical climate",
+            "Outdoor lifestyle",
+            "Growing tech scene",
+            "South Bank cultural precinct"
+        ]
+    }
+];
         // Main App Component
         function CityExplorer() {
             const [currentView, setCurrentView] = React.useState('welcome');
