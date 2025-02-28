@@ -6,10 +6,99 @@
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <style>
-        body { font-family: Arial; padding: 20px; }
-        .city-card { border: 1px solid #ccc; margin: 10px; padding: 10px; }
-        button { padding: 10px; margin: 10px; }
-    </style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f5f5f5;
+        margin: 0;
+        padding: 20px;
+    }
+
+    h1 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .controls {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    input {
+        padding: 8px;
+        margin: 0 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        width: 100px;
+    }
+
+    button {
+        background-color: #3498db;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    button:hover {
+        background-color: #2980b9;
+    }
+
+    .city-card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+
+    .city-card:hover {
+        transform: translateY(-3px);
+    }
+
+    .city-card h3 {
+        color: #2c3e50;
+        margin-top: 0;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 10px;
+    }
+
+    .city-card p {
+        margin: 8px 0;
+        color: #34495e;
+    }
+
+    .stats {
+        display: flex;
+        justify-content: space-between;
+        margin: 10px 0;
+    }
+
+    .stat-item {
+        background: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
+        text-align: center;
+    }
+
+    @media (max-width: 600px) {
+        body {
+            padding: 10px;
+        }
+        
+        .stats {
+            flex-direction: column;
+            gap: 5px;
+        }
+    }
+</style>
 </head>
 <body>
     <div id="root"></div>
