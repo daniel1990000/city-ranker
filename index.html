@@ -6,205 +6,298 @@
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
     <style>
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f5f5f5;
-        margin: 0;
-        padding: 20px;
-    }
-
-    h1 {
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 30px;
-    }
-
-    .controls {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-bottom: 20px;
-        text-align: center;
-    }
-
-    input {
-        padding: 8px;
-        margin: 0 10px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        width: 100px;
-    }
-
-    button {
-        background-color: #3498db;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: background-color 0.3s;
-    }
-
-    button:hover {
-        background-color: #2980b9;
-    }
-
-    .city-card {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        margin: 15px 0;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: transform 0.2s;
-    }
-
-    .city-card:hover {
-        transform: translateY(-3px);
-    }
-
-    .city-card h3 {
-        color: #2c3e50;
-        margin-top: 0;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
-    }
-
-    .city-card p {
-        margin: 8px 0;
-        color: #34495e;
-    }
-
-    .stats {
-        display: flex;
-        justify-content: space-between;
-        margin: 10px 0;
-    }
-
-    .stat-item {
-        background: #f8f9fa;
-        padding: 8px;
-        border-radius: 4px;
-        text-align: center;
-    }
-
-    @media (max-width: 600px) {
         body {
-            padding: 10px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
         }
-        
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .controls label {
+            font-size: 1.1em;
+            font-weight: 500;
+        }
+
+        input {
+            padding: 12px;
+            margin: 0 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            width: 120px;
+            font-size: 1.1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 1.1em;
+            font-weight: 500;
+            margin-left: 15px;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .city-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+
+        .city-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .city-card h3 {
+            color: #2c3e50;
+            margin: 0 0 20px 0;
+            font-size: 1.8em;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+
         .stats {
-            flex-direction: column;
-            gap: 5px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
         }
-    }
-</style>
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #eee;
+        }
+
+        .stat-item strong {
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .unique-appeal {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 8px;
+            color: #2c3e50;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .controls {
+                padding: 15px;
+            }
+
+            input {
+                margin: 10px;
+                width: 100px;
+            }
+
+            button {
+                margin-top: 10px;
+                width: 100%;
+            }
+
+            .stats {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
     <div id="root"></div>
     <script type="text/babel">
-        // Your React code will go here
-const australianCities = [
-    {
-        name: "Melbourne",
-        state: "Victoria",
-        averageRent: 520,
-        transportScore: 9,
-        socialScene: 9,
-        jobMarketStrength: 8,
-        remoteWorkFriendly: true,
-        uniqueAppeal: "Culture capital, coffee scene"
-    },
-    {
-        name: "Sydney",
-        state: "NSW",
-        averageRent: 650,
-        transportScore: 8,
-        socialScene: 9,
-        jobMarketStrength: 9,
-        remoteWorkFriendly: true,
-        uniqueAppeal: "Harbour city, beaches"
-    },
-    {
-        name: "Brisbane",
-        state: "QLD",
-        averageRent: 480,
-        transportScore: 7,
-        socialScene: 8,
-        jobMarketStrength: 7,
-        remoteWorkFriendly: true,
-        uniqueAppeal: "Subtropical climate"
-    },
-    {
-        name: "Perth",
-        state: "WA",
-        averageRent: 470,
-        transportScore: 6,
-        socialScene: 7,
-        jobMarketStrength: 7,
-        remoteWorkFriendly: true,
-        uniqueAppeal: "Beautiful beaches"
-    },
-    {
-        name: "Adelaide",
-        state: "SA",
-        averageRent: 450,
-        transportScore: 7,
-        socialScene: 7,
-        jobMarketStrength: 6,
-        remoteWorkFriendly: true,
-        uniqueAppeal: "Wine regions, festivals"
-    }
-];
+        const australianCities = [
+            {
+                name: "Melbourne",
+                state: "Victoria",
+                averageRent: 520,
+                transportScore: 9,
+                socialScene: 9,
+                jobMarketStrength: 8,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Culture capital, coffee scene, artistic laneways"
+            },
+            {
+                name: "Sydney",
+                state: "NSW",
+                averageRent: 650,
+                transportScore: 8,
+                socialScene: 9,
+                jobMarketStrength: 9,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Iconic harbour, beautiful beaches, global city"
+            },
+            {
+                name: "Brisbane",
+                state: "QLD",
+                averageRent: 480,
+                transportScore: 7,
+                socialScene: 8,
+                jobMarketStrength: 7,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Subtropical climate, outdoor lifestyle"
+            },
+            {
+                name: "Perth",
+                state: "WA",
+                averageRent: 470,
+                transportScore: 6,
+                socialScene: 7,
+                jobMarketStrength: 7,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Beautiful beaches, amazing sunsets, relaxed lifestyle"
+            },
+            {
+                name: "Adelaide",
+                state: "SA",
+                averageRent: 450,
+                transportScore: 7,
+                socialScene: 7,
+                jobMarketStrength: 6,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Wine regions, festivals, affordable living"
+            },
+            {
+                name: "Gold Coast",
+                state: "QLD",
+                averageRent: 500,
+                transportScore: 6,
+                socialScene: 8,
+                jobMarketStrength: 6,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Surf culture, theme parks, tourist destination"
+            },
+            {
+                name: "Canberra",
+                state: "ACT",
+                averageRent: 550,
+                transportScore: 7,
+                socialScene: 6,
+                jobMarketStrength: 8,
+                remoteWorkFriendly: true,
+                uniqueAppeal: "Political capital, high employment, planned city"
+            }
+        ];
 
-function CityRanker() {
-    const [rankedCities, setRankedCities] = React.useState([]);
-    const [filterRent, setFilterRent] = React.useState(500);
+        function CityRanker() {
+            const [rankedCities, setRankedCities] = React.useState([]);
+            const [filterRent, setFilterRent] = React.useState(600);
 
-    const rankCities = () => {
-        const filtered = australianCities.filter(city => city.averageRent <= filterRent);
-        
-        const sorted = filtered.sort((a, b) => {
-            const scoreA = (1000 / a.averageRent) + (a.transportScore * 2) + (a.socialScene * 1.5) + (a.jobMarketStrength * 1.2);
-            const scoreB = (1000 / b.averageRent) + (b.transportScore * 2) + (b.socialScene * 1.5) + (b.jobMarketStrength * 1.2);
-            return scoreB - scoreA;
-        });
+            const rankCities = () => {
+                const filtered = australianCities.filter(city => city.averageRent <= filterRent);
+                
+                const sorted = filtered.sort((a, b) => {
+                    const scoreA = (1000 / a.averageRent) + (a.transportScore * 2) + 
+                                 (a.socialScene * 1.5) + (a.jobMarketStrength * 1.2);
+                    const scoreB = (1000 / b.averageRent) + (b.transportScore * 2) + 
+                                 (b.socialScene * 1.5) + (b.jobMarketStrength * 1.2);
+                    return scoreB - scoreA;
+                });
 
-        setRankedCities(sorted);
-    };
+                setRankedCities(sorted);
+            };
 
-    return (
-        <div>
-            <h1>Australian City Ranker</h1>
-            <div>
-                <label>
-                    Max Weekly Rent: $
-                    <input 
-                        type="number" 
-                        value={filterRent} 
-                        onChange={(e) => setFilterRent(Number(e.target.value))}
-                    />
-                </label>
-                <button onClick={rankCities}>Rank Cities</button>
-            </div>
-            <div>
-                {rankedCities.map((city, index) => (
-                    <div key={city.name} className="city-card">
-                        <h3>{index + 1}. {city.name}</h3>
-                        <p>Weekly Rent: ${city.averageRent}</p>
-                        <p>State: {city.state}</p>
-                        <p>Transport: {city.transportScore}/10</p>
-                        <p>Social: {city.socialScene}/10</p>
-                        <p>{city.uniqueAppeal}</p>
+            return (
+                <div className="container">
+                    <h1>Australian City Ranker</h1>
+                    <div className="controls">
+                        <label>
+                            Maximum Weekly Rent: $
+                            <input 
+                                type="number" 
+                                value={filterRent} 
+                                onChange={(e) => setFilterRent(Number(e.target.value))}
+                            />
+                        </label>
+                        <button onClick={rankCities}>Find Best Cities</button>
                     </div>
-                ))}
-            </div>
-        </div>
-    );
-}
+                    <div>
+                        {rankedCities.map((city, index) => (
+                            <div key={city.name} className="city-card">
+                                <h3>{index + 1}. {city.name}</h3>
+                                <div className="stats">
+                                    <div className="stat-item">
+                                        <strong>Weekly Rent</strong>
+                                        ${city.averageRent}
+                                    </div>
+                                    <div className="stat-item">
+                                        <strong>State</strong>
+                                        {city.state}
+                                    </div>
+                                    <div className="stat-item">
+                                        <strong>Transport</strong>
+                                        {city.transportScore}/10
+                                    </div>
+                                    <div className="stat-item">
+                                        <strong>Social Scene</strong>
+                                        {city.socialScene}/10
+                                    </div>
+                                    <div className="stat-item">
+                                        <strong>Job Market</strong>
+                                        {city.jobMarketStrength}/10
+                                    </div>
+                                </div>
+                                <div className="unique-appeal">
+                                    ✨ {city.uniqueAppeal}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        }
 
-ReactDOM.render(<CityRanker />, document.getElementById('root'));
-        
+        ReactDOM.render(<CityRanker />, document.getElementById('root'));
     </script>
 </body>
 </html>
