@@ -1,0 +1,23 @@
+node_modules/
+dist/
+dist-crazygames/
+dist-poki/
+coverage/
+.DS_Store
+*.log
+.env
+.env.*
+# Android build outputs & secrets
+android/.gradle/
+android/build/
+android/app/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+android/app/release/
+android/keystore.properties
+*.jks
+*.keystore
+releases-local/
+android/.kotlin/
+scripts/debug*.test.ts
+/tools/fighters/.cache/
