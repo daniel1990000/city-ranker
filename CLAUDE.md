@@ -81,7 +81,7 @@ node scripts/store.mjs      # Play Store screenshots (docs/store) and feature gr
    a debug-signed test APK (not for Play). Set the `UPLOAD_CERT_SHA256` variable to lock the upload key.
 - There is no Android SDK in the cloud session: CI builds the APK.
 
-## Status (16 October 2026, version 0.1.0)
+## Status (16 October 2026, version 0.2.0)
 - Built: fight engine + AI + replays (tested, balanced), realistic generated fighters with IK animation, six venues,
   broadcast camera, HUD + touch controls, full menus (hub, career, fighters, training, packs with odds/pity/reveal,
   shop, season, settings), first-fight lesson (`src/app/tutorial.ts`), leaderboards (`src/meta/record.ts`), cloud save that reads before it
