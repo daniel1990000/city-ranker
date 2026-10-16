@@ -292,6 +292,8 @@ export interface FighterState {
   unanswered: number;
   /** Knockdowns suffered in this fight. */
   knockdowns: number;
+  /** Knockdowns from leg kicks (the second one is a TKO). */
+  legKnockdowns: number;
   /** Stamina hit zero recently (gassed): shown on the HUD. */
   gassed: boolean;
   /** Ground: ticks before this fighter may start another scramble or submission. */
