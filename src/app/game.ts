@@ -25,6 +25,7 @@ import { buy, finish, queryPurchases } from '../platform/iap';
 import { interstitialReady, rewardedAvailable, showInterstitial, showRewarded } from '../platform/ads';
 import { isNative } from '../platform/platform';
 import { submitScore } from '../platform/games';
+import { track } from '../platform/telemetry';
 import type { FighterStats } from '../game/fight/types';
 
 /** What the daily login pays, by day of the 7-day cycle. */
@@ -62,8 +63,15 @@ export class Game {
   /** Listeners for wallet / progress changes (top bar). */
   private listeners: (() => void)[] = [];
 
+  /** When the loaded save was last written (before this launch touched it), for the native-copy check. */
+  readonly loadedSavedAt: number;
+  /** The player has changed something since launch (then a native copy is never swapped in under them). */
+  changedSinceLaunch = false;
+  private booted = false;
+
   constructor() {
     this.save = loadSave();
+    this.loadedSavedAt = this.save.savedAt;
     bindClock(this.save);
     settleClock(this.save, Date.now(), dayNumber);
     ensureProgress(this.save);
@@ -71,7 +79,24 @@ export class Game {
     ensureSeason(this.save);
     ensureWeek(this.save);
     syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.save.ads.sessions++;
     this.persist();
+    this.booted = true;
+  }
+
+  /** The phone's native copy of this same save is newer than the WebView's (a lost write): take it as it is. */
+  adoptMirror(d: SaveData): void {
+    d.settings = this.save.settings;
+    d.ads.sessions = Math.max(d.ads.sessions, this.save.ads.sessions);
+    keepClock(d, this.save);
+    this.save = d;
+    bindClock(this.save);
+    ensureProgress(this.save);
+    this.firstRun();
+    ensureSeason(this.save);
+    ensureWeek(this.save);
+    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.persist(true);
   }
 
   /** Back in the app: a phone clock that was moved back is believed again after 7 days (meta/clock.ts). */
@@ -107,6 +132,7 @@ export class Game {
   }
 
   persist(immediate = false): void {
+    if (this.booted) this.changedSinceLaunch = true;
     writeSave(this.save, immediate);
     for (const l of this.listeners) l();
   }
@@ -193,8 +219,18 @@ export class Game {
     return true;
   }
 
+  /** An opt-in reward video. It also restarts the interstitial spacing, so an ad never follows another at once. */
+  private async rewarded(kind: string): Promise<boolean> {
+    const ok = await showRewarded();
+    if (ok) {
+      adShown(this.save.ads, Date.now(), false);
+      track('ad_shown', { format: 'rewarded', kind });
+    }
+    return ok;
+  }
+
   async skipTrainingWithAd(id: string): Promise<boolean> {
-    if (!(await showRewarded())) return false;
+    if (!(await this.rewarded('train'))) return false;
     clearTimer(this.save, `train:${id}`);
     this.persist();
     return true;
@@ -249,12 +285,13 @@ export class Game {
     submitScore('wins', this.save.wins);
     submitScore('knockouts', rec.kos);
     if (score > 0) submitScore('weekly', score);
+    track('fight_end', { mode: step ? 'career' : 'quick', tier: step?.tier ?? -1, result: won ? 'W' : draw ? 'D' : 'L', method, secs: Math.round(seconds), fights: this.save.fights });
     return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before };
   }
 
   /** "Watch ad: double cash" after a fight. */
   async doubleCash(amount: number): Promise<boolean> {
-    if (!(await showRewarded())) return false;
+    if (!(await this.rewarded('double'))) return false;
     addCash(this.save, Math.min(TUNING.doubleCashCap, amount));
     this.persist();
     return true;
@@ -268,6 +305,7 @@ export class Game {
   async showInterstitial(): Promise<void> {
     const shown = await showInterstitial();
     if (shown) {
+      track('ad_shown', { format: 'interstitial' });
       adShown(this.save.ads, Date.now(), true);
       this.persist();
     }
@@ -315,7 +353,8 @@ export class Game {
   /** The free daily pack: watch an ad, get a Standard Pack to open. */
   async claimFreePack(): Promise<boolean> {
     if (!this.freePackAvailable()) return false;
-    if (!(await showRewarded())) return false;
+    // the browser version has no ads: the daily pack is simply free there
+    if (isNative && !(await this.rewarded('freepack'))) return false;
     this.save.progress.packs.freeDay = dayNumber(rewardTime());
     this.save.progress.packs.unopened.standard++;
     this.persist(true);
@@ -353,6 +392,7 @@ export class Game {
     const r = await buy(id);
     if (r.status !== 'purchased') return r.status === 'owned' || r.status === 'busy' ? 'failed' : r.status;
     const g = applyPurchase(this.save, r.purchase, amounts());
+    if (g.granted) track('purchase', { id, fights: this.save.fights });
     syncBundles(this.save.progress.fighters, this.save.paidBundles);
     this.persist(true);
     if (g.action) await finish(g.action);

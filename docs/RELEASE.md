@@ -30,9 +30,16 @@ What is in it:
   "Knockouts") and put their ids in the `PGS_LEADERBOARDS` secret.
 - **Safe cloud save**: the game reads the Play Games copy before it ever uploads; if the copy holds more progress it
   asks "Load cloud progress?", and if it can't be read it uploads nothing.
+- **Phone behaviour**: the fight pauses when the app is switched away or a call comes in, the screen stays on during
+  fights, vibration on knockdowns and big hits, Google Play's review card once after a title or the 5th win, a
+  "Privacy options" button where the ad consent rules require it, a warning when the phone's storage is full, and
+  low graphics after a graphics crash.
 - **Sound**: synthesised hits, blocks, whooshes, bell, crowd that follows the action, menu and pack sounds.
 
 ## Known gaps (next)
+- Fixed before release (found by checking every platform piece is connected): interstitials could never show
+  (launches were not counted), the cloud save could upload before reading, the Champion Bundle's fighter was
+  missing, save codes could carry paid items, the clock protection was off.
 - Animation is keyframed by code; a licensed motion-capture pack (or Mixamo clips from the owner's account) would
   make it look closer to a console game. Ground and submission poses are the roughest.
 - Performance has been checked only in a software-rendered browser; a real-phone pass (mid and low end) is needed.

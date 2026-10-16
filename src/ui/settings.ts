@@ -1,7 +1,8 @@
 // The settings panel: sound, controls, graphics, privacy, purchases and the save code.
 import type { Game } from '../app/game';
 import { exportCode, importCode } from '../meta/save';
-import { openExternal } from '../platform/platform';
+import { openExternal, setHaptics } from '../platform/platform';
+import { adChoicesRequired, showAdChoices } from '../platform/ads';
 import { setTelemetryAllowed } from '../platform/telemetry';
 import { CONFIG } from '../platform/config';
 
@@ -54,7 +55,10 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
   };
   row('Music', slider(s.music, x => (s.music = x)));
   row('Sound effects', slider(s.sfx, x => (s.sfx = x)));
-  row('Vibration', toggle(s.haptics, x => (s.haptics = x)));
+  row('Vibration', toggle(s.haptics, x => {
+    s.haptics = x;
+    setHaptics(x);
+  }));
   row('Left-handed controls (attack on the left)', toggle(s.leftHanded, x => (s.leftHanded = x)));
   row('Reduced motion (less shake, no flashes)', toggle(s.reducedMotion, x => (s.reducedMotion = x)));
   const q = document.createElement('select');
@@ -75,6 +79,8 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
     s.analytics = x;
     setTelemetryAllowed(x);
   }));
+  // where the consent rules apply (EEA, UK, Switzerland, some US states), a way back to the ad consent choices
+  if (adChoicesRequired()) row('Ads and privacy', button('Privacy options', () => void showAdChoices().then(ok => ok || toast('Could not open the privacy options'))));
   row('Purchases', button('Restore purchases', () => void game.syncPurchases().then(r => toast(r ? 'Purchases restored' : 'Could not reach Google Play'))));
   row('Save code (move your progress by hand)', button('Copy', () => {
     const code = exportCode(game.save);

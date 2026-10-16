@@ -20,8 +20,8 @@ import { buildSettings } from './ui/settings';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
 import { showBoards } from './platform/games';
-import { cloudSync } from './app/services';
-import { isNative } from './platform/platform';
+import { cloudSync, type ServiceHooks } from './app/services';
+import { haptic, isNative, keepAwake, requestReview } from './platform/platform';
 import type { SaveData } from './meta/save';
 
 const ARCHS = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'] as const;
@@ -119,6 +119,7 @@ export class App {
     return new Promise(resolve => {
       const p = document.createElement('div');
       p.className = 'modal-back';
+      p.dataset.sticky = '1';
       const line = (d: SaveData) => `${d.fights.toLocaleString('en-US')} fights · ${d.wins.toLocaleString('en-US')} wins · ${Object.keys(d.progress.fighters.owned).length} fighters`;
       p.innerHTML = `<div class="modal panel"><h2>Saved progress found</h2><p class="muted">Your Google Play Games account has progress from another phone.</p>
         <p><b>Cloud:</b> ${line(cloud)}<br><b>This phone:</b> ${line(local)}</p>
@@ -330,10 +331,16 @@ export class App {
     session.onEvents = (ev, crowd) => {
       sound.onFightEvents(ev);
       sound.setCrowd(0.25 + crowd * 0.65);
+      for (const e of ev) {
+        if (e.type === 'knockdown') haptic('heavy');
+        else if (e.type === 'hit' && !e.blocked && e.strength === 'heavy') haptic(e.side === 0 ? 'light' : 'medium');
+        else if (e.type === 'fightEnd' && e.result.winner === 0) haptic('success');
+      }
     };
     this.attract?.dispose();
     this.attract = null;
     this.session = session;
+    keepAwake(true);
   }
 
   private showPause(): void {
@@ -360,6 +367,7 @@ export class App {
     sound.setCrowd(0);
     this.session?.dispose();
     this.session = null;
+    keepAwake(false);
     await this.startAttract();
     this.render();
   }
@@ -367,6 +375,13 @@ export class App {
   private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null): void {
     const seconds = o.result.totalTicks / 60;
     const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty);
+    // Google Play's review card after a high point (a title, or the 5th win), once; Play decides if it shows
+    const f = this.game.save.flags;
+    if (o.result.winner === 0 && !f.ratePrompted && (rewards.belt || this.game.save.wins >= 5)) {
+      f.ratePrompted = true;
+      this.game.persist();
+      setTimeout(() => requestReview(), 1500);
+    }
     this.showRewards(o, rewards, step);
   }
 
@@ -425,6 +440,7 @@ export class App {
     }
     const card = document.createElement('div');
     card.className = 'modal-back';
+    card.dataset.sticky = '1';
     card.innerHTML = `<div class="modal panel adcard"><h2>Ad break</h2><div class="count">3</div><div class="muted">Thanks for playing for free. Get No Ads in the shop.</div></div>`;
     this.ui.appendChild(card);
     for (let i = 3; i > 0; i--) {
@@ -436,13 +452,29 @@ export class App {
     await next();
   }
 
+  /** What the platform services call back into (app/services.ts). */
+  serviceHooks(): ServiceHooks {
+    return {
+      onBack: () => this.backButton(),
+      onInterrupt: () => {
+        if (this.session && !this.session.fight.state.result) this.showPause();
+      },
+      askRestore: (c, l) => this.askCloudRestore(c, l),
+      refresh: () => {
+        if (!this.session) this.render();
+      },
+      toast: m => this.toast(m),
+    };
+  }
+
   /** Android back button: pause a fight, close a modal, go back a screen. */
   backButton(): void {
     if (this.session) {
       this.showPause();
       return;
     }
-    const modal = this.ui.querySelector('.modal-back, .reveal');
+    // the cloud question and the ad break must be answered / run out, not dismissed
+    const modal = this.ui.querySelector('.modal-back:not([data-sticky]), .reveal');
     if (modal) {
       modal.remove();
       return;

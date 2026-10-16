@@ -13,6 +13,7 @@ import { TIERS as SEASON_TIERS, TIER_XP, freeReward, premiumReward, isPremium, s
 import { PRODUCTS } from '../meta/products';
 import { TUNING } from '../meta/tuning';
 import { priceOf, storeAvailable } from '../platform/iap';
+import { isNative } from '../platform/platform';
 import { portrait } from '../render/portraits';
 import type { CardResult } from '../meta/fighters';
 import type { PackResult } from '../meta/packs';
@@ -369,7 +370,7 @@ export function packsScreen(ctx: MenuCtx, ui: HTMLElement): HTMLElement {
   // the free daily pack
   if (g.freePackAvailable()) {
     const fp = h('div', 'pack');
-    fp.innerHTML = `<h3>Free pack</h3><div class="art">🎁</div><div class="muted" style="font-size:12px">One Standard Pack a day</div><button class="btn" data-a="free">Watch ad: free pack</button>`;
+    fp.innerHTML = `<h3>Free pack</h3><div class="art">🎁</div><div class="muted" style="font-size:12px">One Standard Pack a day</div><button class="btn" data-a="free">${isNative ? 'Watch ad: free pack' : 'Claim free pack'}</button>`;
     on(fp.querySelector('[data-a=free]'), () =>
       void g.claimFreePack().then(ok => {
         ctx.toast(ok ? 'Free Standard Pack added' : 'No ad available right now');

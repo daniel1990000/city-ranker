@@ -35,7 +35,7 @@ async function main(): Promise<void> {
   });
   window.__ckStarted = true;
   document.getElementById('boot')?.classList.add('gone');
-  void startServices(app.game, () => app.backButton(), (c, l) => app.askCloudRestore(c, l));
+  void startServices(app.game, app.serviceHooks());
 }
 
 main().catch(e => {
