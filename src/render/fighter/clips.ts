@@ -134,7 +134,8 @@ const bodyOut = st({
   chest: rot(S.chest, [14, -26, -12]),
   head: rot(S.head, [-10, 18, 0]),
   handL: L([0.0, 1.06, 0.5], [1, 0.25, -0.3]),
-  handR: L([-0.04, 1.34, 0.22], ELBOW_R()),
+  // the rear glove stays on the (lowered) cheek
+  handR: L([-0.1, 1.22, 0.3], ELBOW_R()),
   wristL: 10,
 });
 const bodyShot = once([[0, S], [0.47, bodyOut], [0.6, bodyOut], [1, S]], 0.47);

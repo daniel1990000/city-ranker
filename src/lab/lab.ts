@@ -91,6 +91,7 @@ async function single(): Promise<void> {
   };
   (window as unknown as { labBones: (names: string[]) => Record<string, number[]> }).labBones = names =>
     Object.fromEntries(names.map(n => [n, (f.rig.get(n)?.wp.toArray() ?? []).map(v => Math.round(v * 1000) / 1000)]));
+  (window as unknown as { labClip: (a: ActionId) => number }).labClip = a => CLIPS[a].impact ?? 0.5;
   (window as unknown as { labCam: (p: number[], t: number[]) => void }).labCam = (p, t) => {
     cam.position.set(p[0], p[1], p[2]);
     cam.lookAt(t[0], t[1], t[2]);

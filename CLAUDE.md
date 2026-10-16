@@ -38,10 +38,13 @@ OUT=/tmp/q/balance.md RUNS=30 npx vitest run --config /dev/null scripts/qa/fight
 OUT=/tmp/q/econ.md npx vitest run --config /dev/null scripts/qa/econ-sim.test.ts
 ./tools/fighters/build.sh   # rebuild the fighter bodies (Blender 4.2 + MPFB, downloads CC0 assets to .cache)
 python3 tools/icons.py      # launcher icons, splash screens, feature graphic
+node scripts/store.mjs      # Play Store screenshots into docs/store (needs the dev server on :5173)
 ```
 - Browser QA: `npx vite --port 5173` then Playwright with Chromium at `/opt/pw-browsers/chromium` (launch args
   `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`). Software rendering is slow: use the QA hooks
   `window.cageKings.qaSpeed(30)` and `qaAutoplay(true)` to finish fights, `qaNav({s:'packs'})`, `qaGround('mount')`.
+  The fighter lab (`lab.html?single&nopole`) has `labSet(action, u)`, `labCam(pos, target)`, `labBones(names)` and
+  `labClip(action)` for checking poses from any angle.
   Throwaway scripts go in `scripts/qa/_tmp_*` and are deleted before finishing. Kill processes by PID.
 
 ## Code map
