@@ -9,7 +9,7 @@ export default defineConfig(({ mode }) => {
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     ...(portal ? { 'import.meta.env.VITE_PORTAL': JSON.stringify(portal) } : {}),
-    // `vite build --mode qa` (npm run build:qa) keeps the QA hooks (window.cartHero) that the scripts in scripts/qa use;
+    // `vite build --mode qa` (npm run build:qa) keeps the QA hooks (window.cageKings) that the scripts in scripts/qa use;
     // store and portal builds never include them
     'import.meta.env.VITE_QA': JSON.stringify(mode === 'qa' ? '1' : ''),
   },
