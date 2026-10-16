@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Resources the release build's resource shrinker can't see referenced: the reminder icon is named only from
+     JavaScript (src/platform/notify.ts), so without this it is removed and reminders show a generic icon. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_icon_config_sample" />

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto Backup (Android 11 and older): keep the game's save (WebView local storage) and Capacitor preferences. -->
+<full-backup-content>
+    <include domain="root" path="app_webview/Default/Local Storage" />
+    <include domain="sharedpref" path="." />
+</full-backup-content>

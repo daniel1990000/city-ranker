@@ -1,0 +1,12 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cage Kings</string>
+    <string name="title_activity_main">Cage Kings</string>
+    <string name="package_name">com.danielspurr.cagekings</string>
+    <string name="custom_url_scheme">com.danielspurr.cagekings</string>
+    <!-- Google's official AdMob TEST app id. Replace with your own before release (see docs/RELEASE.md). -->
+    <string name="admob_app_id">ca-app-pub-3940256099942544~3347511713</string>
+    <!-- Play Games Services project id (digits only, Play Console > Play Games Services > Configuration).
+         Empty = Play Games stays off (leaderboards, achievements and cloud save are hidden). See docs/RELEASE.md. -->
+    <string name="game_services_project_id" translatable="false"></string>
+</resources>

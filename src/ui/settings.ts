@@ -3,8 +3,8 @@ import type { Game } from '../app/game';
 import { exportCode, importCode } from '../meta/save';
 import { openExternal } from '../platform/platform';
 import { setTelemetryAllowed } from '../platform/telemetry';
+import { CONFIG } from '../platform/config';
 
-const PRIVACY_URL = 'https://danielspurr.com/cagekings/privacy.html';
 
 export function buildSettings(game: Game, toast: (m: string) => void): HTMLElement {
   const s = game.save.settings;
@@ -92,7 +92,7 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
     game.persist(true);
     toast('Progress loaded');
   }));
-  row('Privacy policy', button('Open', () => openExternal(PRIVACY_URL)));
+  row('Privacy policy', button('Open', () => openExternal(CONFIG.privacyUrl)));
   const ver = document.createElement('div');
   ver.className = 'muted';
   ver.style.cssText = 'font-size:11px;margin-top:10px';
