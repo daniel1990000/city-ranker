@@ -8,6 +8,9 @@ import { lookFromSeed } from './render/fighter/look';
 import { loadFighterBodies } from './render/fighter/fighterView';
 import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { generateName } from './meta/names';
+import { stepFight } from './game/fight';
+import { NO_INPUT } from './game/fight/types';
+import { __test as simTest } from './game/fight/sim';
 
 const ARCHETYPES: Archetype[] = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'];
 const BASE: Record<Archetype, FighterStats> = {
@@ -234,6 +237,19 @@ export class App {
     if (this.attract) this.attract.speed = x;
   }
   private qaSpeedValue = 1;
+
+  /** QA hook: put the live fight into a ground position (pos) or a submission. */
+  qaGround(pos: 'guard' | 'mount', top: 0 | 1 = 0, sub?: 'armbar' | 'choke'): void {
+    const f = this.session?.fight ?? this.attract?.fight;
+    if (!f) return;
+    while (f.state.phase === 'intro') stepFight(f, [{ ...NO_INPUT }, { ...NO_INPUT }]);
+    simTest.enterGround(f, top, pos);
+    if (sub && f.state.ground) {
+      f.state.ground.sub = { atk: top, kind: sub, progress: 5000, tick: 0 };
+      f.state.fighters[top].action = sub === 'armbar' ? 'subArmbarAtk' : 'subChokeAtk';
+      f.state.fighters[top === 0 ? 1 : 0].action = sub === 'armbar' ? 'subArmbarDef' : 'subChokeDef';
+    }
+  }
 
   debugState(): unknown {
     return { screen: this.screen, fight: this.session?.fight.state ?? null };
