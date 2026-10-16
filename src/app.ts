@@ -19,6 +19,9 @@ import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, pac
 import { buildSettings } from './ui/settings';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
+import { priceOf, storeAvailable } from './platform/iap';
+import { PRODUCTS } from './meta/products';
+import { TUNING } from './meta/tuning';
 import { showBoards } from './platform/games';
 import { cloudSync, type ServiceHooks } from './app/services';
 import { haptic, isNative, keepAwake, requestReview } from './platform/platform';
@@ -190,6 +193,7 @@ export class App {
   private back(): void {
     this.route = this.history.pop() ?? { s: 'hub' };
     this.render();
+    this.maybeOffer();
   }
 
   private render(): void {
@@ -370,6 +374,31 @@ export class App {
     keepAwake(false);
     await this.startAttract();
     this.render();
+  }
+
+  /** Coming back to the home screen from another menu: the Starter Pack offer may show (once a day at most). */
+  private maybeOffer(): void {
+    if (this.route.s === 'hub' && !this.session && !this.ui.querySelector('.modal-back') && this.game.starterOfferDue(storeAvailable())) this.showStarterOffer();
+  }
+
+  /** The Starter Pack offer card (once a day at most, never in a fight). */
+  private showStarterOffer(): void {
+    const p = document.createElement('div');
+    p.className = 'modal-back';
+    const price = priceOf(PRODUCTS.starter) ?? '';
+    p.innerHTML = `<div class="modal panel"><h2>Starter Pack</h2><p class="muted">One time only</p>
+      <ul style="text-align:left;margin:6px 0 12px"><li>No more ad breaks</li><li>This month's Season Pass</li><li>${TUNING.starterGems} gems and ${TUNING.starterCash.toLocaleString('en-US')} cash</li></ul>
+      <div class="row"><button class="btn" data-a="buy">${price || 'Buy'}</button><button class="btn ghost" data-a="no">Not now</button></div></div>`;
+    p.querySelector('[data-a=no]')?.addEventListener('click', () => p.remove());
+    p.querySelector('[data-a=buy]')?.addEventListener('click', () => {
+      p.remove();
+      void this.game.buyProduct(PRODUCTS.starter).then(r => {
+        if (r === 'purchased') sound.play('buy');
+        this.toast(r === 'purchased' ? 'Thank you! Your purchase is ready.' : r === 'pending' ? 'Payment pending: it arrives when Google Play confirms it.' : r === 'cancelled' ? 'Purchase cancelled' : 'The purchase did not go through');
+        this.render();
+      });
+    });
+    this.ui.appendChild(p);
   }
 
   private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null): void {

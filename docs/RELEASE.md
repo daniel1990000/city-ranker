@@ -33,7 +33,8 @@ What is in it:
 - **Phone behaviour**: the fight pauses when the app is switched away or a call comes in, the screen stays on during
   fights, vibration on knockdowns and big hits, Google Play's review card once after a title or the 5th win, a
   "Privacy options" button where the ad consent rules require it, a warning when the phone's storage is full, and
-  low graphics after a graphics crash.
+  low graphics after a graphics crash. The Starter Pack offer pops up at most once a day on the home screen, from
+  the 4th fight on, only while it can be bought.
 - **Sound**: synthesised hits, blocks, whooshes, bell, crowd that follows the action, menu and pack sounds.
 
 ## Known gaps (next)

@@ -51,4 +51,16 @@ describe('Game', () => {
     expect(g.save.seasonPass).toBe('');
     expect(g.save.settings.music).toBe(0.5);
   });
+
+  it('offers the Starter Pack by itself at most once a day, after 3 fights, only when it can be bought', () => {
+    const g = new Game();
+    expect(g.starterOfferDue(true)).toBe(false);
+    g.save.fights = 3;
+    expect(g.starterOfferDue(false)).toBe(false);
+    expect(g.starterOfferDue(true)).toBe(true);
+    expect(g.starterOfferDue(true)).toBe(false);
+    g.save.offerDay = -1;
+    g.save.flags.starterPack = true;
+    expect(g.starterOfferDue(true)).toBe(false);
+  });
 });

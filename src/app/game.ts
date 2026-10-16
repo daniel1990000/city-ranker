@@ -289,6 +289,18 @@ export class Game {
     return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before };
   }
 
+  /**
+   * Show the Starter Pack offer by itself? At most once a day, after the player has had a few fights, only while it
+   * can be bought and isn't owned. Marks today as shown when it says yes.
+   */
+  starterOfferDue(storeOpen: boolean): boolean {
+    const today = dayNumber(rewardTime());
+    if (!storeOpen || this.save.flags.starterPack || this.save.fights < 3 || this.save.offerDay >= today) return false;
+    this.save.offerDay = today;
+    this.persist();
+    return true;
+  }
+
   /** "Watch ad: double cash" after a fight. */
   async doubleCash(amount: number): Promise<boolean> {
     if (!(await this.rewarded('double'))) return false;
