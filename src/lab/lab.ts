@@ -5,7 +5,9 @@
 import * as THREE from 'three';
 import { createFighterView } from '../render/fighter/fighterView';
 import { lookFromSeed } from '../render/fighter/look';
-import { RELAXED, STANCE } from '../render/fighter/poses';
+import { mixPose, RELAXED, STANCE } from '../render/fighter/poses';
+import { CLIPS, sampleClip } from '../render/fighter/clips';
+import type { ActionId } from '../game/fight/types';
 import type { DivisionId, LookHints } from '../game/fight/types';
 
 const params = new URLSearchParams(location.search);
@@ -50,7 +52,49 @@ const hints: [LookHints, DivisionId][] = [
   [{ sex: 'm', skin: 'tan', build: 'lean', beard: true, tattoos: true }, 'mWelter'],
 ];
 
+async function sheet(list: string): Promise<void> {
+  // one fighter per clip, frozen at the clip's impact (or at ?u=), seen from the side, 6 per row
+  const ids = list.split(',') as ActionId[];
+  const look = lookFromSeed(seed0, { sex: params.get('sex') === 'f' ? 'f' : 'm', skin: 'tan', build: 'athletic' }, 'mWelter');
+  const cols = 6;
+  for (let i = 0; i < ids.length; i++) {
+    const clip = CLIPS[ids[i]];
+    const u = params.has('u') ? Number(params.get('u')) : clip.impact ?? 0.5;
+    const f = await createFighterView(look);
+    f.pose(sampleClip(clip, u, { ...STANCE }, mixPose));
+    f.root.position.set((i % cols) * 1.6 - (cols - 1) * 0.8, 0, -Math.floor(i / cols) * 2.4);
+    f.root.rotation.y = Math.PI / 2;
+    scene.add(f.root);
+  }
+  const rows = Math.ceil(ids.length / cols);
+  cam.position.set(0, 1.4 + rows * 0.9, 9 + rows * 1.2);
+  cam.lookAt(0, 0.6, -(rows - 1) * 1.2);
+  cam.fov = 38;
+  cam.updateProjectionMatrix();
+  (window as unknown as { labReady: boolean }).labReady = true;
+}
+
+/** One fighter seen from the side; window.labSet(action, u) poses it (scripts/qa contact sheets drive this). */
+async function single(): Promise<void> {
+  const look = lookFromSeed(seed0, { sex: params.get('sex') === 'f' ? 'f' : 'm', skin: 'tan', build: 'athletic' }, 'mWelter');
+  const f = await createFighterView(look);
+  f.root.rotation.y = Math.PI / 2;
+  scene.add(f.root);
+  // a stand-in opponent target (a dim pole at head height, 1.0 m away) to judge reach
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.75, 12), new THREE.MeshStandardMaterial({ color: 0x334455, transparent: true, opacity: 0.35 }));
+  pole.position.set(params.has('ground') ? 0 : 1.05, 0.875, 0);
+  if (!params.has('nopole')) scene.add(pole);
+  cam.position.set(0.4, 1.0, 4.2);
+  cam.lookAt(0.4, 0.85, 0);
+  (window as unknown as { labSet: (a: ActionId, u: number) => void }).labSet = (a, u) => {
+    f.pose(sampleClip(CLIPS[a], u, { ...STANCE }, mixPose));
+  };
+  (window as unknown as { labReady: boolean }).labReady = true;
+}
+
 async function main(): Promise<void> {
+  if (params.has('single')) return single();
+  if (params.has('sheet')) return sheet(params.get('sheet') as string);
   const spacing = 1.0;
   for (let i = 0; i < n; i++) {
     const [h, d] = hints[i % hints.length];

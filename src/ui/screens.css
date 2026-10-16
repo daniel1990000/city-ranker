@@ -1,0 +1,75 @@
+/* Menu screens: title, results. */
+.title-screen {
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(5, 5, 8, 0.55) 0%, rgba(5, 5, 8, 0) 30%, rgba(5, 5, 8, 0) 60%, rgba(5, 5, 8, 0.8) 100%);
+}
+.title-top {
+  text-align: center;
+  margin-top: 4vh;
+}
+.title-top .logo {
+  justify-content: center;
+  font-size: clamp(44px, 14vh, 96px);
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 0, 0, 0.7);
+}
+.title-top .tag {
+  font-family: var(--display);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-size: 13px;
+  margin-top: 6px;
+}
+.title-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4vh;
+}
+.title-actions .btn {
+  font-size: 22px;
+  padding: 14px 40px;
+}
+.result-screen {
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+.result-card {
+  padding: 18px 26px 20px;
+  text-align: center;
+  min-width: min(440px, 90vw);
+}
+.result-head {
+  font-family: var(--display);
+  font-size: 44px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.result-head.win {
+  color: var(--gold-2);
+}
+.result-head.loss {
+  color: #ff5a5a;
+}
+.result-card .stats {
+  width: 100%;
+  margin: 12px 0 16px;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.result-card .stats th {
+  color: var(--muted);
+  font-weight: 500;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.result-card .stats td {
+  font-family: var(--display);
+  font-size: 20px;
+  padding: 4px 10px;
+}
+.result-card .row {
+  justify-content: center;
+}

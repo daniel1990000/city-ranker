@@ -144,8 +144,7 @@ export function makeGarmentMaterial(kind: GarmentKind, look: FighterLook, k: num
     color: base,
     roughness: kind === 'gloves' ? 0.42 : 0.78,
     metalness: 0,
-    sheen: 0,
-  } as THREE.MeshStandardMaterialParameters);
+  });
   const style = kind === 'shorts' ? ['plain', 'side', 'split', 'trim'].indexOf(look.shorts) : kind === 'gloves' ? 10 : 20;
   mat.onBeforeCompile = shader => {
     shader.uniforms.uTrim = { value: new THREE.Color(look.shortsTrim) };

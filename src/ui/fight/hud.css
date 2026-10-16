@@ -1,0 +1,313 @@
+/* Fight HUD: broadcast-style name plates, meters, round clock, banners and prompts. Everything animates with
+   transform/opacity only; numbers update only when they change. */
+
+.hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--display);
+  color: var(--text);
+  z-index: 10;
+}
+.hud .plate {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  width: min(34vw, 320px);
+  padding: 6px 10px 8px;
+  background: linear-gradient(180deg, rgba(14, 14, 20, 0.86), rgba(8, 8, 12, 0.7));
+  border-top: 3px solid var(--red);
+  clip-path: polygon(0 0, 100% 0, 94% 100%, 0 100%);
+}
+.hud .plate.left {
+  left: calc(10px + var(--safe-l));
+}
+.hud .plate.right {
+  right: calc(58px + var(--safe-r));
+  border-top-color: var(--blue);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 6% 100%);
+  text-align: right;
+}
+.hud .name {
+  font-size: clamp(14px, 4.2vh, 21px);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud .nick {
+  font-family: var(--ui);
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: -2px;
+  white-space: nowrap;
+}
+.hud .bars {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 5px;
+}
+.hud .right .bars {
+  flex-direction: row-reverse;
+}
+.hud .meter {
+  position: relative;
+  flex: 1;
+  height: 9px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  border-radius: 1px;
+}
+.hud .meter i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #1d8fd6, var(--stamina));
+}
+.hud .right .meter i {
+  transform-origin: right center;
+}
+.hud .meter.cap b {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  background: repeating-linear-gradient(45deg, rgba(255, 60, 60, 0.35) 0 3px, transparent 3px 6px);
+  transform-origin: right center;
+}
+.hud .right .meter.cap b {
+  left: 0;
+  right: auto;
+  transform-origin: left center;
+}
+.hud .meter.special {
+  height: 5px;
+  margin-top: 4px;
+}
+.hud .meter.special i {
+  background: linear-gradient(90deg, #c77a12, var(--special));
+}
+.hud .meter.special.ready i {
+  animation: specialGlow 0.6s infinite alternate;
+}
+@keyframes specialGlow {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.8);
+  }
+}
+.hud .body {
+  width: 22px;
+  height: 34px;
+  flex: none;
+  position: relative;
+}
+.hud .body span {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #3a3f4a;
+  border-radius: 3px;
+  transition: background 0.3s;
+}
+.hud .body .h {
+  top: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.hud .body .b {
+  top: 11px;
+  width: 14px;
+  height: 11px;
+}
+.hud .body .l {
+  top: 24px;
+  width: 12px;
+  height: 10px;
+}
+.hud .gassed {
+  font-family: var(--ui);
+  font-size: 10px;
+  font-weight: 700;
+  color: #ff8a3a;
+  letter-spacing: 0.08em;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.hud .gassed.on {
+  opacity: 1;
+}
+.hud .clock {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 92px;
+  text-align: center;
+  background: rgba(8, 8, 12, 0.86);
+  padding: 4px 12px 5px;
+  border-bottom: 2px solid var(--gold);
+}
+.hud .clock .rd {
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+}
+.hud .clock .t {
+  font-size: clamp(18px, 5vh, 26px);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.hud .banner {
+  position: absolute;
+  top: 34%;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: clamp(38px, 15vh, 92px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.55), 0 0 28px rgba(0, 0, 0, 0.8);
+  opacity: 0;
+  transform: scale(1.4);
+}
+.hud .banner small {
+  display: block;
+  font-size: 0.32em;
+  letter-spacing: 0.1em;
+  color: var(--gold-2);
+  margin-top: 4px;
+}
+.hud .banner.show {
+  animation: banner 1.6s forwards;
+}
+.hud .banner.hold {
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+.hud .banner.red {
+  color: #ff4a4a;
+}
+.hud .banner.gold {
+  color: var(--gold-2);
+}
+@keyframes banner {
+  0% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+.hud .pop {
+  position: absolute;
+  font-size: clamp(16px, 5vh, 26px);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  text-shadow: 0 2px 0 #000;
+  animation: pop 0.9s forwards;
+  white-space: nowrap;
+}
+@keyframes pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.8);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1.08);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -24px) scale(1);
+  }
+}
+.hud .prompt {
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  display: none;
+}
+.hud .prompt.on {
+  display: block;
+}
+.hud .prompt .label {
+  font-size: clamp(22px, 7vh, 40px);
+  font-weight: 700;
+  text-transform: uppercase;
+  text-shadow: 0 3px 0 #000;
+}
+.hud .prompt .arrow {
+  width: clamp(70px, 22vh, 120px);
+  height: clamp(70px, 22vh, 120px);
+  margin: 0 auto 6px;
+  border-radius: 50%;
+  background: rgba(212, 166, 74, 0.18);
+  border: 3px solid var(--gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(40px, 13vh, 72px);
+  line-height: 1;
+  color: var(--gold-2);
+}
+.hud .prompt .timer {
+  height: 5px;
+  width: 180px;
+  margin: 8px auto 0;
+  background: rgba(255, 255, 255, 0.14);
+}
+.hud .prompt .timer i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left center;
+}
+.hud .tug {
+  width: min(56vw, 420px);
+  height: 16px;
+  margin: 10px auto 0;
+  background: #2b2f3a;
+  position: relative;
+  border: 1px solid #000;
+}
+.hud .tug i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(90deg, var(--red), #ff7a5a);
+  transform-origin: left center;
+}
+.hud .tug b {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  width: 3px;
+  background: #fff;
+  left: 0;
+}

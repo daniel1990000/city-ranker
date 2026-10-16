@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0b0f" />
+    <meta name="description" content="Cage Kings: a hard-hitting 3D MMA fighting game with realistic fighters. Strike, sprawl, scramble and submit your way from the amateur ranks to world champion." />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <title>Cage Kings</title>
+  </head>
+  <body>
+    <canvas id="game"></canvas>
+    <div id="ui"></div>
+    <div id="rotate"><div><b>Turn your phone sideways</b><span>Cage Kings plays in landscape</span></div></div>
+    <div id="boot">
+      <div class="logo">Cage <b>Kings</b></div>
+      <div class="boot-bar"><i></i></div>
+    </div>
+    <script>
+      // Safety net for very old WebViews without WebGL 2: say what to do instead of a frozen logo.
+      setTimeout(function () {
+        if (window.__ckStarted || window.__ckBootError) return;
+        var b = document.getElementById('boot');
+        if (b) b.innerHTML = '<div class="logo">Cage <b>Kings</b></div><p style="text-align:center;max-width:26rem;margin:1rem auto;color:#fff;font-family:sans-serif">The game could not start on this device. Update <b>Android System WebView</b> and <b>Chrome</b> from the Play Store, then open the game again.</p>';
+        try { window.Capacitor && window.Capacitor.Plugins.SplashScreen.hide(); } catch (e) {}
+      }, 25000);
+    </script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

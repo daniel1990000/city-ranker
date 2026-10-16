@@ -53,7 +53,14 @@ export const RELAXED: Pose = {
 export function mixPose(a: Pose, b: Pose, t: number, out?: Pose): Pose {
   const m = (x: number, y: number) => x + (y - x) * t;
   const v = (x: V3, y: V3): V3 => [m(x[0], y[0]), m(x[1], y[1]), m(x[2], y[2])];
-  const r = (x: Rot, y: Rot): Rot => [m(x[0], y[0]), m(x[1], y[1]), m(x[2], y[2])];
+  // angles take the short way round (a spin that ends at -392 blends into a stance at -32 without unwinding)
+  const ma = (x: number, y: number) => {
+    let d = (y - x) % 360;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return x + d * t;
+  };
+  const r = (x: Rot, y: Rot): Rot => [ma(x[0], y[0]), ma(x[1], y[1]), ma(x[2], y[2])];
   const lt = (x: LimbTarget, y: LimbTarget): LimbTarget => ({ p: v(x.p, y.p), pole: v(x.pole, y.pole) });
   const o: Pose = {
     hip: v(a.hip, b.hip),

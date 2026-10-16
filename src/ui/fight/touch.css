@@ -1,0 +1,142 @@
+/* On-screen fight controls. The whole layer catches pointers; the drawn buttons sit where the recogniser's zones are. */
+
+.touch {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  touch-action: none;
+}
+.touch .tbtn {
+  position: absolute;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.05));
+  border: 2px solid rgba(255, 255, 255, 0.28);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+  transition: transform 0.06s, background 0.1s;
+}
+.touch .tbtn.down {
+  transform: scale(0.92);
+  background: rgba(212, 166, 74, 0.35);
+  border-color: var(--gold);
+}
+.touch .tbtn.kick {
+  border-color: rgba(54, 195, 255, 0.55);
+}
+.touch .tbtn.shoot.sprawl {
+  border-color: #ff4a4a;
+  background: rgba(255, 60, 60, 0.3);
+  animation: pulse 0.35s infinite alternate;
+}
+.touch .tbtn.special {
+  opacity: 0.35;
+}
+.touch .tbtn.special.ready {
+  opacity: 1;
+  color: #111;
+  background: radial-gradient(circle at 50% 35%, #ffe08a, #e09a14);
+  border-color: #fff2c0;
+  box-shadow: 0 0 18px rgba(255, 182, 39, 0.75);
+  animation: pulse 0.5s infinite alternate;
+}
+@keyframes pulse {
+  from {
+    filter: brightness(1);
+  }
+  to {
+    filter: brightness(1.35);
+  }
+}
+.touch .tpad {
+  position: absolute;
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.touch .tpad::before,
+.touch .tpad::after {
+  content: '‹';
+  position: absolute;
+  left: 12px;
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.4);
+}
+.touch .tpad::after {
+  content: '›';
+  left: auto;
+  right: 12px;
+}
+.touch .tpad i {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  transition: transform 0.05s;
+}
+.touch .tpause {
+  position: absolute;
+  border: 0;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.touch .tpause i {
+  width: 4px;
+  height: 15px;
+  background: #fff;
+  border-radius: 1px;
+}
+.touch[data-mode='ground'] .tbtn,
+.touch[data-mode='sub'] .tbtn,
+.touch[data-mode='ground'] .tpad,
+.touch[data-mode='sub'] .tpad {
+  opacity: 0.15;
+}
+.touch .thint {
+  position: absolute;
+  bottom: 38%;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  pointer-events: none;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  text-align: center;
+  line-height: 1.5;
+  text-shadow: 0 1px 2px #000;
+}
+.touch .thint b {
+  display: block;
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.touch .thint::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -60px;
+  bottom: -60px;
+  border-left: 1px dashed rgba(255, 255, 255, 0.2);
+}
