@@ -49,8 +49,10 @@ function rng(seed: number): () => number {
 
 const pick = <T>(r: () => number, xs: readonly T[]): T => xs[Math.floor(r() * xs.length) % xs.length];
 
-export const HAIR_M = ['short01', 'short02', 'short03', 'short04', 'afro01', 'braid01', 'bald'] as const;
-export const HAIR_F = ['ponytail01', 'braid01', 'bob01', 'short02', 'afro01', 'long01'] as const;
+// styles that read well on a fighter (the CC0 'short03', 'braid01', 'bob01' and 'afro01' meshes look like helmets or
+// break up under the game's lighting, so they are left out); 'buzz' and 'bald' are drawn on the scalp by the skin shader
+export const HAIR_M = ['short01', 'short02', 'short04', 'buzz', 'buzz', 'bald'] as const;
+export const HAIR_F = ['ponytail01', 'ponytail01', 'short02', 'long01', 'buzz'] as const;
 export const BROWS_M = ['eyebrow001', 'eyebrow004', 'eyebrow007'] as const;
 export const BROWS_F = ['eyebrow002', 'eyebrow005', 'eyebrow010'] as const;
 const EYES = ['brown', 'brown', 'brown', 'brownlight', 'blue', 'green', 'grey', 'deepblue'] as const;
@@ -108,8 +110,7 @@ export function lookFromSeed(seed: number, hints: LookHints, division: DivisionI
   for (const k of Object.keys(morphs)) morphs[k] = Math.round(Math.min(1, morphs[k]) * 100) / 100;
 
   const hairList = sex === 'm' ? HAIR_M : HAIR_F;
-  let hair: string = hints.hair && (hairList as readonly string[]).includes(hints.hair) ? hints.hair : pick(r, hairList);
-  if (race !== 'african' && hair === 'afro01' && r() < 0.7) hair = sex === 'm' ? 'short02' : 'ponytail01';
+  const hair: string = hints.hair && (hairList as readonly string[]).includes(hints.hair) ? hints.hair : pick(r, hairList);
   const colorSet = race === 'caucasian' ? pick(r, ['dark', 'brown', 'brown', 'light', 'red'] as const) : 'dark';
   const hairColor = pick(r, HAIR_COLORS[colorSet]);
   const tattoos: TattooId[] = [];

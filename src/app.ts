@@ -1,75 +1,76 @@
-// The App: renderer, main loop and screens. Screens are small classes with show()/hide(); the App owns the one
-// WebGL renderer and whichever 3D scene is live (the title attract fight, or the player's fight).
+// The App: renderer, main loop, navigation between menus and fights. The 3D backdrop of every menu is a live AI
+// sparring session in a random venue; a fight replaces it while it runs.
 
 import * as THREE from 'three';
 import { FightSession, type FightOutcome } from './app/fightSession';
-import type { Archetype, DivisionId, FighterSpec, FighterStats } from './game/fight/types';
+import { Game, type FightRewards } from './app/game';
+import { stepFight } from './game/fight';
+import { __test as simTest } from './game/fight/sim';
+import { NO_INPUT, type DivisionId, type FighterSpec } from './game/fight/types';
+import type { CareerStep } from './meta/career';
+import { DIVISION_IDS, division } from './meta/divisions';
+import { generateName } from './meta/names';
+import { baseStats, rosterOf } from './meta/roster';
 import { lookFromSeed } from './render/fighter/look';
 import { loadFighterBodies } from './render/fighter/fighterView';
+import { setPortraitRenderer } from './render/portraits';
 import { VENUE_IDS, type VenueId } from './render/arena/venues';
-import { generateName } from './meta/names';
-import { stepFight } from './game/fight';
-import { NO_INPUT } from './game/fight/types';
-import { __test as simTest } from './game/fight/sim';
+import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
+import { buildSettings } from './ui/settings';
 
-const ARCHETYPES: Archetype[] = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'];
-const BASE: Record<Archetype, FighterStats> = {
-  brawler: { power: 72, speed: 52, chin: 66, cardio: 52, striking: 62, kicking: 40, wrestling: 42, grappling: 40, submissions: 34, defense: 45 },
-  boxer: { power: 58, speed: 70, chin: 55, cardio: 60, striking: 74, kicking: 36, wrestling: 40, grappling: 38, submissions: 32, defense: 62 },
-  kicker: { power: 58, speed: 64, chin: 52, cardio: 60, striking: 52, kicking: 76, wrestling: 40, grappling: 42, submissions: 38, defense: 56 },
-  wrestler: { power: 56, speed: 56, chin: 60, cardio: 70, striking: 48, kicking: 38, wrestling: 78, grappling: 62, submissions: 46, defense: 52 },
-  grappler: { power: 50, speed: 56, chin: 58, cardio: 66, striking: 46, kicking: 42, wrestling: 66, grappling: 76, submissions: 78, defense: 50 },
-};
+const ARCHS = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'] as const;
 
-/** A quick-fight opponent or player: original name, archetype stats, a look. */
-export function quickFighter(seed: number, division: DivisionId, bonus = 0): FighterSpec {
-  const r = (n: number) => (((seed * 2654435761 + n * 40503) >>> 0) % 1000) / 1000;
-  const archetype = ARCHETYPES[Math.floor(r(1) * 5)];
-  const sex = division.startsWith('w') ? 'f' : 'm';
-  const { name, nickname } = generateName(seed, sex);
-  const stats = { ...BASE[archetype] };
-  for (const k of Object.keys(stats) as (keyof FighterStats)[]) stats[k] = Math.max(1, Math.min(100, stats[k] + bonus + Math.round((r(k.length) - 0.5) * 8)));
-  const skins = ['light', 'tan', 'brown', 'dark'] as const;
-  return {
-    id: `q${seed}`,
-    name,
-    nickname,
-    division,
-    archetype,
-    rarity: 'common',
-    stats,
-    lookSeed: seed,
-    lookHints: { sex, skin: skins[Math.floor(r(9) * 4)], beard: r(11) < 0.4, tattoos: r(12) < 0.4 },
-  };
+/** A quick-fight opponent: an original journeyman near the player's level. */
+function quickOpponent(seed: number, div: DivisionId, level: number): FighterSpec {
+  const arch = ARCHS[seed % ARCHS.length];
+  const s = baseStats(arch, 'common', div, seed);
+  for (const k of Object.keys(s) as (keyof typeof s)[]) s[k] = Math.max(1, Math.min(99, Math.round(s[k] + level)));
+  const sex = division(div).sex;
+  const n = generateName(seed, sex);
+  return { id: `qf-${seed}`, name: n.name, nickname: n.nickname, division: div, archetype: arch, rarity: 'common', stats: s, lookSeed: seed % 100000, lookHints: { sex, beard: seed % 3 === 0, tattoos: seed % 4 === 1 } };
 }
-
-type Screen = 'boot' | 'title' | 'fight' | 'result';
 
 export class App {
   readonly renderer: THREE.WebGLRenderer;
+  readonly game: Game;
   private ui: HTMLElement;
   private session: FightSession | null = null;
   private attract: FightSession | null = null;
-  private screen: Screen = 'boot';
   private last = performance.now();
-  private panel: HTMLElement | null = null;
+  private screenEl: HTMLElement | null = null;
+  private overlay: HTMLElement | null = null;
   private quality: 'low' | 'high';
-  private fightCount = 0;
+  private route: Route = { s: 'hub' };
+  private history: Route[] = [];
+  private qaSpeedValue = 1;
+  private ctx: MenuCtx;
 
   constructor(canvas: HTMLCanvasElement, ui: HTMLElement) {
     this.ui = ui;
+    this.game = new Game();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    const q = this.game.save.settings.quality;
     const lowEnd = (navigator.hardwareConcurrency ?? 4) <= 4 && Math.min(screen.width, screen.height) * devicePixelRatio < 900;
-    this.quality = lowEnd ? 'low' : 'high';
+    this.quality = q === 'low' || (q === 'auto' && lowEnd) ? 'low' : 'high';
     this.renderer.setPixelRatio(Math.min(this.quality === 'low' ? 1.5 : 2, devicePixelRatio));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.0;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    setPortraitRenderer(this.renderer);
     this.resize();
     addEventListener('resize', () => this.resize());
     this.renderer.setAnimationLoop(t => this.loop(t));
+    this.ctx = {
+      game: this.game,
+      nav: r => this.nav(r),
+      back: () => this.back(),
+      toast: m => this.toast(m),
+      startCareer: d => void this.startCareer(d),
+      startQuick: d => void this.startQuick(d),
+      settings: () => buildSettings(this.game, m => this.toast(m)),
+    };
+    this.game.onChange(() => this.refreshWallet());
   }
 
   private resize(): void {
@@ -88,22 +89,91 @@ export class App {
   }
 
   async boot(progress: (p: number) => void): Promise<void> {
-    progress(0.2);
+    progress(0.15);
     await loadFighterBodies();
-    progress(0.7);
+    progress(0.6);
     await this.startAttract();
     progress(1);
-    this.showTitle();
+    this.render();
+    const daily = dailyModal(this.ctx, () => this.render());
+    if (daily) this.ui.appendChild(daily);
   }
 
-  /** The title screen backdrop: two AI fighters sparring in a random venue. */
+  // ---- menus --------------------------------------------------------------------------------------------------------
+
+  private nav(r: Route): void {
+    // re-rendering the same screen (after an action) does not add to the history
+    if (r.s !== this.route.s) this.history.push(this.route);
+    this.route = r;
+    this.render();
+  }
+
+  private back(): void {
+    this.route = this.history.pop() ?? { s: 'hub' };
+    this.render();
+  }
+
+  private render(): void {
+    this.screenEl?.remove();
+    const r = this.route;
+    const g = this.game;
+    let el: HTMLElement;
+    switch (r.s) {
+      case 'hub':
+        el = hubScreen(this.ctx);
+        this.history = [];
+        break;
+      case 'career':
+        el = careerScreen(this.ctx, r.div ?? g.mainDivision());
+        break;
+      case 'fighters':
+        el = fightersScreen(this.ctx, r.div ?? 'all');
+        break;
+      case 'fighter':
+        el = fighterScreen(this.ctx, r.id);
+        break;
+      case 'packs':
+        el = packsScreen(this.ctx, this.ui);
+        break;
+      case 'shop':
+        el = shopScreen(this.ctx);
+        break;
+      case 'season':
+        el = seasonScreen(this.ctx);
+        break;
+      case 'settings':
+        el = settingsScreen(this.ctx);
+        break;
+    }
+    this.screenEl = el;
+    this.ui.appendChild(el);
+  }
+
+  private refreshWallet(): void {
+    const w = this.screenEl?.querySelector('.wallet');
+    if (!w) return;
+    const [c, gm] = w.querySelectorAll('span');
+    if (c) c.textContent = this.game.cash.toLocaleString('en-US');
+    if (gm) gm.textContent = this.game.gems.toLocaleString('en-US');
+  }
+
+  toast(msg: string): void {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2700);
+  }
+
+  // ---- the backdrop -----------------------------------------------------------------------------------------------
+
   private async startAttract(): Promise<void> {
     const seed = (Date.now() / 1000) | 0;
-    const div: DivisionId = (['mLight', 'mWelter', 'mMiddle', 'mHeavy', 'wBantam'] as DivisionId[])[seed % 5];
-    const a = quickFighter(seed, div, 10);
-    const b = quickFighter(seed + 1, div, 10);
+    const div = DIVISION_IDS[seed % 4];
+    const pool = rosterOf(div);
+    const a = pool[seed % pool.length];
+    const b = pool[(seed + 3) % pool.length];
     const ui = document.createElement('div');
-    ui.style.display = 'none';
     this.attract = await FightSession.start(
       {
         seed,
@@ -115,130 +185,173 @@ export class App {
         quality: this.quality,
         showHints: false,
         autoplay: true,
-        rules: { roundTicks: 60 * 60 * 10 },
+        rules: { roundTicks: 60 * 60 * 30, introTicks: 1 },
+        silent: true,
       },
       ui,
     );
+    this.attract.speed = this.qaSpeedValue;
     this.attract.resize(innerWidth, innerHeight);
   }
 
-  private clearPanel(): void {
-    this.panel?.remove();
-    this.panel = null;
+  // ---- fights ----------------------------------------------------------------------------------------------------
+
+  private async startCareer(div: DivisionId): Promise<void> {
+    const me = this.game.pickedFor(div);
+    const step = this.game.careerStep(div);
+    if (!me || !step) return;
+    const spec = this.game.spec(me.id) as FighterSpec;
+    const venue: VenueId = VENUE_IDS[Math.min(VENUE_IDS.length - 1, step.tier + (step.kind === 'title' || step.kind === 'defense' ? 1 : 0))];
+    await this.startFight(spec, step.opponent, step.seed ^ Math.imul(this.game.save.fights + 1, 2654435761), venue, step.difficulty, step.rules, step);
   }
 
-  private showTitle(): void {
-    this.screen = 'title';
-    this.clearPanel();
-    const p = document.createElement('div');
-    p.className = 'screen title-screen';
-    p.innerHTML = `
-      <div class="title-top"><div class="logo">Cage <b>Kings</b></div><div class="tag muted">Fight your way to the belt</div></div>
-      <div class="title-actions">
-        <button class="btn" data-a="fight">Quick fight</button>
-      </div>`;
-    p.querySelector<HTMLButtonElement>('[data-a=fight]')?.addEventListener('click', () => void this.startFight());
-    this.ui.appendChild(p);
-    this.panel = p;
+  private async startQuick(div: DivisionId): Promise<void> {
+    const me = this.game.pickedFor(div) ?? this.game.pickedFor(this.game.mainDivision());
+    if (!me) return;
+    const spec = this.game.spec(me.id) as FighterSpec;
+    const seed = (((Date.now() / 1000) | 0) ^ Math.imul(this.game.save.fights + 1, 7919)) >>> 0;
+    const o = this.game.save.progress.fighters.owned[me.id];
+    const opp = quickOpponent(seed, me.division, (o?.level ?? 1) / 3 - 2);
+    await this.startFight(spec, opp, seed, VENUE_IDS[seed % VENUE_IDS.length], 380 + Math.min(400, this.game.save.wins * 8), { rounds: 3, roundTicks: 75 * 60 }, null);
   }
 
-  async startFight(): Promise<void> {
-    this.clearPanel();
-    this.screen = 'fight';
-    const seed = ((Date.now() / 1000) | 0) + this.fightCount * 101;
-    this.fightCount++;
-    const div: DivisionId = 'mWelter';
-    const me = quickFighter(seed, div, 6);
-    const them = quickFighter(seed + 7, div, 4);
-    const venue: VenueId = VENUE_IDS[(seed >> 3) % VENUE_IDS.length];
+  private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null): Promise<void> {
+    this.screenEl?.remove();
+    this.screenEl = null;
+    const loading = document.createElement('div');
+    loading.className = 'modal-back';
+    loading.innerHTML = `<div class="logo" style="font-size:30px">${(me.name.split(' ').pop() ?? '').toUpperCase()} <b>vs</b> ${(opp.name.split(' ').pop() ?? '').toUpperCase()}</div>`;
+    this.ui.appendChild(loading);
     const session = await FightSession.start(
       {
-        seed,
+        seed: seed >>> 0,
         player: me,
-        opponent: them,
-        looks: [lookFromSeed(me.lookSeed, me.lookHints, div), lookFromSeed(them.lookSeed, them.lookHints, div)],
+        opponent: opp,
+        looks: [lookFromSeed(me.lookSeed, me.lookHints, me.division), lookFromSeed(opp.lookSeed, opp.lookHints, opp.division)],
         venue,
-        difficulty: 400,
+        difficulty,
+        rules,
         quality: this.quality,
-        showHints: this.fightCount <= 2,
+        showHints: this.game.save.fights < 2,
       },
       this.ui,
     );
+    loading.remove();
     session.resize(innerWidth, innerHeight);
-    session.onEnd = o => this.showResult(o);
+    session.speed = this.qaSpeedValue;
+    session.onEnd = o => this.afterFight(me, o, step);
     session.onPause = () => this.showPause();
     this.attract?.dispose();
     this.attract = null;
-    session.speed = this.qaSpeedValue;
     this.session = session;
   }
 
   private showPause(): void {
-    if (!this.session || this.panel) return;
+    if (!this.session || this.overlay) return;
     this.session.setPaused(true);
     const p = document.createElement('div');
     p.className = 'modal-back';
-    p.innerHTML = `<div class="modal panel"><h2>Paused</h2><div class="row"><button class="btn" data-a="resume">Resume</button><button class="btn ghost" data-a="quit">Quit fight</button></div></div>`;
+    p.innerHTML = `<div class="modal panel"><h2>Paused</h2><div class="row"><button class="btn" data-a="resume">Resume</button><button class="btn ghost" data-a="quit">Forfeit</button></div></div>`;
     p.querySelector('[data-a=resume]')?.addEventListener('click', () => {
-      this.clearPanel();
+      p.remove();
+      this.overlay = null;
       this.session?.setPaused(false);
     });
     p.querySelector('[data-a=quit]')?.addEventListener('click', () => {
-      this.clearPanel();
-      this.endSession();
-      void this.startAttract().then(() => this.showTitle());
+      p.remove();
+      this.overlay = null;
+      void this.leaveFight();
     });
     this.ui.appendChild(p);
-    this.panel = p;
+    this.overlay = p;
   }
 
-  private endSession(): void {
+  private async leaveFight(): Promise<void> {
     this.session?.dispose();
     this.session = null;
+    await this.startAttract();
+    this.render();
   }
 
-  private showResult(o: FightOutcome): void {
-    this.screen = 'result';
+  private afterFight(me: FighterSpec, o: FightOutcome, step: CareerStep | null): void {
+    const seconds = o.result.totalTicks / 60;
+    const rewards = this.game.finishFight(me.id, o.result, seconds, step);
+    this.showRewards(o, rewards, step);
+  }
+
+  private showRewards(o: FightOutcome, r: FightRewards, step: CareerStep | null): void {
     const won = o.result.winner === 0;
+    const t = o.totals;
     const p = document.createElement('div');
     p.className = 'screen result-screen';
-    const t = o.totals;
-    const method = o.result.method === 'DEC' ? `${o.result.decision ?? ''} decision` : o.result.method;
+    const method = o.result.method === 'DEC' ? `${o.result.decision ?? ''} decision` : o.result.method === 'SUB' ? 'submission' : o.result.method;
     p.innerHTML = `
       <div class="result-card panel">
-        <div class="result-head ${won ? 'win' : 'loss'}">${won ? 'Victory' : o.result.winner === null ? 'Draw' : 'Defeat'}</div>
-        <div class="muted">${method} · round ${o.result.round}</div>
+        <div class="result-head ${won ? 'win' : 'loss'}">${r.belt ? 'New champion!' : won ? 'Victory' : o.result.winner === null ? 'Draw' : 'Defeat'}</div>
+        <div class="muted">${method} · round ${o.result.round}${step ? ` · ${step.label}` : ''}</div>
         <table class="stats">
           <tr><td>${t.landed[0]} / ${t.thrown[0]}</td><th>Strikes landed</th><td>${t.landed[1]} / ${t.thrown[1]}</td></tr>
           <tr><td>${t.knockdowns[0]}</td><th>Knockdowns</th><td>${t.knockdowns[1]}</td></tr>
           <tr><td>${t.takedowns[0]}</td><th>Takedowns</th><td>${t.takedowns[1]}</td></tr>
         </table>
-        <div class="row"><button class="btn" data-a="again">Fight again</button><button class="btn ghost" data-a="menu">Menu</button></div>
+        <div class="row" style="justify-content:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
+          <span class="pill"><i class="ico cash"></i>+${r.cash.toLocaleString('en-US')}</span>
+          ${r.gems ? `<span class="pill"><i class="ico gem"></i>+${r.gems}</span>` : ''}
+          <span class="pill">+${r.xp} xp${r.levels ? ` · level up!` : ''}</span>
+          ${r.pack ? `<span class="pill">+1 ${r.pack} pack</span>` : ''}
+        </div>
+        <div class="row">
+          ${r.doubleOffer > 0 && this.game.rewardedReady() ? `<button class="btn ghost" data-a="double">Watch ad: +${r.doubleOffer.toLocaleString('en-US')} cash</button>` : ''}
+          <button class="btn" data-a="next">Continue</button>
+        </div>
       </div>`;
-    p.querySelector('[data-a=again]')?.addEventListener('click', () => {
-      this.clearPanel();
-      this.endSession();
-      void this.startFight();
+    p.querySelector('[data-a=double]')?.addEventListener('click', e => {
+      const b = e.currentTarget as HTMLButtonElement;
+      b.disabled = true;
+      void this.game.doubleCash(r.doubleOffer).then(ok => {
+        this.toast(ok ? `+${r.doubleOffer.toLocaleString('en-US')} cash` : 'No ad available right now');
+        if (ok) b.remove();
+        else b.disabled = false;
+      });
     });
-    p.querySelector('[data-a=menu]')?.addEventListener('click', () => {
-      this.clearPanel();
-      this.endSession();
-      void this.startAttract().then(() => this.showTitle());
+    p.querySelector('[data-a=next]')?.addEventListener('click', () => {
+      p.remove();
+      void this.adBreakThen(async () => {
+        await this.leaveFight();
+        if (r.pack) this.nav({ s: 'packs' });
+        else if (step) this.nav({ s: 'career', div: step.div });
+      });
     });
     this.ui.appendChild(p);
-    this.panel = p;
   }
 
-  /** QA hook (build:qa only). */
-  /** QA hook (build:qa only): simulation speed multiplier for the current and future fights. */
+  /** Interstitial pacing: when one is due, an "Ad break" card counts down first. */
+  private async adBreakThen(next: () => Promise<void>): Promise<void> {
+    if (!this.game.interstitialDue()) {
+      await next();
+      return;
+    }
+    const card = document.createElement('div');
+    card.className = 'modal-back';
+    card.innerHTML = `<div class="modal panel adcard"><h2>Ad break</h2><div class="count">3</div><div class="muted">Thanks for playing for free. Get No Ads in the shop.</div></div>`;
+    this.ui.appendChild(card);
+    for (let i = 3; i > 0; i--) {
+      (card.querySelector('.count') as HTMLElement).textContent = String(i);
+      await new Promise(res => setTimeout(res, 800));
+    }
+    card.remove();
+    await this.game.showInterstitial();
+    await next();
+  }
+
+  // ---- QA hooks (build:qa / dev only) --------------------------------------------------------------------------
+
   qaSpeed(x: number): void {
     this.qaSpeedValue = x;
     if (this.session) this.session.speed = x;
     if (this.attract) this.attract.speed = x;
   }
-  private qaSpeedValue = 1;
 
-  /** QA hook: put the live fight into a ground position (pos) or a submission. */
   qaGround(pos: 'guard' | 'mount', top: 0 | 1 = 0, sub?: 'armbar' | 'choke'): void {
     const f = this.session?.fight ?? this.attract?.fight;
     if (!f) return;
@@ -251,7 +364,16 @@ export class App {
     }
   }
 
+  qaNav(r: Route): void {
+    this.nav(r);
+  }
+
+  qaReveal(): void {
+    const r = this.game.openEarned('standard');
+    if (r.ok) this.ui.appendChild(revealModal(this.ctx, r.result, r.cards, () => this.render()));
+  }
+
   debugState(): unknown {
-    return { screen: this.screen, fight: this.session?.fight.state ?? null };
+    return { route: this.route, fight: this.session?.fight.state ?? null, save: this.game.save };
   }
 }

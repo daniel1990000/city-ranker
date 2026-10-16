@@ -78,7 +78,7 @@ export async function createFighterView(look: FighterLook): Promise<FighterView>
   const k = body.height / 1.747;
   const [skinMap, hairMap, browMap, eyeMap, lashMap, teethMap] = await Promise.all([
     tex(`skin_${look.race}_${look.sex}`),
-    look.hair === 'bald' ? Promise.resolve(null) : tex(`hair_${look.hair}`),
+    look.hair === 'bald' || look.hair === 'buzz' ? Promise.resolve(null) : tex(`hair_${look.hair}`),
     tex(`brow_${look.brow}`),
     tex(`eye_${look.eyes}`),
     tex('lashes'),

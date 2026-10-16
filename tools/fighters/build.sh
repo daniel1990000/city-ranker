@@ -23,5 +23,5 @@ mkdir -p "$D"
 python3 "$HERE/textures.py" "$CACHE/sysassets" "$CACHE/out" "$HERE/../../public/assets/fighters"
 # compress the bodies (meshopt; three.js decodes it with MeshoptDecoder)
 for s in m f; do
-  (cd "$HERE/../.." && npx gltfpack -i "$CACHE/out/fighter_$s.glb" -o "public/assets/fighters/fighter_$s.glb" -cc -kn -km -ke -kv -vp 14 -vtf)
+  (cd "$HERE/../.." && npx gltfpack -i "$CACHE/out/fighter_$s.glb" -o "public/assets/fighters/fighter_$s.glb" -cc -kn -km -ke -kv -vpf -vtf)
 done

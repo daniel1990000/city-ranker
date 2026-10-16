@@ -27,6 +27,8 @@ export interface FightSessionSetup {
   showHints: boolean;
   /** Let the AI fight for the player too (attract mode, QA). */
   autoplay?: boolean;
+  /** No sound (the menu backdrop). */
+  silent?: boolean;
 }
 
 export interface FightOutcome {

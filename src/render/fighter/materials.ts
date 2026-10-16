@@ -17,6 +17,8 @@ export interface SkinUniforms {
   uK: { value: number };
   uTattoo: { value: number };
   uInk: { value: THREE.Color };
+  /** Buzz-cut density on the scalp (0 = bald or a hair mesh covers it). */
+  uBuzz: { value: number };
 }
 
 const TATTOO_BITS: Record<TattooId, number> = { sleeveL: 1, sleeveR: 2, chest: 4, back: 8, ribs: 16, forearmL: 32, forearmR: 64, calf: 128 };
@@ -26,6 +28,7 @@ float ck_hash(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p
 float ck_noise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f*f*(3.0-2.0*f);
   return mix(mix(mix(ck_hash(i+vec3(0,0,0)), ck_hash(i+vec3(1,0,0)), f.x), mix(ck_hash(i+vec3(0,1,0)), ck_hash(i+vec3(1,1,0)), f.x), f.y),
              mix(mix(ck_hash(i+vec3(0,0,1)), ck_hash(i+vec3(1,0,1)), f.x), mix(ck_hash(i+vec3(0,1,1)), ck_hash(i+vec3(1,1,1)), f.x), f.y), f.z); }
+float ck_blob(vec3 p, vec3 c, float r){ return 1.0 - smoothstep(r * 0.35, r, length(p - c)); }
 float ck_box(vec3 p, vec3 lo, vec3 hi, float soft){ vec3 a = smoothstep(lo - soft, lo + soft, p) * (1.0 - smoothstep(hi - soft, hi + soft, p)); return a.x * a.y * a.z; }
 `;
 
@@ -52,6 +55,7 @@ export function makeSkinMaterial(map: THREE.Texture, look: FighterLook, k: numbe
     uK: { value: k },
     uTattoo: { value: bits },
     uInk: { value: new THREE.Color(look.tattooInk) },
+    uBuzz: { value: look.hair === 'buzz' ? 0.9 : 0 },
   };
   mat.onBeforeCompile = shader => {
     Object.assign(shader.uniforms, u);
@@ -62,7 +66,7 @@ export function makeSkinMaterial(map: THREE.Texture, look: FighterLook, k: numbe
         `#include <common>
 varying vec3 vBind;
 uniform vec3 uTint; uniform float uBeard; uniform vec3 uBeardColor; uniform vec3 uDamage; uniform float uSweat;
-uniform float uK; uniform float uTattoo; uniform vec3 uInk;
+uniform float uK; uniform float uTattoo; uniform vec3 uInk; uniform float uBuzz;
 ${NOISE}
 bool ck_bit(float bits, float b){ return mod(floor(bits / b), 2.0) > 0.5; }
 float ck_tattoo(vec3 p){
@@ -88,17 +92,28 @@ float ck_tattoo(vec3 p){
 vec3 bp = vBind / uK;
 diffuseColor.rgb *= uTint;
 // stubble: lower face and jaw, in front of the ears, broken up by noise
-float jaw = ck_box(bp, vec3(-0.075, 1.515, 0.02), vec3(0.075, 1.618, 0.2), 0.012);
-float lips = ck_box(bp, vec3(-0.026, 1.567, 0.07), vec3(0.026, 1.596, 0.2), 0.004);
-float stub = jaw * (1.0 - lips) * smoothstep(0.25, 0.75, ck_noise(bp * 900.0)) * uBeard;
+float jaw = ck_box(bp, vec3(-0.075, 1.505, 0.03), vec3(0.075, 1.607, 0.2), 0.01);
+float lips = ck_box(bp, vec3(-0.026, 1.562, 0.07), vec3(0.026, 1.584, 0.2), 0.004);
+float nose = ck_box(bp, vec3(-0.02, 1.588, 0.1), vec3(0.02, 1.7, 0.2), 0.004);
+float stub = jaw * (1.0 - lips) * (1.0 - nose) * smoothstep(0.25, 0.75, ck_noise(bp * 900.0)) * uBeard;
 diffuseColor.rgb = mix(diffuseColor.rgb, uBeardColor, stub * 0.85);
+// buzz cut: the scalp above a hairline that sits higher at the front and dips behind the ears
+// (measured on the base male: chin 1.52, nose tip 1.60, brows ~1.665, top of the head 1.747; women scale onto it)
+float hairline = 1.585 + smoothstep(-0.06, 0.15, bp.z) * 0.12;
+float ears = step(0.062, abs(bp.x)) * (1.0 - smoothstep(1.655, 1.675, bp.y));
+float scalp = smoothstep(hairline - 0.004, hairline + 0.006, bp.y) * (1.0 - ears) * step(bp.y, 1.76);
+float buzz = scalp * (0.55 + 0.45 * smoothstep(0.3, 0.7, ck_noise(bp * 1100.0))) * uBuzz;
+diffuseColor.rgb = mix(diffuseColor.rgb, uBeardColor * 0.8, buzz * 0.92);
 // bruising: cheekbones and brows for head damage, ribs for body, outer thighs for legs
-float face = ck_box(vec3(abs(bp.x), bp.y, bp.z), vec3(0.018, 1.615, 0.03), vec3(0.068, 1.685, 0.2), 0.012);
+// face damage gathers where punches land: under the eyes, on the cheekbones, over the brows (one side worse)
+vec3 fp = vec3(abs(bp.x), bp.y, bp.z);
+float side = bp.x > 0.0 ? 1.0 : 0.7;
+float face = max(max(ck_blob(fp, vec3(0.034, 1.632, 0.15), 0.028), ck_blob(fp, vec3(0.055, 1.618, 0.13), 0.03)), ck_blob(fp, vec3(0.03, 1.672, 0.16), 0.022)) * side;
 float ribs = ck_box(vec3(abs(bp.x), bp.y, bp.z), vec3(0.04, 1.04, -0.05), vec3(0.17, 1.30, 0.3), 0.03);
 float thigh = ck_box(vec3(abs(bp.x), bp.y, bp.z), vec3(0.06, 0.52, -0.15), vec3(0.22, 0.88, 0.15), 0.04);
-float blot = 0.55 + 0.45 * ck_noise(bp * 60.0);
+float blot = smoothstep(0.25, 0.8, ck_noise(bp * 90.0)) * 0.6 + 0.4;
 float red = clamp(face * uDamage.x * 1.2 + ribs * uDamage.y + thigh * uDamage.z, 0.0, 1.0) * blot;
-diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.95, 0.42, 0.45), red * 0.7);
+diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.92, 0.32, 0.34), red * 0.85);
 float purple = face * smoothstep(0.55, 1.0, uDamage.x) * blot;
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.55, 0.38, 0.55), purple * 0.6);
 // ink

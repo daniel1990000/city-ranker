@@ -40,7 +40,7 @@ const DATA: Record<DivisionId, Entry[]> = {
     E('Tariq', 'Haddad', 'The Anchor', 'Amman, Jordan', 'wrestler', 'rare', 'tan', 'athletic', 'Once he has your legs, the fight goes where he wants.', { beard: true }),
     E('Owen', 'Brennan', 'Rook', 'Cork, Ireland', 'boxer', 'common', 'light', 'athletic', 'Amateur boxing stalwart learning the rest of the game fast.'),
     E('Kofi', 'Asante', '', 'Accra, Ghana', 'grappler', 'common', 'dark', 'lean', 'Patient on the mat, dangerous off his back.'),
-    E('Rafael', 'Duarte', 'Smoke', 'Porto Alegre, Brazil', 'grappler', 'common', 'tan', 'athletic', 'Grew up on the jiu-jitsu mats of southern Brazil.', { hair: 'short03' }),
+    E('Rafael', 'Duarte', 'Smoke', 'Porto Alegre, Brazil', 'grappler', 'common', 'tan', 'athletic', 'Grew up on the jiu-jitsu mats of southern Brazil.', { hair: 'buzz' }),
   ],
   mWelter: [
     E('Marcus', 'Calloway', 'The Hammer', 'Detroit, USA', 'brawler', 'legend', 'dark', 'muscular', 'Heavy hands, heavier reputation. Undefeated in three years.', { ink: true }),

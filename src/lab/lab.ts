@@ -97,8 +97,9 @@ async function main(): Promise<void> {
   if (params.has('sheet')) return sheet(params.get('sheet') as string);
   const spacing = 1.0;
   for (let i = 0; i < n; i++) {
-    const [h, d] = hints[i % hints.length];
+    const [h, d] = params.has('sexf') ? ([{ sex: 'f', skin: 'tan' }, 'wBantam'] as [LookHints, DivisionId]) : hints[i % hints.length];
     const look = lookFromSeed(seed0 + i * 7, h, d);
+    if (params.has('hairs')) look.hair = (params.get('hairs') as string).split(',')[i] ?? look.hair;
     const f = await createFighterView(look);
     f.pose(pose);
     if (params.has('plain')) f.root.traverse(o => { const m = o as THREE.Mesh; if (m.isMesh && m.geometry.attributes.position.count === 1794) { const old = m.material as THREE.MeshStandardMaterial; const v = params.get('plain'); m.material = new THREE.MeshStandardMaterial({ map: old.map, alphaTest: 0.3, side: THREE.DoubleSide, normalMap: v === 'n' ? old.normalMap : null }); } });
