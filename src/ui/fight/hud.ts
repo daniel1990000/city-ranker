@@ -240,7 +240,29 @@ export class FightHud {
     }
   }
 
+  private coachEl: HTMLElement | null = null;
+
+  /** The tutorial coach card (null hides it). */
+  coach(step: { title: string; text: string } | null, index: number, total: number, onSkip: () => void): void {
+    if (!step) {
+      this.coachEl?.remove();
+      this.coachEl = null;
+      if (index >= total) this.showBanner('Now win the fight!', '', 'gold');
+      return;
+    }
+    if (!this.coachEl) {
+      this.coachEl = el('div', 'coach', this.root.parentElement ?? document.body);
+    }
+    this.coachEl.innerHTML = `<div class="n">Lesson ${index + 1} / ${total}</div><b>${step.title}</b><div>${step.text}</div><button>Skip lesson</button>`;
+    this.coachEl.querySelector('button')?.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      onSkip();
+    });
+    if (index > 0) this.pop('Nice!', this.player);
+  }
+
   dispose(): void {
+    this.coachEl?.remove();
     this.root.remove();
   }
 }

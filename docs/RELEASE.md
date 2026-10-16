@@ -19,10 +19,11 @@ What is in it:
 - **Money and platform**: Google Play purchases (grant once, acknowledge after saving, refunds revoke), AdMob with
   the consent form first (Google test ads until the owner's ids are set), interstitial pacing behind an "Ad break"
   card, rewarded "Watch ad" offers, Play Games, opt-in analytics, remote tuning.
+- **First fight lesson**: six steps (jab, power punch, block, slip, kick, takedown) against a sparring partner, with
+  a coach card and a Skip button; then the easy opponent fights back for real.
 - **Sound**: synthesised hits, blocks, whooshes, bell, crowd that follows the action, menu and pack sounds.
 
 ## Known gaps (next)
-- A guided tutorial fight for the very first fight (the touch hints show, but no step-by-step lesson yet).
 - Animation is keyframed by code; a licensed motion-capture pack (or Mixamo clips from the owner's account) would
   make it look closer to a console game. Ground and submission poses are the roughest.
 - Performance has been checked only in a software-rendered browser; a real-phone pass (mid and low end) is needed.

@@ -220,7 +220,7 @@ export class App {
     if (!me || !step) return;
     const spec = this.game.spec(me.id) as FighterSpec;
     const venue: VenueId = VENUE_IDS[Math.min(VENUE_IDS.length - 1, step.tier + (step.kind === 'title' || step.kind === 'defense' ? 1 : 0))];
-    await this.startFight(spec, step.opponent, step.seed ^ Math.imul(this.game.save.fights + 1, 2654435761), venue, step.difficulty, step.rules, step);
+    await this.startFight(spec, step.opponent, step.seed ^ Math.imul(this.game.save.fights + 1, 2654435761), venue, step.difficulty, step.rules, step, !this.game.save.flags.tutorialDone);
   }
 
   private async startQuick(div: DivisionId): Promise<void> {
@@ -233,7 +233,7 @@ export class App {
     await this.startFight(spec, opp, seed, VENUE_IDS[seed % VENUE_IDS.length], 380 + Math.min(400, this.game.save.wins * 8), { rounds: 3, roundTicks: 75 * 60 }, null);
   }
 
-  private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null): Promise<void> {
+  private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null, tutorial = false): Promise<void> {
     this.screenEl?.remove();
     this.screenEl = null;
     const loading = document.createElement('div');
@@ -251,9 +251,14 @@ export class App {
         rules,
         quality: this.quality,
         showHints: this.game.save.fights < 2,
+        tutorial,
       },
       this.ui,
     );
+    session.onTutorialDone = () => {
+      this.game.save.flags.tutorialDone = true;
+      this.game.persist();
+    };
     loading.remove();
     session.resize(innerWidth, innerHeight);
     session.speed = this.qaSpeedValue;

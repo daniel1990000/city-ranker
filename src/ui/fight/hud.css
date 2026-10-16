@@ -288,7 +288,7 @@
   transform-origin: left center;
 }
 .hud .tug {
-  width: min(56vw, 420px);
+  width: min(48vw, 400px);
   height: 16px;
   margin: 10px auto 0;
   background: #2b2f3a;
@@ -310,4 +310,46 @@
   width: 3px;
   background: #fff;
   left: 0;
+}
+.coach {
+  position: fixed;
+  bottom: calc(10px + var(--safe-b));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 16;
+  width: min(48vw, 400px);
+  padding: 6px 12px 8px;
+  border-radius: 10px;
+  background: rgba(8, 8, 12, 0.88);
+  border: 1px solid var(--gold);
+  text-align: center;
+  font-size: 13px;
+  color: var(--text);
+  pointer-events: none;
+}
+.coach .n {
+  font-family: var(--display);
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.coach b {
+  display: block;
+  font-family: var(--display);
+  font-size: 18px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.coach button {
+  pointer-events: auto;
+  margin-top: 4px;
+  border: 0;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 11px;
+  cursor: pointer;
 }

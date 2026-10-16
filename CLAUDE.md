@@ -79,6 +79,6 @@ python3 tools/icons.py      # launcher icons, splash screens, feature graphic
 ## Status (16 October 2026, version 0.1.0)
 - Built: fight engine + AI + replays (tested, balanced), realistic generated fighters with IK animation, six venues,
   broadcast camera, HUD + touch controls, full menus (hub, career, fighters, training, packs with odds/pity/reveal,
-  shop, season, settings), economy (simulated), synthesised sound, platform services, Android project, CI.
-- Next (see `docs/RELEASE.md` "Known gaps"): tutorial fight, motion-captured animation upgrade, women's ground poses
+  shop, season, settings), first-fight lesson (`src/app/tutorial.ts`), economy (simulated), synthesised sound, platform services, Android project, CI.
+- Next (see `docs/RELEASE.md` "Known gaps"): motion-captured animation upgrade, women's ground poses
   polish, real-phone performance pass, store listing assets, closed test.

@@ -13,6 +13,7 @@ import { FightScene } from '../render/fightScene';
 import type { FighterLook } from '../render/fighter/look';
 import { FightHud } from '../ui/fight/hud';
 import { TouchOverlay } from '../ui/fight/touchOverlay';
+import { STEPS, Tutorial } from './tutorial';
 
 export interface FightSessionSetup {
   seed: number;
@@ -29,6 +30,8 @@ export interface FightSessionSetup {
   autoplay?: boolean;
   /** No sound (the menu backdrop). */
   silent?: boolean;
+  /** The first fight's guided lesson. */
+  tutorial?: boolean;
 }
 
 export interface FightOutcome {
@@ -58,6 +61,9 @@ export class FightSession {
   onEvents: ((e: FightEvent[], crowd: number) => void) | null = null;
   onEnd: ((o: FightOutcome) => void) | null = null;
   onPause: (() => void) | null = null;
+  /** The lesson finished or was skipped. */
+  onTutorialDone: (() => void) | null = null;
+  private tutorial: Tutorial | null = null;
 
   private constructor(readonly setup: FightSessionSetup) {
     this.fight = createFight({ seed: setup.seed, a: setup.player, b: setup.opponent, rules: setup.rules });
@@ -76,7 +82,17 @@ export class FightSession {
       quality: setup.quality,
     });
     s.hud = new FightHud(ui, [setup.player, setup.opponent]);
-    s.overlay = new TouchOverlay(ui, () => s.onPause?.(), setup.showHints);
+    s.overlay = new TouchOverlay(ui, () => s.onPause?.(), setup.showHints && !setup.tutorial);
+    if (setup.tutorial) {
+      const t = new Tutorial(setup.seed ^ 0x7777);
+      s.tutorial = t;
+      s.ai = t;
+      t.onStep = (step, i) => {
+        s.hud.coach(step, i, STEPS.length, () => t.skip());
+        if (!step) s.onTutorialDone?.();
+      };
+      s.hud.coach(STEPS[0], 0, STEPS.length, () => t.skip());
+    }
     return s;
   }
 
@@ -128,6 +144,7 @@ export class FightSession {
       const ctx = this.context();
       let mine = this.overlay.tick(ctx);
       if (this.auto) mine = this.auto.next(viewFor(this.fight, 0), 0);
+      if (this.tutorial && this.fight.state.phase === 'fight') this.tutorial.observe(mine);
       const theirs = this.ai.next(viewFor(this.fight, 1), 1 as Side);
       const inputs: [FightInput, FightInput] = [mine, theirs];
       if (!this.ended) this.recorder.record(inputs);
