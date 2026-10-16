@@ -3,6 +3,7 @@
 import './ui/styles.css';
 import './ui/screens.css';
 import { App } from './app';
+import { startServices } from './app/services';
 
 declare global {
   interface Window {
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
   });
   window.__ckStarted = true;
   document.getElementById('boot')?.classList.add('gone');
+  void startServices(app.game, () => app.backButton());
 }
 
 main().catch(e => {

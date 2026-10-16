@@ -50,6 +50,13 @@ describe('roster', () => {
     for (const f of ROSTER) for (const v of Object.values(f.stats)) expect(v >= 1 && v <= 99).toBe(true);
   });
 
+  it('generated opponents never borrow a roster surname or nickname', () => {
+    const lasts = new Set(ROSTER.map(f => f.name.split(' ').pop()));
+    const nicks = new Set(ROSTER.map(f => f.nickname).filter(Boolean));
+    for (const l of NAME_POOLS.LAST) expect(lasts.has(l), l).toBe(false);
+    for (const n of NAME_POOLS.NICKS) expect(nicks.has(n), n).toBe(false);
+  });
+
   it('generated names are deterministic', () => {
     expect(generateName(5, 'm')).toEqual(generateName(5, 'm'));
   });

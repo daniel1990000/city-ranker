@@ -102,8 +102,8 @@ diffuseColor.rgb = mix(diffuseColor.rgb, uBeardColor, stub * 0.85);
 float hairline = 1.585 + smoothstep(-0.06, 0.15, bp.z) * 0.12;
 float ears = step(0.062, abs(bp.x)) * (1.0 - smoothstep(1.655, 1.675, bp.y));
 float scalp = smoothstep(hairline - 0.004, hairline + 0.006, bp.y) * (1.0 - ears) * step(bp.y, 1.76);
-float buzz = scalp * (0.55 + 0.45 * smoothstep(0.3, 0.7, ck_noise(bp * 1100.0))) * uBuzz;
-diffuseColor.rgb = mix(diffuseColor.rgb, uBeardColor * 0.8, buzz * 0.92);
+float buzz = scalp * (0.78 + 0.22 * ck_noise(bp * 2600.0)) * uBuzz;
+diffuseColor.rgb = mix(diffuseColor.rgb, uBeardColor * 0.7, buzz * 0.88);
 // bruising: cheekbones and brows for head damage, ribs for body, outer thighs for legs
 // face damage gathers where punches land: under the eyes, on the cheekbones, over the brows (one side worse)
 vec3 fp = vec3(abs(bp.x), bp.y, bp.z);

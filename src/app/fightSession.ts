@@ -92,6 +92,11 @@ export class FightSession {
     this.overlay.relayout();
   }
 
+  /** QA: let the AI play the player's side. */
+  setAutoplay(on: boolean): void {
+    this.auto = on ? new AIController({ difficulty: 900, seed: this.setup.seed ^ 0x777 }) : null;
+  }
+
   setPaused(p: boolean): void {
     this.paused = p;
     if (p) this.overlay.recognizer.cancelAll(performance.now());

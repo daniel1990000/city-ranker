@@ -17,6 +17,7 @@ import { setPortraitRenderer } from './render/portraits';
 import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
 import { buildSettings } from './ui/settings';
+import { sound } from './audio/sound';
 
 const ARCHS = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'] as const;
 
@@ -70,7 +71,21 @@ export class App {
       startQuick: d => void this.startQuick(d),
       settings: () => buildSettings(this.game, m => this.toast(m)),
     };
-    this.game.onChange(() => this.refreshWallet());
+    this.game.onChange(() => {
+      this.refreshWallet();
+      this.applyVolumes();
+    });
+    // every menu button clicks
+    ui.addEventListener('click', e => {
+      if ((e.target as HTMLElement).closest('button')) sound.play('click', { gain: 0.6 });
+    });
+  }
+
+  private applyVolumes(): void {
+    const s = this.game.save.settings;
+    sound.setVolume('sfx', s.sfx);
+    sound.setVolume('music', s.music);
+    sound.setVolume('crowd', s.sfx * 0.8);
   }
 
   private resize(): void {
@@ -89,7 +104,10 @@ export class App {
   }
 
   async boot(progress: (p: number) => void): Promise<void> {
-    progress(0.15);
+    progress(0.1);
+    await sound.init().catch(() => {});
+    this.applyVolumes();
+    progress(0.2);
     await loadFighterBodies();
     progress(0.6);
     await this.startAttract();
@@ -239,8 +257,13 @@ export class App {
     loading.remove();
     session.resize(innerWidth, innerHeight);
     session.speed = this.qaSpeedValue;
+    if (this.qaAuto) session.setAutoplay(true);
     session.onEnd = o => this.afterFight(me, o, step);
     session.onPause = () => this.showPause();
+    session.onEvents = (ev, crowd) => {
+      sound.onFightEvents(ev);
+      sound.setCrowd(0.25 + crowd * 0.65);
+    };
     this.attract?.dispose();
     this.attract = null;
     this.session = session;
@@ -267,6 +290,7 @@ export class App {
   }
 
   private async leaveFight(): Promise<void> {
+    sound.setCrowd(0);
     this.session?.dispose();
     this.session = null;
     await this.startAttract();
@@ -344,6 +368,20 @@ export class App {
     await next();
   }
 
+  /** Android back button: pause a fight, close a modal, go back a screen. */
+  backButton(): void {
+    if (this.session) {
+      this.showPause();
+      return;
+    }
+    const modal = this.ui.querySelector('.modal-back, .reveal');
+    if (modal) {
+      modal.remove();
+      return;
+    }
+    if (this.route.s !== 'hub') this.back();
+  }
+
   // ---- QA hooks (build:qa / dev only) --------------------------------------------------------------------------
 
   qaSpeed(x: number): void {
@@ -363,6 +401,12 @@ export class App {
       f.state.fighters[top === 0 ? 1 : 0].action = sub === 'armbar' ? 'subArmbarDef' : 'subChokeDef';
     }
   }
+
+  qaAutoplay(on: boolean): void {
+    this.qaAuto = on;
+    this.session?.setAutoplay(on);
+  }
+  private qaAuto = false;
 
   qaNav(r: Route): void {
     this.nav(r);

@@ -30,6 +30,7 @@
   padding: 14px 40px;
 }
 .result-screen {
+  z-index: 25;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.45);

@@ -16,6 +16,7 @@ import { priceOf, storeAvailable } from '../platform/iap';
 import { portrait } from '../render/portraits';
 import type { CardResult } from '../meta/fighters';
 import type { PackResult } from '../meta/packs';
+import { sound } from '../audio/sound';
 import './menus.css';
 
 export type Route =
@@ -323,6 +324,8 @@ export function fighterScreen(ctx: MenuCtx, id: string): HTMLElement {
 
 export function revealModal(ctx: MenuCtx, r: PackResult, cards: CardResult[], onClose: () => void): HTMLElement {
   const v = h('div', 'reveal');
+  const best = Math.max(...r.cards.map(c => ['common', 'rare', 'epic', 'legend'].indexOf(c.rarity)));
+  setTimeout(() => sound.play(`reveal${best}`), 250 + (r.cards.length - 1) * 450);
   v.innerHTML = `<div class="logo" style="font-size:28px">${PACKS[r.pack].name}${r.pityHit ? ' · <b>Guarantee!</b>' : ''}</div>`;
   const row = h('div', 'row');
   r.cards.forEach((c, i) => {
@@ -417,6 +420,7 @@ export function shopScreen(ctx: MenuCtx): HTMLElement {
   const price = (id: string) => priceOf(id) ?? FALLBACK_PRICE[id] ?? '';
   const buy = (id: string) =>
     void g.buyProduct(id).then(r => {
+      if (r === 'purchased') sound.play('buy');
       ctx.toast(r === 'purchased' ? 'Thank you! Your purchase is ready.' : r === 'pending' ? 'Payment pending: it arrives when Google Play confirms it.' : r === 'unavailable' ? 'Purchases work in the Android app.' : r === 'cancelled' ? 'Purchase cancelled' : 'The purchase did not go through');
       ctx.nav({ s: 'shop' });
     });

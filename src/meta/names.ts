@@ -13,14 +13,15 @@ const FIRST_F = [
   'Dara', 'Nia', 'Selin',
 ];
 const LAST = [
-  'Okafor', 'Reyes', 'Varga', 'Mensah', 'Kovac', 'Duarte', 'Nakamura', 'Brennan', 'Haddad', 'Lindqvist', 'Castillo', 'Petrov', 'Adeyemi', 'Moreau', 'Sato', 'Novak', 'Quinn', 'Ferreira', 'Halloran', 'Osei', 'Marin',
-  'Kowalski', 'Tanaka', 'Rossi', 'Abara', 'Vance', 'Delgado', 'Karim', 'Sorensen', 'Achebe', 'Lozano', 'Mwangi', 'Barros', 'Keane', 'Takeda', 'Nwosu', 'Arroyo', 'Fitzgerald', 'Bakr', 'Oduya', 'Serrano',
-  'Kaplan', 'Dragan', 'Asante', 'Mercer', 'Calloway', 'Sandoval', 'Orlov', 'Ikeda', 'Byrne', 'Tavares',
+  'Varga', 'Sato', 'Tanaka', 'Keane', 'Sandoval', 'Brandt', 'Ochieng', 'Kurtz', 'Salazar', 'Hendry', 'Akande',
+  'Vasquez', 'Lindgren', 'Moretti', 'Okoye', 'Farrow', 'Bianchi', 'Dimitrov', 'Nakagawa', 'Ellison', 'Garrido',
+  'Sorrell', 'Toivonen', 'Mbatha', 'Pryce', 'Valdez', 'Kerr', 'Abubakar', 'Lund', 'Navarro', 'Hale', 'Szabo', 'Obi',
+  'Renner', 'Cortez',
 ];
 const NICKS = [
-  'The Hammer', 'Iron', 'Lights Down', 'The Viper', 'Stone', 'The Surgeon', 'Wildfire', 'The Anchor', 'Ghost', 'Steamroller',
-  'The Tide', 'Razor', 'Bulldozer', 'The Professor', 'Thunder', 'The Shadow', 'Grizzly', 'Silk', 'The Wall', 'Cyclone',
-  'Mad Dog', 'The Chemist', 'Atlas', 'The Butcher', 'Smoke', 'The Python', 'Rhino', 'Quicksilver', 'The Summit', 'Rook',
+  'Iron', 'Lights Down', 'The Surgeon', 'Ghost', 'The Shadow', 'Mad Dog', 'The Python', 'The Summit', 'Ironside',
+  'The Locksmith', 'Hammerhand', 'Sidewinder', 'The Ox', 'Blackout', 'Jackal', 'The Mule', 'Tempest', 'Brick',
+  'The Fox', 'Sledge', 'Cobra Kid', 'Nightshift', 'Bastion', 'Maverick',
 ];
 
 function rng(seed: number): () => number {
