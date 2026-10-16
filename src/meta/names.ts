@@ -10,19 +10,17 @@ const FIRST_M = [
 const FIRST_F = [
   'Maya', 'Lena', 'Ines', 'Amara', 'Sofia', 'Yuki', 'Talia', 'Nadia', 'Freya', 'Zara', 'Camila', 'Keira', 'Ayla',
   'Rosa', 'Imani', 'Hana', 'Elena', 'Leila', 'Mira', 'Jade', 'Noor', 'Thandi', 'Greta', 'Paloma', 'Sasha', 'Aoife',
-  'Valentina', 'Dara', 'Nia', 'Selin',
+  'Dara', 'Nia', 'Selin',
 ];
 const LAST = [
-  'Okafor', 'Reyes', 'Varga', 'Mensah', 'Kovac', 'Duarte', 'Nakamura', 'Brennan', 'Haddad', 'Lindqvist', 'Mbeki',
-  'Castillo', 'Petrov', 'Adeyemi', 'Moreau', 'Sato', 'Novak', 'Quinn', 'Ferreira', 'Halloran', 'Osei', 'Marin',
-  'Kowalski', 'Tanaka', 'Rossi', 'Abara', 'Vance', 'Delgado', 'Karim', 'Sorensen', 'Achebe', 'Lozano', 'Ivanov',
-  'Mwangi', 'Barros', 'Keane', 'Takeda', 'Volkov', 'Nwosu', 'Arroyo', 'Fitzgerald', 'Bakr', 'Holm', 'Oduya', 'Serrano',
-  'Kaplan', 'Ruiz', 'Dragan', 'Asante', 'Mercer', 'Calloway', 'Sandoval', 'Orlov', 'Ikeda', 'Byrne', 'Tavares',
+  'Okafor', 'Reyes', 'Varga', 'Mensah', 'Kovac', 'Duarte', 'Nakamura', 'Brennan', 'Haddad', 'Lindqvist', 'Castillo', 'Petrov', 'Adeyemi', 'Moreau', 'Sato', 'Novak', 'Quinn', 'Ferreira', 'Halloran', 'Osei', 'Marin',
+  'Kowalski', 'Tanaka', 'Rossi', 'Abara', 'Vance', 'Delgado', 'Karim', 'Sorensen', 'Achebe', 'Lozano', 'Mwangi', 'Barros', 'Keane', 'Takeda', 'Nwosu', 'Arroyo', 'Fitzgerald', 'Bakr', 'Oduya', 'Serrano',
+  'Kaplan', 'Dragan', 'Asante', 'Mercer', 'Calloway', 'Sandoval', 'Orlov', 'Ikeda', 'Byrne', 'Tavares',
 ];
 const NICKS = [
-  'The Hammer', 'Iron', 'Lights Out', 'The Viper', 'Stone', 'The Surgeon', 'Wildfire', 'The Anchor', 'Ghost', 'Steamroller',
+  'The Hammer', 'Iron', 'Lights Down', 'The Viper', 'Stone', 'The Surgeon', 'Wildfire', 'The Anchor', 'Ghost', 'Steamroller',
   'The Tide', 'Razor', 'Bulldozer', 'The Professor', 'Thunder', 'The Shadow', 'Grizzly', 'Silk', 'The Wall', 'Cyclone',
-  'Mad Dog', 'The Chemist', 'Atlas', 'The Butcher', 'Smoke', 'The Python', 'Rhino', 'Quicksilver', 'The Mountain', 'Rook',
+  'Mad Dog', 'The Chemist', 'Atlas', 'The Butcher', 'Smoke', 'The Python', 'Rhino', 'Quicksilver', 'The Summit', 'Rook',
 ];
 
 function rng(seed: number): () => number {
