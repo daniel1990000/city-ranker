@@ -13,7 +13,7 @@ import { registerProgressSlot } from './save';
 export const TIER_NAMES = ['Amateur', 'Regional', 'National', 'Contender', 'Champion'] as const;
 export const TIERS = TIER_NAMES.length;
 /** Fights per tier, the last one being the boss. */
-export const FIGHTS_PER_TIER = 6;
+export const FIGHTS_PER_TIER = 10;
 
 export interface DivisionCareer {
   /** 0..TIERS: TIERS means the title fight (or defences once `belt`). */
@@ -21,6 +21,8 @@ export interface DivisionCareer {
   fight: number;
   belt: boolean;
   defenses: number;
+  /** Times the title was won (the first win pays the big prize; winning it back after a loss pays less). */
+  titles: number;
   wins: number;
   losses: number;
   draws: number;
@@ -39,7 +41,7 @@ declare module './save' {
   }
 }
 
-const freshDiv = (): DivisionCareer => ({ tier: 0, fight: 0, belt: false, defenses: 0, wins: 0, losses: 0, draws: 0, kos: 0, subs: 0 });
+const freshDiv = (): DivisionCareer => ({ tier: 0, fight: 0, belt: false, defenses: 0, titles: 0, wins: 0, losses: 0, draws: 0, kos: 0, subs: 0 });
 
 export function freshCareer(): CareerState {
   const div = {} as Record<DivisionId, DivisionCareer>;
@@ -58,6 +60,7 @@ export function sanitizeCareer(raw: unknown): CareerState {
       fight: tier >= TIERS ? 0 : int(r.fight, 0, 0, FIGHTS_PER_TIER - 1),
       belt: tier >= TIERS && r.belt === true,
       defenses: int(r.defenses, 0, 0, 100000),
+      titles: int(r.titles, tier >= TIERS && r.belt === true ? 1 : 0, 0, 100000),
       wins: int(r.wins, 0, 0, 1e7),
       losses: int(r.losses, 0, 0, 1e7),
       draws: int(r.draws, 0, 0, 1e7),
@@ -85,11 +88,13 @@ export interface CareerStep {
   label: string;
   /** Seed of the fight (simulation + venue). */
   seed: number;
+  /** A title fight for a belt never won before in this division (the big prize). */
+  firstTitle: boolean;
 }
 
 const ARCHS: Archetype[] = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'];
 /** Stat offset of journeymen per tier, before the fight index nudge. */
-const TIER_OFFSET = [-16, -9, -3, 3, 8];
+const TIER_OFFSET = [-16, -8, 0, 7, 13];
 const BOSS_RARITY: Rarity[] = ['common', 'rare', 'rare', 'epic', 'legend'];
 
 function mix(...n: number[]): number {
@@ -123,13 +128,13 @@ export function nextStep(state: CareerState, div: DivisionId, playerId: string):
     for (const k of Object.keys(s) as (keyof typeof s)[]) s[k] = Math.max(1, Math.min(99, s[k] + off + 6));
     const n = generateName(seed, sex);
     opponent = { id: `jm-${div}-${c.tier}-${c.fight}`, name: n.name, nickname: n.nickname, division: div, archetype: arch, rarity: 'common', stats: s, lookSeed: seed % 100000, lookHints: { sex, beard: seed % 3 === 0, tattoos: seed % 4 === 0 } };
-    difficulty = 120 + c.tier * 170 + c.fight * 18;
+    difficulty = 120 + c.tier * 170 + c.fight * 14;
     label = `${TIER_NAMES[c.tier]} · Fight ${c.fight + 1} of ${FIGHTS_PER_TIER}`;
   } else if (kind === 'boss') {
     const pool = roster.filter(f => f.rarity === BOSS_RARITY[c.tier]);
     const boss = (pool.length ? pool : roster)[seed % Math.max(1, (pool.length ? pool : roster).length)];
     const s = { ...boss.stats };
-    const off = [-8, -4, 0, 2, 4][c.tier];
+    const off = [-6, 0, 5, 10, 14][c.tier];
     for (const k of Object.keys(s) as (keyof typeof s)[]) s[k] = Math.max(1, Math.min(99, s[k] + off));
     opponent = { ...boss, stats: s };
     difficulty = 220 + c.tier * 180;
@@ -139,14 +144,14 @@ export function nextStep(state: CareerState, div: DivisionId, playerId: string):
     const sorted = [...roster].sort((a, b) => b.stats.power + b.stats.speed - (a.stats.power + a.stats.speed));
     const champ = kind === 'title' ? (roster.find(f => f.rarity === 'legend') ?? sorted[0]) : sorted[(c.defenses + 1) % Math.min(3, sorted.length)];
     const s = { ...champ.stats };
-    const off = kind === 'title' ? 6 : 6 + Math.min(12, c.defenses * 2);
+    const off = kind === 'title' ? 16 : 8 + Math.min(12, c.defenses);
     for (const k of Object.keys(s) as (keyof typeof s)[]) s[k] = Math.max(1, Math.min(99, s[k] + off));
     opponent = { ...champ, stats: s };
-    difficulty = Math.min(1000, 950 + c.defenses * 10);
+    difficulty = kind === 'title' ? 900 : Math.min(950, 780 + c.defenses * 10);
     rules = { rounds: 5, roundTicks: 60 * 60, title: true };
     label = kind === 'title' ? `${division(div).name} title fight` : `Title defence #${c.defenses + 1}`;
   }
-  return { div, tier: c.tier, fight: c.fight, kind, opponent, difficulty, rules, label, seed };
+  return { div, tier: c.tier, fight: c.fight, kind, opponent, difficulty, rules, label, seed, firstTitle: kind === 'title' && c.titles === 0 };
 }
 
 export interface CareerReward {
@@ -161,7 +166,7 @@ export interface CareerReward {
 
 /** What a career fight pays (pure: a server could compute it). */
 export function careerReward(step: CareerStep, won: boolean, draw: boolean, method: 'KO' | 'TKO' | 'SUB' | 'DEC'): CareerReward {
-  const base = 220 + step.tier * 140 + (step.kind === 'boss' ? 400 : 0) + (step.kind === 'title' ? 2500 : 0) + (step.kind === 'defense' ? 1800 : 0);
+  const base = 150 + step.tier * 90 + (step.kind === 'boss' ? 300 : 0) + (step.kind === 'title' ? (step.firstTitle ? 2000 : 500) : 0) + (step.kind === 'defense' ? 600 : 0);
   const finish = method !== 'DEC' && won ? 1.5 : 1;
   const cash = Math.round((won ? base * finish : draw ? base * 0.5 : base * 0.3) / 10) * 10;
   const xp = Math.round((won ? 90 : 45) + step.tier * 25 + (step.kind !== 'fight' ? 80 : 0));
@@ -172,10 +177,10 @@ export function careerReward(step: CareerStep, won: boolean, draw: boolean, meth
     pack = step.tier >= 3 ? 'premium' : 'standard';
   }
   if (won && step.kind === 'title') {
-    gems = 150;
-    pack = 'elite';
+    gems = step.firstTitle ? 150 : 30;
+    pack = step.firstTitle ? 'elite' : 'standard';
   }
-  if (won && step.kind === 'defense') gems = 40;
+  if (won && step.kind === 'defense') gems = 15;
   return { cash, xp, gems, pack, belt: won && step.kind === 'title' };
 }
 
@@ -189,6 +194,7 @@ export function applyCareerResult(state: CareerState, step: CareerStep, won: boo
     if (method === 'SUB') c.subs++;
     if (step.kind === 'title') {
       c.belt = true;
+      c.titles++;
     } else if (step.kind === 'defense') {
       c.defenses++;
     } else if (c.fight >= FIGHTS_PER_TIER - 1) {

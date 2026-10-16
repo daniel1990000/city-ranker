@@ -32,7 +32,7 @@ export const PACKS: Record<PackId, PackDef> = {
     id: 'standard',
     name: 'Standard Pack',
     blurb: '2 fighter cards',
-    cash: 3000,
+    cash: 7500,
     gems: 0,
     paid: false,
     cards: 2,
