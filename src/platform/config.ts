@@ -27,8 +27,9 @@ function idMap(name: string): Record<string, string> {
 /**
  * Leaderboards the game posts to. The keys are the game's; the Play Games ids come from
  * VITE_PGS_LEADERBOARDS='{"weekly":"CgkI...","wins":"CgkI...","knockouts":"CgkI..."}' (secret PGS_LEADERBOARDS).
- * - weekly: this week's tournament score (the same bracket for everyone, meta/weekly.ts)
- * - wins: career fights won
+ * - weekly: "Best win": the best single-win score (meta/record.ts fightScore); Play Games shows today's, this
+ *   week's and the all-time best, so it works as the weekly ranking
+ * - wins: fights won, all modes
  * - knockouts: KO and TKO wins
  */
 export type BoardId = 'weekly' | 'wins' | 'knockouts';

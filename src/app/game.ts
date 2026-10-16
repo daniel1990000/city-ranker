@@ -7,11 +7,12 @@ import { applyCareerResult, careerReward, nextStep, type CareerReward, type Care
 import { claimDaily, dailyStatus } from '../meta/daily';
 import { dayNumber } from '../meta/days';
 import { DIVISION_IDS } from '../meta/divisions';
-import { applyPurchase, reconcile, type Amounts } from '../meta/entitlements';
-import { addXp, canStarUp, giveCard, starUp, STARTER_ID, toFightSpec, trainCost, trainMinutes, type CardResult } from '../meta/fighters';
+import { applyPurchase, keepEntitlements, reconcile, type Amounts } from '../meta/entitlements';
+import { addXp, canStarUp, giveCard, starUp, STARTER_ID, syncBundles, toFightSpec, trainCost, trainMinutes, type CardResult } from '../meta/fighters';
 import { PACKS, rollPack, type PackId, type PackResult } from '../meta/packs';
-import { rewardTime } from '../meta/clock';
-import { ROSTER, rosterFighter, type RosterFighter } from '../meta/roster';
+import { bindClock, keepClock, rewardTime, settleClock, unlock as unlockClock } from '../meta/clock';
+import { overall, ROSTER, rosterFighter, type RosterFighter } from '../meta/roster';
+import { recordFight } from '../meta/record';
 import { addSeasonXp, claimTier, ensureSeason, fightXp, type SeasonReward } from '../meta/season';
 import { ensureProgress, flush, loadSave, writeSave, type SaveData } from '../meta/save';
 import { startTimer, timerLeft, clearTimer } from '../meta/timers';
@@ -23,6 +24,7 @@ import { paidPacksStatus } from '../platform/country';
 import { buy, finish, queryPurchases } from '../platform/iap';
 import { interstitialReady, rewardedAvailable, showInterstitial, showRewarded } from '../platform/ads';
 import { isNative } from '../platform/platform';
+import { submitScore } from '../platform/games';
 import type { FighterStats } from '../game/fight/types';
 
 /** What the daily login pays, by day of the 7-day cycle. */
@@ -46,6 +48,9 @@ export interface FightRewards {
   belt: boolean;
   /** "Watch ad: double cash" is offered for this much extra. */
   doubleOffer: number;
+  /** This win's leaderboard score (0 for a loss or draw), and whether it is the player's best. */
+  score: number;
+  best: boolean;
 }
 
 export type BuyPackResult = { ok: true; result: PackResult; cards: CardResult[] } | { ok: false; reason: 'funds' | 'blocked' };
@@ -59,11 +64,42 @@ export class Game {
 
   constructor() {
     this.save = loadSave();
+    bindClock(this.save);
+    settleClock(this.save, Date.now(), dayNumber);
     ensureProgress(this.save);
     this.firstRun();
     ensureSeason(this.save);
     ensureWeek(this.save);
+    syncBundles(this.save.progress.fighters, this.save.paidBundles);
     this.persist();
+  }
+
+  /** Back in the app: a phone clock that was moved back is believed again after 7 days (meta/clock.ts). */
+  resumed(): void {
+    if (settleClock(this.save, Date.now(), dayNumber)) this.persist();
+  }
+
+  /**
+   * Replace the progress with a restored save (a save code, or the Play Games cloud copy). Settings stay this phone's,
+   * paid items stay what Play says this phone owns (a cloud copy keeps this month's Season Pass: it was paid for and
+   * Play can't return a consumed pass), and the reward clock never goes back.
+   */
+  replaceSave(next: SaveData, fromCloud: boolean): void {
+    next.settings = this.save.settings;
+    keepEntitlements(next, this.save, { restore: true, trustPass: fromCloud });
+    if (this.save.firstAt && (!next.firstAt || this.save.firstAt < next.firstAt)) next.firstAt = this.save.firstAt;
+    keepClock(next, this.save);
+    this.save = next;
+    bindClock(this.save);
+    // a save from another phone may hold rewards dated ahead of this phone's clock
+    unlockClock(this.save, rewardTime(), dayNumber);
+    ensureProgress(this.save);
+    this.firstRun();
+    ensureSeason(this.save);
+    ensureWeek(this.save);
+    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    flush();
+    this.persist(true);
   }
 
   onChange(fn: () => void): void {
@@ -182,7 +218,7 @@ export class Game {
   // ---- after a fight -----------------------------------------------------------------------------------------------
 
   /** Pay out a finished fight. `step` for career fights; null for quick fights (smaller rewards, no ladder move). */
-  finishFight(fighterId: string, result: FightResult, seconds: number, step: CareerStep | null): FightRewards {
+  finishFight(fighterId: string, result: FightResult, seconds: number, step: CareerStep | null, opp: FighterSpec, difficulty: number): FightRewards {
     const won = result.winner === 0;
     const draw = result.winner === null;
     const method = result.method;
@@ -205,8 +241,15 @@ export class Game {
     this.save.fightLog.push({ t: Date.now(), k: step ? 'career' : 'quick', o: step?.opponent.id ?? 'quick', r: won ? 'W' : draw ? 'D' : 'L', m: method, s: Math.round(seconds) });
     if (this.save.fightLog.length > 50) this.save.fightLog.splice(0, this.save.fightLog.length - 50);
     countFight(this.save.ads, seconds);
+    const rec = this.save.progress.record;
+    const before = rec.best;
+    const score = recordFight(rec, result, seconds, overall(opp.stats), difficulty);
     this.persist(true);
-    return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash) };
+    // Play Games keeps each player's best, so posting every time is safe
+    submitScore('wins', this.save.wins);
+    submitScore('knockouts', rec.kos);
+    if (score > 0) submitScore('weekly', score);
+    return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before };
   }
 
   /** "Watch ad: double cash" after a fight. */
@@ -310,6 +353,7 @@ export class Game {
     const r = await buy(id);
     if (r.status !== 'purchased') return r.status === 'owned' || r.status === 'busy' ? 'failed' : r.status;
     const g = applyPurchase(this.save, r.purchase, amounts());
+    syncBundles(this.save.progress.fighters, this.save.paidBundles);
     this.persist(true);
     if (g.action) await finish(g.action);
     return 'purchased';
@@ -320,6 +364,7 @@ export class Game {
     const list = await queryPurchases();
     if (!list) return null;
     const r = reconcile(this.save, list, amounts());
+    syncBundles(this.save.progress.fighters, this.save.paidBundles);
     this.persist(true);
     for (const a of r.actions) await finish(a);
     return { granted: r.granted, revoked: r.revoked };

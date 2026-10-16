@@ -19,6 +19,10 @@ import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, pac
 import { buildSettings } from './ui/settings';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
+import { showBoards } from './platform/games';
+import { cloudSync } from './app/services';
+import { isNative } from './platform/platform';
+import type { SaveData } from './meta/save';
 
 const ARCHS = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'] as const;
 
@@ -73,6 +77,7 @@ export class App {
       startCareer: d => void this.startCareer(d),
       startQuick: d => void this.startQuick(d),
       settings: () => buildSettings(this.game, m => this.toast(m)),
+      boards: () => void this.openBoards(),
     };
     this.game.onChange(() => {
       this.refreshWallet();
@@ -98,6 +103,41 @@ export class App {
       this.renderer.setPixelRatio(ratio);
       this.resize();
     }
+  }
+
+  private async openBoards(): Promise<void> {
+    if (!isNative) {
+      this.toast('Leaderboards are in the Android app');
+      return;
+    }
+    if (await showBoards()) void cloudSync()?.start();
+    else this.toast('Could not open Google Play Games');
+  }
+
+  /** "Load your cloud progress?" when the Play Games copy holds more than this phone. */
+  askCloudRestore(cloud: SaveData, local: SaveData): Promise<boolean> {
+    return new Promise(resolve => {
+      const p = document.createElement('div');
+      p.className = 'modal-back';
+      const line = (d: SaveData) => `${d.fights.toLocaleString('en-US')} fights · ${d.wins.toLocaleString('en-US')} wins · ${Object.keys(d.progress.fighters.owned).length} fighters`;
+      p.innerHTML = `<div class="modal panel"><h2>Saved progress found</h2><p class="muted">Your Google Play Games account has progress from another phone.</p>
+        <p><b>Cloud:</b> ${line(cloud)}<br><b>This phone:</b> ${line(local)}</p>
+        <div class="row"><button class="btn" data-a="yes">Load cloud progress</button><button class="btn ghost" data-a="no">Keep this phone's</button></div></div>`;
+      const done = (yes: boolean) => {
+        p.remove();
+        resolve(yes);
+        if (yes) {
+          // the cloud save is in place once the promise has been handled
+          setTimeout(() => {
+            if (!this.session) this.render();
+            this.toast('Cloud progress loaded');
+          }, 0);
+        }
+      };
+      p.querySelector('[data-a=yes]')?.addEventListener('click', () => done(true));
+      p.querySelector('[data-a=no]')?.addEventListener('click', () => done(false));
+      this.ui.appendChild(p);
+    });
   }
 
   private applyVolumes(): void {
@@ -285,7 +325,7 @@ export class App {
     session.resize(innerWidth, innerHeight);
     session.speed = this.qaSpeedValue;
     if (this.qaAuto) session.setAutoplay(true);
-    session.onEnd = o => this.afterFight(me, o, step);
+    session.onEnd = o => this.afterFight(me, opp, difficulty, o, step);
     session.onPause = () => this.showPause();
     session.onEvents = (ev, crowd) => {
       sound.onFightEvents(ev);
@@ -324,9 +364,9 @@ export class App {
     this.render();
   }
 
-  private afterFight(me: FighterSpec, o: FightOutcome, step: CareerStep | null): void {
+  private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null): void {
     const seconds = o.result.totalTicks / 60;
-    const rewards = this.game.finishFight(me.id, o.result, seconds, step);
+    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty);
     this.showRewards(o, rewards, step);
   }
 
@@ -350,6 +390,7 @@ export class App {
           ${r.gems ? `<span class="pill"><i class="ico gem"></i>+${r.gems}</span>` : ''}
           <span class="pill">+${r.xp} xp${r.levels ? ` · level up!` : ''}</span>
           ${r.pack ? `<span class="pill">+1 ${r.pack} pack</span>` : ''}
+          ${r.score ? `<span class="pill">Fight score ${r.score.toLocaleString('en-US')}${r.best ? ' · new best!' : ''}</span>` : ''}
         </div>
         <div class="row">
           ${r.doubleOffer > 0 && this.game.rewardedReady() ? `<button class="btn ghost" data-a="double">Watch ad: +${r.doubleOffer.toLocaleString('en-US')} cash</button>` : ''}

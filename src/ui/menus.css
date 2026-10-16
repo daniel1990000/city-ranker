@@ -675,3 +675,4 @@
   font-size: 46px;
   color: var(--gold-2);
 }
+.hub-left .boards { margin-top: 8px; align-self: flex-start; padding: 6px 14px; font-size: 13px; }

@@ -7,13 +7,22 @@ import { initRemoteTuning } from '../platform/remote';
 import { installSaveMirror } from '../platform/storage';
 import { initIap } from '../platform/iap';
 import { initAds, setAdHooks, setNoAds } from '../platform/ads';
-import { initGames, cloudSave, gamesSignedIn } from '../platform/games';
+import { initGames } from '../platform/games';
+import type { SaveData } from '../meta/save';
+import { CloudSync } from './cloud';
 import { initTelemetry, track } from '../platform/telemetry';
 import { refreshPaidPacks } from '../platform/country';
 import { initLifecycle, hideSplash, isNative } from '../platform/platform';
 import { sound } from '../audio/sound';
 
-export async function startServices(game: Game, onBack: () => void): Promise<void> {
+let cloud: CloudSync | null = null;
+
+/** The cloud save sync (null in a browser, or before Play Games started). */
+export function cloudSync(): CloudSync | null {
+  return cloud;
+}
+
+export async function startServices(game: Game, onBack: () => void, askRestore: (cloud: SaveData, local: SaveData) => Promise<boolean>): Promise<void> {
   hideSplash();
   initRemoteTuning();
   installSaveMirror();
@@ -27,7 +36,9 @@ export async function startServices(game: Game, onBack: () => void): Promise<voi
     },
     onResume: () => {
       sound.setMuted(false);
+      game.resumed();
       void game.syncPurchases();
+      void cloud?.start();
     },
     onBack,
   });
@@ -49,14 +60,9 @@ export async function startServices(game: Game, onBack: () => void): Promise<voi
   }
   try {
     await initGames();
-    // back up to Play Games after progress changes (throttled)
-    let last = 0;
-    game.onChange(() => {
-      const now = Date.now();
-      if (!gamesSignedIn() || now - last < 120_000) return;
-      last = now;
-      void cloudSave(game.save);
-    });
+    // backs up to Play Games after progress changes, but only once the cloud copy has been read (app/cloud.ts)
+    cloud = new CloudSync(game, askRestore);
+    await cloud.start();
   } catch (e) {
     console.warn('games', e);
   }

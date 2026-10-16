@@ -37,6 +37,8 @@ export interface MenuCtx {
   startCareer(div: DivisionId): void;
   startQuick(div: DivisionId): void;
   settings(): HTMLElement;
+  /** Open the Play Games leaderboards (signs in if needed). */
+  boards(): void;
 }
 
 const STAT_LABEL: Record<keyof FighterStats, string> = {
@@ -125,6 +127,9 @@ export function hubScreen(ctx: MenuCtx): HTMLElement {
     on(fe, () => ctx.nav({ s: 'fighter', id: me.id }));
     left.appendChild(fe);
   }
+  const boards = h('button', 'btn ghost boards', 'Leaderboards');
+  on(boards, () => ctx.boards());
+  left.appendChild(boards);
   body.appendChild(left);
   const right = h('div', 'hub-right');
   const unopened = PACK_IDS.reduce((a, id) => a + g.save.progress.packs.unopened[id], 0);

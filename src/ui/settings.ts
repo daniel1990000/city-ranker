@@ -88,8 +88,7 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
       toast('That code is not valid (or comes from a newer version)');
       return;
     }
-    game.save = next;
-    game.persist(true);
+    game.replaceSave(next, false);
     toast('Progress loaded');
   }));
   row('Privacy policy', button('Open', () => openExternal(CONFIG.privacyUrl)));

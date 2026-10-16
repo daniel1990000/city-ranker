@@ -27,7 +27,15 @@ export interface FightersState {
   owned: Record<string, OwnedFighter>;
   /** The fighter the player last picked per division (career and quick fights default to it). */
   picked: Record<string, string>;
+  /**
+   * How each fixed-price bundle's fighter was delivered: 'card' (the bundle gave the fighter, so a refund takes it
+   * back) or 'kept' (the player already had or later earned it, so a refund leaves it).
+   */
+  bundle: Record<string, 'card' | 'kept'>;
 }
+
+/** The fighter each fixed-price bundle (meta/products.ts BUNDLES) includes. */
+export const BUNDLE_FIGHTERS: Readonly<Record<string, string>> = { bundle_champion: 'mateo-lozano' };
 
 declare module './save' {
   interface ProgressSlots {
@@ -43,7 +51,7 @@ export const STAR_COST = [0, 0, 30, 60, 120, 240];
 export const TRAIN_CAP: Record<Rarity, number> = { common: 8, rare: 10, epic: 12, legend: 14 };
 
 export function freshFighters(): FightersState {
-  return { v: 1, owned: {}, picked: {} };
+  return { v: 1, owned: {}, picked: {}, bundle: {} };
 }
 
 function sanitizeOwned(raw: unknown): OwnedFighter | undefined {
@@ -67,7 +75,8 @@ export function sanitizeFighters(raw: unknown): FightersState {
   const o = obj(raw);
   const owned = record(o.owned, (v, key) => (rosterFighter(key) ? sanitizeOwned(v) : undefined), 100);
   const picked = record(o.picked, (v, key) => (typeof v === 'string' && owned[v] && rosterFighter(v)?.division === key ? v : undefined), 12);
-  return { v: 1, owned, picked };
+  const bundle = record(o.bundle, (v, key) => (BUNDLE_FIGHTERS[key] && (v === 'card' || v === 'kept') ? v : undefined), 8);
+  return { v: 1, owned, picked, bundle };
 }
 
 registerProgressSlot('fighters', { fresh: freshFighters, sanitize: sanitizeFighters });
@@ -155,7 +164,36 @@ export function giveCard(state: FightersState, id: string): CardResult {
   }
   const s = DUPLICATE_SHARDS[base.rarity];
   have.shards += s;
+  // earned again (a pack): the fighter is the player's own now, a bundle refund no longer takes it
+  for (const [b, f] of Object.entries(BUNDLE_FIGHTERS)) if (f === id && state.bundle[b] === 'card') state.bundle[b] = 'kept';
   return { id, isNew: false, shards: s };
+}
+
+/**
+ * Match the bundle fighters to the bundles Play reports (save.paidBundles): a newly owned bundle gives its fighter
+ * (shards if already owned), a refunded one takes back a fighter it gave. Run after every purchase sync and restore.
+ * Returns the fighters given and taken.
+ */
+export function syncBundles(state: FightersState, paid: readonly string[]): { given: CardResult[]; taken: string[] } {
+  const given: CardResult[] = [];
+  const taken: string[] = [];
+  for (const [b, id] of Object.entries(BUNDLE_FIGHTERS)) {
+    const has = paid.includes(b);
+    const rec = state.bundle[b];
+    if (has && !rec) {
+      const r = giveCard(state, id);
+      state.bundle[b] = r.isNew ? 'card' : 'kept';
+      given.push(r);
+    } else if (!has && rec) {
+      delete state.bundle[b];
+      if (rec === 'card' && state.owned[id]) {
+        delete state.owned[id];
+        for (const [div, p] of Object.entries(state.picked)) if (p === id) delete state.picked[div];
+        taken.push(id);
+      }
+    }
+  }
+  return { given, taken };
 }
 
 export function canStarUp(f: OwnedFighter): boolean {

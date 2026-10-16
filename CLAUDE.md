@@ -61,6 +61,8 @@ python3 tools/icons.py      # launcher icons, splash screens, feature graphic
   purchased; ack/consume after the grant is saved; refunds revoke), `clock.ts`, `tuning.ts`, `adpacing.ts`,
   `season.ts`, `weekly.ts`, `daily.ts`, content: `roster.ts` (48 original fighters), `divisions.ts`, `fighters.ts`
   (levels, training, stars), `career.ts`, `packs.ts`, `names.ts`. Economy: `docs/ECONOMY.md`.
+- Launch-critical rules are tested in `tests/money.test.ts` (purchases, refunds, bundle fighter, restores, reward
+  clock, ad pacing, cloud read-before-write, leaderboard scores).
 - `src/platform/` iap, ads (UMP consent first, Google test ids until real ones are in the secrets), games (Play Games
   leaderboards + cloud save), telemetry (opt-in), notify, platform, country (paid-pack gating).
 - `src/audio/sound.ts` all sound, synthesised at start-up (no sample files).
@@ -79,6 +81,7 @@ python3 tools/icons.py      # launcher icons, splash screens, feature graphic
 ## Status (16 October 2026, version 0.1.0)
 - Built: fight engine + AI + replays (tested, balanced), realistic generated fighters with IK animation, six venues,
   broadcast camera, HUD + touch controls, full menus (hub, career, fighters, training, packs with odds/pity/reveal,
-  shop, season, settings), first-fight lesson (`src/app/tutorial.ts`), economy (simulated), synthesised sound, platform services, Android project, CI.
+  shop, season, settings), first-fight lesson (`src/app/tutorial.ts`), leaderboards (`src/meta/record.ts`), cloud save that reads before it
+  writes (`src/app/cloud.ts`), auto graphics quality (`src/render/autoQuality.ts`), economy (simulated), synthesised sound, platform services, Android project, CI.
 - Next (see `docs/RELEASE.md` "Known gaps"): motion-captured animation upgrade, women's ground poses
   polish, real-phone performance pass, store listing assets, closed test.
