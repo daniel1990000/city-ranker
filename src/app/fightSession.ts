@@ -113,6 +113,11 @@ export class FightSession {
     this.auto = on ? new AIController({ difficulty: 900, seed: this.setup.seed ^ 0x777 }) : null;
   }
 
+  /** Live play worth measuring for auto quality (not paused, not finished, normal speed). */
+  get live(): boolean {
+    return !this.paused && !this.ended && this.speed === 1;
+  }
+
   setPaused(p: boolean): void {
     this.paused = p;
     if (p) this.overlay.recognizer.cancelAll(performance.now());

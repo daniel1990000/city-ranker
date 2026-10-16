@@ -18,6 +18,7 @@ import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
 import { buildSettings } from './ui/settings';
 import { sound } from './audio/sound';
+import { AutoQuality } from './render/autoQuality';
 
 const ARCHS = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'] as const;
 
@@ -40,7 +41,8 @@ export class App {
   private last = performance.now();
   private screenEl: HTMLElement | null = null;
   private overlay: HTMLElement | null = null;
-  private quality: 'low' | 'high';
+  private quality: 'low' | 'high' = 'high';
+  private autoQ: AutoQuality;
   private route: Route = { s: 'hub' };
   private history: Route[] = [];
   private qaSpeedValue = 1;
@@ -50,10 +52,11 @@ export class App {
     this.ui = ui;
     this.game = new Game();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    const q = this.game.save.settings.quality;
-    const lowEnd = (navigator.hardwareConcurrency ?? 4) <= 4 && Math.min(screen.width, screen.height) * devicePixelRatio < 900;
-    this.quality = q === 'low' || (q === 'auto' && lowEnd) ? 'low' : 'high';
-    this.renderer.setPixelRatio(Math.min(this.quality === 'low' ? 1.5 : 2, devicePixelRatio));
+    this.autoQ = new AutoQuality(() => this.game.save.settings.autoTier, () => {
+      this.game.persist();
+      this.applyQuality();
+    });
+    this.applyQuality();
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
@@ -81,6 +84,22 @@ export class App {
     });
   }
 
+  /** Scene detail and render resolution from the setting (Auto: from the device, then from measured frame rate).
+   *  Resolution applies at once; scene detail from the next fight. */
+  private applyQuality(): void {
+    const st = this.game.save.settings;
+    const auto = st.quality === 'auto';
+    const lowEnd = (navigator.hardwareConcurrency ?? 4) <= 4 && Math.min(screen.width, screen.height) * devicePixelRatio < 900;
+    const tier = auto ? st.autoTier.q || (lowEnd ? 'low' : 'high') : st.quality;
+    this.quality = tier === 'low' ? 'low' : 'high';
+    const cap = tier === 'low' ? 1.25 : tier === 'medium' ? 1.5 : 2;
+    const ratio = Math.min(cap, devicePixelRatio) * (auto ? st.autoTier.res : 1);
+    if (Math.abs(this.renderer.getPixelRatio() - ratio) > 1e-3) {
+      this.renderer.setPixelRatio(ratio);
+      this.resize();
+    }
+  }
+
   private applyVolumes(): void {
     const s = this.game.save.settings;
     sound.setVolume('sfx', s.sfx);
@@ -101,6 +120,7 @@ export class App {
     if (!s) return;
     s.frame(dt);
     this.renderer.render(s.threeScene, s.camera);
+    if (this.session?.live && this.game.save.settings.quality === 'auto' && !document.hidden) this.autoQ.frame(dt);
   }
 
   async boot(progress: (p: number) => void): Promise<void> {
@@ -236,6 +256,8 @@ export class App {
   private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null, tutorial = false): Promise<void> {
     this.screenEl?.remove();
     this.screenEl = null;
+    this.applyQuality();
+    this.autoQ.reset();
     const loading = document.createElement('div');
     loading.className = 'modal-back';
     loading.innerHTML = `<div class="logo" style="font-size:30px">${(me.name.split(' ').pop() ?? '').toUpperCase()} <b>vs</b> ${(opp.name.split(' ').pop() ?? '').toUpperCase()}</div>`;

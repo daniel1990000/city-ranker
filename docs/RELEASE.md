@@ -21,6 +21,8 @@ What is in it:
   card, rewarded "Watch ad" offers, Play Games, opt-in analytics, remote tuning.
 - **First fight lesson**: six steps (jab, power punch, block, slip, kick, takedown) against a sparring partner, with
   a coach card and a Skip button; then the easy opponent fights back for real.
+- **Auto graphics**: on "Auto", the game watches the frame rate in fights and lowers the resolution (then the scene
+  detail) on phones that can't keep up, and gives resolution back to phones that run fast.
 - **Sound**: synthesised hits, blocks, whooshes, bell, crowd that follows the action, menu and pack sounds.
 
 ## Known gaps (next)
