@@ -72,6 +72,8 @@ const _qs = new THREE.Quaternion();
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _v3 = new THREE.Vector3();
+const _w = new THREE.Vector3();
+const _u = new THREE.Vector3();
 const _e = new THREE.Euler(0, 0, 0, 'YXZ');
 const DEG = Math.PI / 180;
 
@@ -258,6 +260,9 @@ export class FighterRig {
       headQ = turn.multiply(headQ);
     }
     this.setWorld(head, headQ);
+    // the capsule from the neck to the middle of the head that gloves must stay out of
+    this.neckA.copy(neck.wp);
+    this.headB.copy(head.wp).add(_v.set(0, 0.09 * k, 0.02 * k));
 
     // arms
     for (const s of ['l', 'r'] as const) {
@@ -266,7 +271,7 @@ export class FighterRig {
       const shrugQ = rotQ([0, 0, shrug], new THREE.Quaternion());
       this.setWorld(cl, chestQ.clone().multiply(shrugQ).multiply(cl.restWQ));
       const t = s === 'l' ? p.handL : p.handR;
-      this.ik(B(`upperarm_${s}`), B(`lowerarm_${s}`), t);
+      this.ik(B(`upperarm_${s}`), B(`lowerarm_${s}`), t, true);
       const hand = B(`hand_${s}`);
       const fore = B(`lowerarm_${s}`);
       // the hand continues the forearm; roll sets the fist (horizontal / vertical)
@@ -289,8 +294,30 @@ export class FighterRig {
     }
   }
 
+  private neckA = new THREE.Vector3();
+  private headB = new THREE.Vector3();
+
+  /**
+   * Keep a glove out of the neck and head: poses are authored for the base body, and with the chin tucked and the
+   * body leaning, a guard target can land under the jaw (the arm then cuts through the chest). A target inside the
+   * neck-to-head capsule is moved forward, out of it.
+   */
+  private clearHead(T: THREE.Vector3): void {
+    const k = this.k;
+    const ab = _w.copy(this.headB).sub(this.neckA);
+    const t = Math.max(0, Math.min(1, _u.copy(T).sub(this.neckA).dot(ab) / Math.max(1e-6, ab.lengthSq())));
+    const P = _u.copy(this.neckA).addScaledVector(ab, t);
+    const r = (0.13 + 0.05 * t) * k;
+    const dx = T.x - P.x;
+    const dy = T.y - P.y;
+    const dz = T.z - P.z;
+    if (dx * dx + dy * dy + dz * dz >= r * r) return;
+    // straight out in front, at the same height and side (a glove beside the chin, not under it)
+    T.z = P.z + Math.sqrt(Math.max(0, r * r - dx * dx - dy * dy));
+  }
+
   /** Two-bone IK: upper + lower reach the target, the middle joint bends toward the pole. */
-  private ik(upper: BoneInfo, lower: BoneInfo, t: LimbTarget): void {
+  private ik(upper: BoneInfo, lower: BoneInfo, t: LimbTarget, arm = false): void {
     const k = this.k;
     const a = upper.length;
     const b = lower.length;
@@ -298,6 +325,7 @@ export class FighterRig {
     this.fk(upper, upper.restQ);
     const S = upper.wp;
     const T = _v.set(t.p[0] * k, t.p[1] * k, t.p[2] * k);
+    if (arm) this.clearHead(T);
     const d0 = T.clone().sub(S);
     let d = d0.length();
     const max = (a + b) * 0.999;

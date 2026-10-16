@@ -20,6 +20,7 @@ import {
   NO_INPUT,
 } from '../src/game/fight';
 import { __test } from '../src/game/fight/sim';
+import { MIN_GAP } from '../src/game/fight/core';
 import { ARCHETYPES, testFighter } from './fight-helpers';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -397,5 +398,20 @@ describe('performance', () => {
     for (const inp of inputs) stepFight(g, inp);
     const per = (performance.now() - t0) / inputs.length;
     expect(per).toBeLessThan(0.05);
+  });
+});
+
+describe('positions', () => {
+  it('fighter 0 always stays on the left: the fighters never pass through each other', () => {
+    let worst = Infinity;
+    for (let seed = 1; seed <= 24; seed++) {
+      const a = ARCHETYPES[seed % ARCHETYPES.length];
+      const b = ARCHETYPES[(seed * 3 + 1) % ARCHETYPES.length];
+      runFight(seed, testFighter(a), testFighter(b), new AIController({ difficulty: 800, seed }), new AIController({ difficulty: 600, seed: seed + 9 }), {}, f => {
+        // on the ground (and in a takedown) both share the ground position; standing, they must stay apart
+        if (!f.state.ground && !f.state.takedown) worst = Math.min(worst, f.state.fighters[1].x - f.state.fighters[0].x);
+      });
+    }
+    expect(worst).toBeGreaterThanOrEqual(MIN_GAP - 1);
   });
 });

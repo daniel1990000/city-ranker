@@ -35,6 +35,8 @@ What is in it:
   "Privacy options" button where the ad consent rules require it, a warning when the phone's storage is full, and
   low graphics after a graphics crash. The Starter Pack offer pops up at most once a day on the home screen, from
   the 4th fight on, only while it can be bought.
+- **Looks**: fighters keep a realistic distance on screen (no bodies passing through each other), and a guard glove is
+  never placed inside the head or neck.
 - **Sound**: synthesised hits, blocks, whooshes, bell, crowd that follows the action, menu and pack sounds.
 
 ## Known gaps (next)
@@ -44,7 +46,8 @@ What is in it:
 - Animation is keyframed by code; a licensed motion-capture pack (or Mixamo clips from the owner's account) would
   make it look closer to a console game. Ground and submission poses are the roughest.
 - Performance has been checked only in a software-rendered browser; a real-phone pass (mid and low end) is needed.
-- Store listing assets: screenshots and a short video from the real game; the feature graphic is a placeholder.
+- Store listing: six screenshots from the real game are in `docs/store/` (`node scripts/store.mjs` remakes them);
+  still to make: a short video and a better feature graphic.
 - Owner tasks: Play Console app `com.danielspurr.cagekings`, products (`no_ads`, `starter_pack`, `season_pass`,
   `gems_1`..`gems_5`, `bundle_champion`), AdMob app and ad units, Play Games leaderboards (weekly, wins, knockouts),
   an upload keystore and the four `ANDROID_KEY*` secrets, privacy policy hosting, content rating questionnaire,

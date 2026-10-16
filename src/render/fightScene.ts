@@ -23,7 +23,11 @@ export interface FightSceneSetup {
   quality: Quality;
 }
 
+/** Closest the two fighters' centres come on screen while standing (metres). */
+const VISUAL_GAP = 1.0;
+
 export class FightScene {
+  private spread = 0;
   readonly scene = new THREE.Scene();
   readonly camera = new THREE.PerspectiveCamera(36, 16 / 9, 0.1, 220);
   readonly director = new CameraDirector(this.camera);
@@ -126,22 +130,27 @@ export class FightScene {
       this.lastTick = state.tick;
     }
     const g = state.ground;
-    // the simulation lets centres come 0.56 m apart; bodies with a guard up need a little more room on screen
+    // the simulation lets centres come 0.56 m apart; two bodies in a staggered stance with their guards up need about
+    // a metre on screen, or chests, gloves and heads pass through each other
     const x0 = simToWorldX(state.fighters[0].x);
     const x1 = simToWorldX(state.fighters[1].x);
-    const spread = g ? 0 : Math.max(0, 0.8 - (x1 - x0)) / 2;
+    // takedowns and the ground need the bodies together: ease the extra room away (and back) rather than jump
+    // (either fighter can be on the left: they switch sides after a scramble or a spinning attack)
+    const want = g || state.takedown ? 0 : Math.max(0, VISUAL_GAP - Math.abs(x1 - x0)) / 2;
+    this.spread += (want - this.spread) * Math.min(1, dt * 8);
+    const dir = x1 >= x0 ? 1 : -1;
+    const xs = [x0 - dir * this.spread, x1 + dir * this.spread];
     for (const i of [0, 1] as const) {
       const fs = state.fighters[i];
       const view = this.fighters[i];
-      const xNow = simToWorldX(fs.x) + (i === 0 ? -spread : spread);
+      const xNow = xs[i];
       const x = this.prevX[i] + (xNow - this.prevX[i]) * Math.min(1, alpha + 0.0001);
       this.prevX[i] = x;
       // reach assist: around the impact, close the visual gap so shots land on the body, not in the air
       let assist = 0;
       if (fs.move && !g) {
         const d = MOVES[fs.move];
-        const other = state.fighters[i === 0 ? 1 : 0];
-        const gap = Math.abs(simToWorldX(other.x) - xNow);
+        const gap = Math.abs(xs[i === 0 ? 1 : 0] - xNow);
         const visual = d.kind === 'kick' || d.kind === 'lowKick' ? 1.0 : d.kind === 'upper' ? 0.62 : d.kind === 'hook' ? 0.66 : 0.78;
         const t = fs.actionTick - fs.actionImpact;
         const w = Math.max(0, 1 - Math.abs(t) / 9);
