@@ -204,7 +204,7 @@ function sanitizeProgress(raw: unknown): ProgressSlots {
     out[key] = JSON.parse(JSON.stringify(v)) as unknown;
     kept++;
   }
-  return out as ProgressSlots;
+  return out as unknown as ProgressSlots;
 }
 
 /**
