@@ -37,8 +37,8 @@ npm run android:apk    # web build + cap sync + release APK (needs android/keyst
 OUT=/tmp/q/balance.md RUNS=30 npx vitest run --config /dev/null scripts/qa/fight-balance.test.ts
 OUT=/tmp/q/econ.md npx vitest run --config /dev/null scripts/qa/econ-sim.test.ts
 ./tools/fighters/build.sh   # rebuild the fighter bodies (Blender 4.2 + MPFB, downloads CC0 assets to .cache)
-python3 tools/icons.py      # launcher icons, splash screens, feature graphic
-node scripts/store.mjs      # Play Store screenshots into docs/store (needs the dev server on :5173)
+python3 tools/icons.py      # launcher icons and splash screens
+node scripts/store.mjs      # Play Store screenshots (docs/store) and feature graphic (needs the dev server on :5173)
 ```
 - Browser QA: `npx vite --port 5173` then Playwright with Chromium at `/opt/pw-browsers/chromium` (launch args
   `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`). Software rendering is slow: use the QA hooks

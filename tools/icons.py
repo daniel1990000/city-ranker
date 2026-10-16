@@ -71,5 +71,5 @@ os.makedirs(os.path.join(pub, 'icons'), exist_ok=True)
 icon(512).save(os.path.join(pub, 'icons', 'icon-512.png'))
 icon(192).save(os.path.join(pub, 'icons', 'icon-192.png'))
 icon(64).save(os.path.join(pub, 'favicon.png'))
-splash(1024, 500).save(os.path.join(ROOT, 'docs', 'feature-graphic.png'))
+# the Play feature graphic comes from the real game now: node scripts/store.mjs
 print('icons and splashes written')

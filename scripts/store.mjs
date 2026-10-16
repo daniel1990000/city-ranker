@@ -70,6 +70,35 @@ for (let i = 0; i < 40 && n < 2; i++) {
     await p.evaluate(() => window.cageKings.qaSpeed(3));
   }
 }
+// the Play Store feature graphic (1024x500): a clean fight frame with the name over it
+await p.setViewportSize({ width: 1024, height: 500 });
+await p.evaluate(() => {
+  const st = document.createElement('style');
+  st.id = 'feature-css';
+  st.textContent = '.hud,.touch,.coach{display:none!important}';
+  document.head.appendChild(st);
+  const t = document.createElement('div');
+  t.id = 'feature-title';
+  t.innerHTML = '<div style="font-family:Oswald,sans-serif;font-weight:700;font-size:96px;letter-spacing:.02em;line-height:.95;color:#fff;text-shadow:0 4px 24px rgba(0,0,0,.8)">CAGE<br><span style="color:#d4a640">KINGS</span></div><div style="font-family:Inter,sans-serif;font-size:22px;color:#e8e8e8;margin-top:8px;text-shadow:0 2px 10px rgba(0,0,0,.9)">Fight your way to the belt</div>';
+  t.style.cssText = 'position:fixed;inset:0;z-index:99;pointer-events:none;padding:96px 0 0 48px;background:linear-gradient(90deg,rgba(0,0,0,.82) 0%,rgba(0,0,0,.5) 26%,rgba(0,0,0,0) 46%)';
+  document.body.appendChild(t);
+  window.cageKings.qaSpeed(3);
+});
+for (let i = 0; i < 30; i++) {
+  await wait(1200);
+  const busy = await p.evaluate(() => window.cageKings.debugState().fight.fighters.some(x => /cross|hook|Kick|superman|knee/i.test(x.action)));
+  if (busy) break;
+}
+await p.evaluate(() => window.cageKings.qaSpeed(0.0001));
+await wait(800);
+await p.screenshot({ path: 'docs/feature-graphic.png', scale: 'css' }); // exactly 1024x500, as Play asks
+console.log('saved feature-graphic');
+await p.evaluate(() => {
+  document.getElementById('feature-css')?.remove();
+  document.getElementById('feature-title')?.remove();
+});
+await p.setViewportSize({ width: 960, height: 540 });
+await wait(1000);
 await p.evaluate(() => {
   window.cageKings.qaGround('mount', 0);
   window.cageKings.qaSpeed(0.0001);

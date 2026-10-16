@@ -47,7 +47,7 @@ What is in it:
   make it look closer to a console game. Ground and submission poses are the roughest.
 - Performance has been checked only in a software-rendered browser; a real-phone pass (mid and low end) is needed.
 - Store listing: six screenshots from the real game are in `docs/store/` (`node scripts/store.mjs` remakes them);
-  still to make: a short video and a better feature graphic.
+  the feature graphic (`docs/feature-graphic.png`) is made the same way. Still to make: a short video.
 - Owner tasks: Play Console app `com.danielspurr.cagekings`, products (`no_ads`, `starter_pack`, `season_pass`,
   `gems_1`..`gems_5`, `bundle_champion`), AdMob app and ad units, Play Games leaderboards (weekly, wins, knockouts),
   an upload keystore and the four `ANDROID_KEY*` secrets, privacy policy hosting, content rating questionnaire,
