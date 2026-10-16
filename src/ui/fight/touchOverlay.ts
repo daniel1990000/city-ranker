@@ -36,7 +36,7 @@ export class TouchOverlay {
   private detach: (() => void)[] = [];
   private t0 = performance.now();
 
-  constructor(parent: HTMLElement, onPause: () => void, showHints: boolean) {
+  constructor(parent: HTMLElement, onPause: () => void, showHints: boolean, private readonly mirrored = false) {
     this.onPause = onPause;
     this.root = document.createElement('div');
     this.root.className = 'touch';
@@ -65,8 +65,10 @@ export class TouchOverlay {
     this.hint.className = 'thint';
     this.hint.innerHTML =
       '<div class="l"><b>Defend</b>Hold = block · Flick = dodge<br/>Drag the pad to move</div><div class="r"><b>Attack</b>Tap = jab · Swipe = power punches<br/>Kick button + swipe = kicks</div>';
+    // left-handed: attack on the left, defence on the right
+    if (mirrored) this.hint.style.flexDirection = 'row-reverse';
     if (showHints) this.root.appendChild(this.hint);
-    this.layout = computeTouchLayout(innerWidth, innerHeight, readInsets(), { pxPerDp: 1 });
+    this.layout = computeTouchLayout(innerWidth, innerHeight, readInsets(), { pxPerDp: 1, mirrored });
     this.recognizer = new InputRecognizer({ layout: this.layout, pxPerDp: 1 });
     this.relayout();
     this.listen();
@@ -77,7 +79,7 @@ export class TouchOverlay {
   }
 
   relayout(): void {
-    this.layout = computeTouchLayout(innerWidth, innerHeight, readInsets(), { pxPerDp: 1 });
+    this.layout = computeTouchLayout(innerWidth, innerHeight, readInsets(), { pxPerDp: 1, mirrored: this.mirrored });
     this.recognizer.setLayout(this.layout);
     place(this.kick, this.layout.kick);
     place(this.shoot, this.layout.shoot);

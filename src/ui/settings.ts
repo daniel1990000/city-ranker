@@ -1,7 +1,8 @@
 // The settings panel: sound, controls, graphics, privacy, purchases and the save code.
 import type { Game } from '../app/game';
 import { exportCode, importCode } from '../meta/save';
-import { openExternal, setHaptics } from '../platform/platform';
+import { isNative, openExternal, setHaptics } from '../platform/platform';
+import { requestReminderPermission } from '../platform/notify';
 import { adChoicesRequired, showAdChoices } from '../platform/ads';
 import { setTelemetryAllowed } from '../platform/telemetry';
 import { CONFIG } from '../platform/config';
@@ -59,6 +60,17 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
     s.haptics = x;
     setHaptics(x);
   }));
+  if (isNative)
+    row('Reminders (free pack ready, training finished)', toggle(s.reminders, x => {
+      s.reminders = x;
+      if (x)
+        void requestReminderPermission().then(ok => {
+          if (ok) return;
+          s.reminders = false;
+          game.persist();
+          toast('Notifications are off for Cage Kings in your phone settings');
+        });
+    }));
   row('Left-handed controls (attack on the left)', toggle(s.leftHanded, x => (s.leftHanded = x)));
   row('Reduced motion (less shake, no flashes)', toggle(s.reducedMotion, x => (s.reducedMotion = x)));
   const q = document.createElement('select');
@@ -72,7 +84,7 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
   q.addEventListener('change', () => {
     s.quality = q.value as typeof s.quality;
     game.persist();
-    toast('Graphics change applies after a restart');
+    toast('Graphics change applies from the next fight');
   });
   row('Graphics', q);
   row('Share anonymous play stats', toggle(s.analytics, x => {

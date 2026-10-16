@@ -32,6 +32,9 @@ export interface FightSessionSetup {
   silent?: boolean;
   /** The first fight's guided lesson. */
   tutorial?: boolean;
+  /** Settings: attack on the left; less camera motion. */
+  leftHanded?: boolean;
+  reducedMotion?: boolean;
 }
 
 export interface FightOutcome {
@@ -80,18 +83,22 @@ export class FightSession {
       looks: setup.looks,
       names: [setup.player.name, setup.opponent.name],
       quality: setup.quality,
+      reducedMotion: setup.reducedMotion,
     });
     s.hud = new FightHud(ui, [setup.player, setup.opponent]);
-    s.overlay = new TouchOverlay(ui, () => s.onPause?.(), setup.showHints && !setup.tutorial);
+    s.overlay = new TouchOverlay(ui, () => s.onPause?.(), setup.showHints && !setup.tutorial, setup.leftHanded);
     if (setup.tutorial) {
       const t = new Tutorial(setup.seed ^ 0x7777);
       s.tutorial = t;
       s.ai = t;
+      // left-handed players have attack and defence on the other halves
+      const sides = (st: (typeof STEPS)[number] | null) =>
+        st && setup.leftHanded ? { ...st, text: st.text.replace(/\b(left|right) side\b/g, (_m, w: string) => `${w === 'left' ? 'right' : 'left'} side`) } : st;
       t.onStep = (step, i) => {
-        s.hud.coach(step, i, STEPS.length, () => t.skip());
+        s.hud.coach(sides(step), i, STEPS.length, () => t.skip());
         if (!step) s.onTutorialDone?.();
       };
-      s.hud.coach(STEPS[0], 0, STEPS.length, () => t.skip());
+      s.hud.coach(sides(STEPS[0]), 0, STEPS.length, () => t.skip());
     }
     return s;
   }

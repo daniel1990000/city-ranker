@@ -4,7 +4,6 @@ import { rewardTime } from '../meta/clock';
 import type { SaveData } from '../meta/save';
 import { dayNumber } from '../meta/days';
 import { seasonEndsAt, seasonId, tierOf, TIERS } from '../meta/season';
-import { weekEndsAt } from '../meta/weekly';
 
 /**
  * Opt-in reminders (Android only, all scheduled on the phone: nothing is sent anywhere). Off until the player turns
@@ -13,7 +12,7 @@ import { weekEndsAt } from '../meta/weekly';
  * Other parts of the game add their own (training finished, free pack ready) with `addReminderSource`, using ids
  * in CONTENT_IDS.
  */
-const IDS = { streak: 102, season: 103, weekly: 104 };
+const IDS = { streak: 102, season: 103 };
 /** ids content reminders may use */
 export const CONTENT_IDS = { first: 200, last: 263 } as const;
 /** status-bar icon: android/app/src/main/res/drawable/ic_stat_ck.xml (kept from shrinking by res/raw/keep.xml) */
@@ -80,7 +79,6 @@ export function plannedReminders(save: SaveData, now = Date.now()): Reminder[] {
     at.setUTCHours(12, 0, 0, 0);
     out.push({ id: IDS.season, title: 'Season ends in 2 days', body: 'Finish your tiers and claim your rewards.', at });
   }
-  if (save.weekly.id) out.push({ id: IDS.weekly, title: 'New weekly tournament', body: 'A fresh bracket, the same for everyone. Fight your way to the top.', at: new Date(weekEndsAt(now) + 9 * 3600_000) });
   for (const fn of sources) {
     try {
       for (const r of fn(save, now)) if (Number.isInteger(r.id) && r.id >= CONTENT_IDS.first && r.id <= CONTENT_IDS.last) out.push(r);

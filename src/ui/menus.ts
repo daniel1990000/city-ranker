@@ -40,6 +40,8 @@ export interface MenuCtx {
   settings(): HTMLElement;
   /** Open the Play Games leaderboards (signs in if needed). */
   boards(): void;
+  /** Offer opt-in reminders once (after the first free pack). */
+  offerReminders(): void;
 }
 
 const STAT_LABEL: Record<keyof FighterStats, string> = {
@@ -375,6 +377,7 @@ export function packsScreen(ctx: MenuCtx, ui: HTMLElement): HTMLElement {
       void g.claimFreePack().then(ok => {
         ctx.toast(ok ? 'Free Standard Pack added' : 'No ad available right now');
         ctx.nav({ s: 'packs' });
+        if (ok) ctx.offerReminders();
       }),
     );
     shelf.appendChild(fp);

@@ -35,8 +35,12 @@ What is in it:
   "Privacy options" button where the ad consent rules require it, a warning when the phone's storage is full, and
   low graphics after a graphics crash. The Starter Pack offer pops up at most once a day on the home screen, from
   the 4th fight on, only while it can be bought.
-- **Looks**: fighters keep a realistic distance on screen (no bodies passing through each other), and a guard glove is
-  never placed inside the head or neck.
+- **Looks**: fighters keep a realistic distance on screen (no bodies passing through each other), a guard glove is
+  never placed inside the head or neck, fighters start in their corners and the camera starts in place (no slide in
+  from the middle on a slow phone).
+- **Settings that work**: left-handed controls (attack on the left, the lesson says so too), reduced motion (no
+  camera shake, punch-ins or flashes), vibration, graphics (from the next fight), opt-in reminders (free pack ready,
+  training finished; offered once after the first free pack).
 - **Sound**: synthesised hits, blocks, whooshes, bell, crowd that follows the action, menu and pack sounds.
 
 ## Known gaps (next)

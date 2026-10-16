@@ -19,6 +19,7 @@ import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, pac
 import { buildSettings } from './ui/settings';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
+import { requestReminderPermission } from './platform/notify';
 import { priceOf, storeAvailable } from './platform/iap';
 import { PRODUCTS } from './meta/products';
 import { TUNING } from './meta/tuning';
@@ -81,6 +82,7 @@ export class App {
       startQuick: d => void this.startQuick(d),
       settings: () => buildSettings(this.game, m => this.toast(m)),
       boards: () => void this.openBoards(),
+      offerReminders: () => this.offerReminders(),
     };
     this.game.onChange(() => {
       this.refreshWallet();
@@ -115,6 +117,28 @@ export class App {
     }
     if (await showBoards()) void cloudSync()?.start();
     else this.toast('Could not open Google Play Games');
+  }
+
+  /** Once, on the phone: "remind me when tomorrow's free pack is ready?" (opt-in; Android asks for permission). */
+  private offerReminders(): void {
+    const f = this.game.save.flags;
+    if (!isNative || f.remindAsked || this.game.save.settings.reminders) return;
+    f.remindAsked = true;
+    this.game.persist();
+    const p = document.createElement('div');
+    p.className = 'modal-back';
+    p.innerHTML = `<div class="modal panel"><h2>Get a reminder?</h2><p class="muted">We can let you know when tomorrow's free pack is ready and when training finishes. You can turn this off in Settings.</p>
+      <div class="row"><button class="btn" data-a="yes">Remind me</button><button class="btn ghost" data-a="no">No thanks</button></div></div>`;
+    p.querySelector('[data-a=no]')?.addEventListener('click', () => p.remove());
+    p.querySelector('[data-a=yes]')?.addEventListener('click', () => {
+      p.remove();
+      void requestReminderPermission().then(ok => {
+        this.game.save.settings.reminders = ok;
+        this.game.persist();
+        this.toast(ok ? 'Reminders on' : 'Notifications are off for Cage Kings in your phone settings');
+      });
+    });
+    this.ui.appendChild(p);
   }
 
   /** "Load your cloud progress?" when the Play Games copy holds more than this phone. */
@@ -319,6 +343,8 @@ export class App {
         quality: this.quality,
         showHints: this.game.save.fights < 2,
         tutorial,
+        leftHanded: this.game.save.settings.leftHanded,
+        reducedMotion: this.game.save.settings.reducedMotion,
       },
       this.ui,
     );

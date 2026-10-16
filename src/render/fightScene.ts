@@ -21,6 +21,8 @@ export interface FightSceneSetup {
   looks: [FighterLook, FighterLook];
   names: [string, string];
   quality: Quality;
+  /** Settings > Reduced motion: no camera shake or punch-ins, no impact flashes. */
+  reducedMotion?: boolean;
 }
 
 /** Closest the two fighters' centres come on screen while standing (metres). */
@@ -38,12 +40,18 @@ export class FightScene {
   private anims: [FighterAnimator, FighterAnimator];
   private fx = new HitFx();
   private prevX: [number, number] = [0, 0];
+  private curX: [number, number] = [0, 0];
   private excitement = 0.25;
   private slowUntil = 0;
   private clock = 0;
   private lastTick = -1;
 
-  private constructor(arena: Arena, fighters: [FighterView, FighterView]) {
+  private constructor(
+    arena: Arena,
+    fighters: [FighterView, FighterView],
+    private readonly setup: FightSceneSetup,
+  ) {
+    this.director.reduced = !!setup.reducedMotion;
     this.arena = arena;
     this.fighters = fighters;
     this.anims = [new FighterAnimator(0), new FighterAnimator(0.37)];
@@ -55,7 +63,7 @@ export class FightScene {
     const arena = createArena(setup.venue, setup.quality);
     arena.setNames(setup.names[0], setup.names[1]);
     const fighters = (await Promise.all(setup.looks.map(l => createFighterView(l)))) as [FighterView, FighterView];
-    return new FightScene(arena, fighters);
+    return new FightScene(arena, fighters, setup);
   }
 
   resize(w: number, h: number): void {
@@ -84,7 +92,7 @@ export class FightScene {
           const strength = e.strength === 'heavy' ? 1 : e.strength === 'medium' ? 0.55 : 0.25;
           if (!e.blocked) {
             this.fx.burst(_v, dir, strength, 'sweat');
-            if (e.strength !== 'light' || e.counter) this.fx.burst(_v, dir, strength, 'flash');
+            if ((e.strength !== 'light' || e.counter) && !this.setup.reducedMotion) this.fx.burst(_v, dir, strength, 'flash');
             this.director.shake(strength * (e.counter ? 1.3 : 1));
             if (e.strength === 'heavy') this.director.punchIn(0.6);
             this.excitement = Math.min(1, this.excitement + strength * 0.25);
@@ -126,9 +134,9 @@ export class FightScene {
   frame(state: FightState, alpha: number, dt: number): void {
     this.clock += dt;
     this.timeScale = this.clock < this.slowUntil ? 0.3 : 1;
-    if (state.tick !== this.lastTick) {
-      this.lastTick = state.tick;
-    }
+    const newTick = state.tick !== this.lastTick;
+    const first = this.lastTick < 0;
+    if (newTick) this.lastTick = state.tick;
     const g = state.ground;
     // the simulation lets centres come 0.56 m apart; two bodies in a staggered stance with their guards up need about
     // a metre on screen, or chests, gloves and heads pass through each other
@@ -144,8 +152,13 @@ export class FightScene {
       const fs = state.fighters[i];
       const view = this.fighters[i];
       const xNow = xs[i];
-      const x = this.prevX[i] + (xNow - this.prevX[i]) * Math.min(1, alpha + 0.0001);
-      this.prevX[i] = x;
+      // draw between the last two ticks' positions (alpha = how far into the next tick real time is)
+      if (first) this.prevX[i] = this.curX[i] = xNow;
+      else if (newTick) {
+        this.prevX[i] = this.curX[i];
+        this.curX[i] = xNow;
+      }
+      const x = this.prevX[i] + (this.curX[i] - this.prevX[i]) * Math.min(1, alpha);
       // reach assist: around the impact, close the visual gap so shots land on the body, not in the air
       let assist = 0;
       if (fs.move && !g) {
@@ -174,6 +187,7 @@ export class FightScene {
     this.director.mode = state.phase === 'intro' ? 'intro' : state.phase === 'ended' ? 'result' : g ? 'ground' : 'fight';
     const a = this.fighters[0].root.position.clone().setY(1);
     const b = this.fighters[1].root.position.clone().setY(1);
+    if (first) this.director.snap(a, b);
     this.director.update(a, b, dt);
     // the key light follows the action a little
     const mid = (a.x + b.x) / 2;

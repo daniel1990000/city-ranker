@@ -10,6 +10,8 @@ import { initAds, setAdHooks, setNoAds } from '../platform/ads';
 import { initGames } from '../platform/games';
 import type { SaveData } from '../meta/save';
 import { CloudSync } from './cloud';
+import { scheduleReminders } from '../platform/notify';
+import './reminders';
 import { flushTelemetry, initTelemetry, track } from '../platform/telemetry';
 import { refreshPaidPacks } from '../platform/country';
 import { initLifecycle, hideSplash, isNative, initAudioFocus, regainAudioFocus, rendererCrashes, setHaptics } from '../platform/platform';
@@ -53,6 +55,8 @@ export async function startServices(game: Game, hooks: ServiceHooks): Promise<vo
       sound.setMuted(true);
       hooks.onInterrupt();
       void flushTelemetry();
+      // reminders are planned when the player leaves (opt-in; nothing is scheduled unless they turned them on)
+      void scheduleReminders(game.save);
     },
     onResume: () => {
       void regainAudioFocus().then(ok => sound.setMuted(!ok));

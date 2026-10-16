@@ -18,13 +18,18 @@ export class CameraDirector {
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
+  /** Settings > Reduced motion: no shake, no punch-ins. */
+  reduced = false;
+
   /** A hit: strength 0..1. */
   shake(strength: number): void {
+    if (this.reduced) return;
     this.shakeAmp = Math.max(this.shakeAmp, 0.02 + strength * 0.07);
   }
 
   /** Briefly zoom in on the action (big shots, knockdowns). */
   punchIn(amount = 1): void {
+    if (this.reduced) return;
     this.punch = Math.max(this.punch, amount);
   }
 
@@ -94,6 +99,12 @@ export class CameraDirector {
 
   /** Jump straight to the framing (new fight, after a replay). */
   snap(a: THREE.Vector3, b: THREE.Vector3): void {
-    for (let i = 0; i < 60; i++) this.update(a, b, 0.5);
+    // settle the smoothing without letting the slow orbits run on
+    const orbit = this.orbit;
+    for (let i = 0; i < 60; i++) {
+      this.orbit = orbit;
+      this.update(a, b, 0.5);
+    }
+    this.orbit = orbit;
   }
 }

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- status bar icon for reminders: a white crown -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,7.5l4.5,4 4.5,-6.5 4.5,6.5 4.5,-4 -1.6,10.5H4.6Z M4.6,19h14.8v1.8H4.6Z" />
+</vector>
