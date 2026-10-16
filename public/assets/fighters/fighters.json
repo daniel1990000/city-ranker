@@ -1,0 +1,97 @@
+{
+ "m": {
+  "file": "fighter_m.glb",
+  "morphs": [
+   "heavy",
+   "thin",
+   "muscle",
+   "soft",
+   "african",
+   "asian",
+   "faceSquare",
+   "faceOval",
+   "faceRound",
+   "noseBroad",
+   "older"
+  ],
+  "hair": [
+   "short01",
+   "short02",
+   "short03",
+   "short04",
+   "afro01",
+   "braid01"
+  ],
+  "brows": [
+   "eyebrow001",
+   "eyebrow004",
+   "eyebrow007"
+  ],
+  "meshes": {
+   "body": 13290,
+   "eyes": 1064,
+   "lashes": 250,
+   "teeth": 3868,
+   "brow_eyebrow001": 124,
+   "brow_eyebrow004": 124,
+   "brow_eyebrow007": 124,
+   "hair_short01": 2984,
+   "hair_short02": 1755,
+   "hair_short03": 1011,
+   "hair_short04": 865,
+   "hair_afro01": 2196,
+   "hair_braid01": 4493,
+   "shorts": 3508,
+   "gloves": 1516
+  },
+  "height": 1.747
+ },
+ "f": {
+  "file": "fighter_f.glb",
+  "morphs": [
+   "heavy",
+   "thin",
+   "muscle",
+   "soft",
+   "african",
+   "asian",
+   "faceSquare",
+   "faceOval",
+   "faceRound",
+   "noseBroad",
+   "older"
+  ],
+  "hair": [
+   "ponytail01",
+   "braid01",
+   "bob01",
+   "short02",
+   "afro01",
+   "long01"
+  ],
+  "brows": [
+   "eyebrow002",
+   "eyebrow005",
+   "eyebrow010"
+  ],
+  "meshes": {
+   "body": 13514,
+   "eyes": 1064,
+   "lashes": 250,
+   "teeth": 3868,
+   "brow_eyebrow002": 124,
+   "brow_eyebrow005": 124,
+   "brow_eyebrow010": 124,
+   "hair_ponytail01": 3718,
+   "hair_braid01": 4493,
+   "hair_bob01": 5203,
+   "hair_short02": 1755,
+   "hair_afro01": 2196,
+   "hair_long01": 3239,
+   "shorts": 3251,
+   "gloves": 1556,
+   "top": 859
+  },
+  "height": 1.61
+ }
+}

@@ -504,7 +504,6 @@ export class InputRecognizer {
         if (v.d >= this.cfg.flick) this.fireFlick(tr, v.dx, v.dy, t);
         break;
       }
-      case 'move':
       case 'shoot':
       case 'special':
       case 'ignore':
