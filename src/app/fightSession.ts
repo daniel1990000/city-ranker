@@ -138,7 +138,9 @@ export class FightSession {
     else if (s.ground?.sub) mode = 'sub';
     else if (s.ground) mode = 'ground';
     else if (me.action === 'knockdown') mode = 'locked';
-    return { mode, forward: 1, sprawl: !!s.takedown && s.takedown.atk !== 0, specialReady: me.special >= METER_MAX };
+    // sprawl as soon as their shot starts coming (the simulation counts an early sprawl), not only at contact
+    const theirShot = s.fighters[1].action === 'shoot' && !s.takedown;
+    return { mode, forward: 1, sprawl: (!!s.takedown && s.takedown.atk !== 0) || theirShot, specialReady: me.special >= METER_MAX };
   }
 
   /** Advance real time `dt` seconds: step the simulation, then draw. */
@@ -157,6 +159,7 @@ export class FightSession {
       let mine = this.overlay.tick(ctx);
       if (this.auto) mine = this.auto.next(viewFor(this.fight, 0), 0);
       if (this.tutorial && this.fight.state.phase === 'fight') this.tutorial.observe(mine);
+      if (mine.tap && this.fight.state.ground?.sub) this.hud.tapPulse();
       const theirs = this.ai.next(viewFor(this.fight, 1), 1 as Side);
       const inputs: [FightInput, FightInput] = [mine, theirs];
       if (!this.ended) this.recorder.record(inputs);

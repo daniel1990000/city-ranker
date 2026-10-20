@@ -8,7 +8,7 @@ import type { DecisionKind, FightState, JudgeCard, RoundStats, Side } from './ty
 function roundPoints(r: RoundStats, strikingPm: number, grapplingPm: number): number {
   const striking =
     r.power * 30 + (r.landed - r.power) * 12 + muldiv(r.headDmg, 1, 18) + muldiv(r.bodyDmg, 1, 26) + muldiv(r.legDmg, 1, 28) + r.knockdowns * 420;
-  const grappling = r.takedowns * 120 + muldiv(r.controlTicks, 1, 7) + r.subAttempts * 60;
+  const grappling = r.takedowns * 100 + muldiv(r.controlTicks, 1, 10) + r.subAttempts * 60;
   return muldiv(striking, strikingPm, 1000) + muldiv(grappling, grapplingPm, 1000);
 }
 

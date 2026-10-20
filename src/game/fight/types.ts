@@ -114,6 +114,8 @@ export type StandingAction =
   | 'hitBody'
   | 'hitLeg'
   | 'stunned'
+  /** Doubled over from a body shot: can't attack or block for a moment. */
+  | 'hurtBody'
   | 'knockdown'
   | 'downed'
   | 'getUp'
@@ -298,6 +300,15 @@ export interface FighterState {
   gassed: boolean;
   /** Ground: ticks before this fighter may start another scramble or submission. */
   groundCooldown: number;
+  /** Clean hits taken in the current string (a gap of COMBO_GAP ticks ends it) and ticks left in the string. */
+  comboHits: number;
+  comboTicks: number;
+  /** Shelled up after a long string: hits on the guard are blocked while this runs and the fighter isn't busy. */
+  coverTicks: number;
+  /** Pressed sprawl while the opponent's shot was still coming in (counts as the earliest possible sprawl). */
+  sprawlReady: boolean;
+  /** Already went "hurt" in this zone this round (each happens once a round): bit 1 body, bit 2 legs. */
+  hurtFlags: number;
 
   /** What the HUD should prompt this fighter to do, or null. */
   prompt: FighterPrompt | null;
@@ -440,6 +451,12 @@ export type FightEvent =
   | { type: 'special'; tick: number; side: Side; move: Special }
   | { type: 'specialReady'; tick: number; side: Side }
   | { type: 'gassed'; tick: number; side: Side }
+  /** A health event: `side` is hurt to the body (doubled over) or the legs (limping). */
+  | { type: 'hurt'; tick: number; side: Side; zone: 'body' | 'legs' }
+  /** `side` came through a stun (rocked) without going down. */
+  | { type: 'recover'; tick: number; side: Side }
+  /** `side` shelled up under a long string of punches. */
+  | { type: 'cover'; tick: number; side: Side }
   | { type: 'taunt'; tick: number; side: Side }
   | { type: 'shoot'; tick: number; side: Side }
   | { type: 'sprawl'; tick: number; side: Side; success: boolean }

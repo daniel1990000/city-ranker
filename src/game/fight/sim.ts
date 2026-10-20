@@ -59,6 +59,20 @@ const GETUP_ANIM = 40;
 const TAUNT_LENGTH = 60;
 /** Unanswered strikes on a wobbled fighter before the referee steps in. */
 const STANDING_TKO = 8;
+/** A string of clean hits ends after this many ticks without one. */
+const COMBO_GAP = 45;
+/** Hit-stun per mille by the number of clean hits in the current string: long strings stop locking the target. */
+const COMBO_STUN_PM = [1000, 1000, 1000, 820, 620, 480, 380];
+/** After this many clean hits in a row the target shells up... */
+const COVER_AFTER = 4;
+/** ...for this long: punches land on the guard while they are not busy doing something else. */
+const COVER_TICKS = 36;
+/** Doubled over after a heavy body shot. */
+const HURT_BODY_TICKS = 54;
+/** hurtFlags bits. */
+const HURT_BODY = 1;
+const HURT_LEGS = 2;
+const ROCKED = 4;
 
 // ---- create -----------------------------------------------------------------------------------------------------
 
@@ -189,6 +203,11 @@ function endRound(f: Fight): void {
     me.unanswered = 0;
     me.counterTicks = 0;
     me.guardBrokenTicks = 0;
+    me.comboHits = 0;
+    me.comboTicks = 0;
+    me.coverTicks = 0;
+    me.sprawlReady = false;
+    me.hurtFlags = 0;
     me.guard = METER_MAX;
     me.head = Math.max(0, me.head - 900);
     me.body = Math.max(0, me.body - 700);
@@ -236,9 +255,16 @@ function decay(f: Fight): void {
       me.bufMove = null;
       me.bufEvade = null;
     }
+    if (me.comboTicks > 0 && --me.comboTicks === 0) me.comboHits = 0;
+    if (me.coverTicks > 0) me.coverTicks--;
     if (me.stunTicks > 0) {
       me.stunTicks--;
       if (me.stunTicks === 0 && me.action === 'stunned') setAction(me, 'idle', 0);
+      // came through being rocked on their feet
+      if (me.stunTicks === 0 && me.hurtFlags & ROCKED) {
+        me.hurtFlags &= ~ROCKED;
+        if (!s.result) emit(f, { type: 'recover', tick: s.tick, side: i });
+      }
     }
     me.hurt = Math.max(0, me.hurt - (me.stunTicks > 0 ? 6 : 14));
     if (me.action !== 'block' && me.action !== 'blockHit') me.guard = Math.min(METER_MAX, me.guard + 22);
@@ -349,7 +375,8 @@ function stepFighterIntent(f: Fight, side: Side, input: FightInput): void {
   }
 
   // cancel a landed or blocked strike's recovery into the next strike of the combo
-  if (me.move && me.bufMove && !isSpecial(me.bufMove) && (me.moveResult === 1 || me.moveResult === 2)) {
+  // a blocked strike can be followed up once; after that the full recovery has to be paid (the defender's turn)
+  if (me.move && me.bufMove && !isSpecial(me.bufMove) && (me.moveResult === 1 || (me.moveResult === 2 && me.moveChain < 1))) {
     const recStart = me.moveStartup + me.moveActive;
     if (me.actionTick >= recStart + CANCEL_AFTER && me.moveChain < CHAIN_MAX + 2) {
       const next = me.bufMove;
@@ -369,6 +396,11 @@ function stepFighterIntent(f: Fight, side: Side, input: FightInput): void {
     return;
   }
   if (input.shoot && s.phase === 'fight') {
+    // their shot is already coming: this is a sprawl, not a shot of our own
+    if (them.action === 'shoot' && them.actionTick < GROUND.shootStartup) {
+      me.sprawlReady = true;
+      return;
+    }
     startShoot(f, side);
     return;
   }
@@ -485,7 +517,9 @@ function checkAttack(f: Fight, side: Side): Outcome | null {
     }
   }
   // blocks
-  const guarding = (them.action === 'block' || them.action === 'blockHit') && them.guardBrokenTicks === 0;
+  // shelled up after a long string: the guard is there unless they are busy attacking, dodging or wobbling
+  const covered = them.coverTicks > 0 && them.stunTicks === 0 && them.move === null && them.action !== 'slipL' && them.action !== 'slipR' && them.action !== 'swayBack' && them.action !== 'hurtBody';
+  const guarding = (them.action === 'block' || them.action === 'blockHit' || covered) && them.guardBrokenTicks === 0;
   if (guarding && d.blockable) return { kind: 'block' };
   // caught: they were winding up their own attack, walking into it, or showboating
   const caught = (them.move !== null && them.actionTick < them.moveStartup) || them.action === 'walkFwd' || them.action === 'taunt';
@@ -523,9 +557,12 @@ function applyOutcome(f: Fight, side: Side, o: Outcome, move: MoveId, chain: num
       return;
     case 'block': {
       me.moveResult = 2;
+      // a blocked strike leaves the attacker a little late: the defender gets the next move
+      me.moveRecovery += 3;
+      me.actionLength += 3;
       let dmg = muldiv(d.dmg, attackPm(f, side, move), 1000);
       const chip = muldiv(dmg, them.stunTicks > 0 ? d.chip * 2 : d.chip, 1000);
-      them.guard -= muldiv(dmg, 11, 10);
+      them.guard -= muldiv(dmg, them.stunTicks > 0 ? 22 : 11, 10);
       spend(f, other, dmg >> 2);
       const applied = chip > 0 ? applyZoneDamage(f, other, d.zone, chip) : 0;
       dmg = applied;
@@ -585,7 +622,14 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
   // the target's reaction
   const wasStunned = them.stunTicks > 0;
   clearMove(them);
-  const stun = d.hitstun + (strength === 'heavy' ? 8 : 0);
+  // a string of clean hits: the first few lock the target in place, after that the hit reactions get shorter
+  them.comboHits = them.comboTicks > 0 ? them.comboHits + 1 : 1;
+  them.comboTicks = COMBO_GAP;
+  let stun = d.hitstun + (strength === 'heavy' ? 8 : 0);
+  stun = muldiv(stun, COMBO_STUN_PM[Math.min(them.comboHits, COMBO_STUN_PM.length - 1)], 1000);
+  // an exhausted fighter's punches have nothing behind them
+  if (me.gassed) stun = muldiv(stun, 6, 10);
+  stun = Math.max(6, stun);
   if (d.zone === 'head') {
     const heavy = strength === 'heavy' || isSpecial(move);
     setAction(them, heavy ? 'hitHeadHeavy' : move === 'hookL' || move === 'jab' ? 'hitHeadR' : 'hitHeadL', stun);
@@ -593,8 +637,13 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
   else setAction(them, 'hitLeg', stun);
   pushBack(f, other, strength === 'heavy' ? 150 : strength === 'medium' ? 90 : 50);
   if (wasStunned) them.unanswered++;
+  // shell up after a long string (not while rocked: that is when a fighter can be finished)
+  if (them.comboHits === COVER_AFTER && !wasStunned) {
+    them.coverTicks = COVER_TICKS;
+    emit(f, { type: 'cover', tick: s.tick, side: other });
+  }
 
-  // what the hit does beyond damage: stun, knockdown, the referee
+  // what the hit does beyond damage: rocked, hurt, knockdown, the referee
   if (d.zone === 'head') {
     if (wasStunned && (strength === 'heavy' || them.hurt >= METER_MAX)) {
       knockdown(f, other, move, counter);
@@ -608,24 +657,52 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
         return;
       }
     }
-    if (them.hurt >= METER_MAX && !wasStunned) {
-      them.stunTicks = 130 + muldiv(them.head, 1, 100);
-      them.hurt = 6000;
-      emit(f, { type: 'stun', tick: s.tick, side: other });
+    if (!wasStunned) {
+      // rocked: built-up damage (hurt) or one clean heavy shot on the button
+      let rock = them.hurt >= METER_MAX;
+      if (!rock && applied >= 600 && (strength === 'heavy' || counter)) {
+        const chance = clampi((applied - 500) * 3 + muldiv(them.head, 1, 5) + (counter ? 1200 : 0) - (stat(f, other, 'chin') - 50) * 40, 0, 6500);
+        rock = rngInt(s, 10000) < chance;
+      }
+      if (rock) {
+        them.stunTicks = 120 + muldiv(them.head, 1, 100);
+        them.hurt = 6000;
+        them.hurtFlags |= ROCKED;
+        them.coverTicks = 0;
+        // the hit reaction plays out, then the wobble (toNeutral)
+        emit(f, { type: 'stun', tick: s.tick, side: other });
+      }
     }
-  } else if (d.zone === 'legs' && them.legs >= METER_MAX) {
-    // the first time the leg gives out they go down; the second time the referee has seen enough
-    if (them.legKnockdowns >= 1) {
-      endFight(f, side, 'TKO', { by: move, stoppage: 'legs' });
+  } else if (d.zone === 'legs') {
+    if (them.legs >= METER_MAX) {
+      // the first time the leg gives out they go down; the second time the referee has seen enough
+      if (them.legKnockdowns >= 1) {
+        endFight(f, side, 'TKO', { by: move, stoppage: 'legs' });
+        return;
+      }
+      them.legKnockdowns++;
+      them.legs = 6500;
+      knockdown(f, other, move, false, true);
       return;
     }
-    them.legKnockdowns++;
-    them.legs = 6500;
-    knockdown(f, other, move, false, true);
-    return;
-  } else if (d.zone === 'body' && them.body >= 9000 && strength === 'heavy') {
-    knockdown(f, other, move, counter);
-    return;
+    // the leg is going: they limp (slower) from here on
+    if (them.legs >= 6000 && !(them.hurtFlags & HURT_LEGS)) {
+      them.hurtFlags |= HURT_LEGS;
+      emit(f, { type: 'hurt', tick: s.tick, side: other, zone: 'legs' });
+    }
+  } else if (d.zone === 'body') {
+    if (them.body >= 9000 && strength === 'heavy') {
+      knockdown(f, other, move, counter);
+      return;
+    }
+    // a heavy shot to a worn body: doubled over, wide open, the air gone
+    if (them.body >= 5500 && (applied >= 650 || counter) && !(them.hurtFlags & HURT_BODY)) {
+      them.hurtFlags |= HURT_BODY;
+      them.coverTicks = 0;
+      setAction(them, 'hurtBody', HURT_BODY_TICKS);
+      spend(f, other, 1500);
+      emit(f, { type: 'hurt', tick: s.tick, side: other, zone: 'body' });
+    }
   }
 
   if (them.unanswered >= STANDING_TKO) endFight(f, side, 'TKO', { by: move, stoppage: d.zone === 'body' ? 'body' : 'strikes' });

@@ -1,5 +1,25 @@
 # Releases
 
+## 0.3.0 (20 October 2026): fixes from the first phone playtest
+
+The owner played 0.2.0 on a phone: the submission bar didn't fill, mashing punches always won, fights were only
+knockouts with no stuns, and the AI kept taking them down and holding them there.
+- **Submission bar**: the coloured fill had no width, so it never showed (the taps were counted all along). It now
+  fills gold when you have the hold and red when you're caught, and thumps on every tap. The AI taps at a human
+  pace (4.3 to 7.5 taps a second); you finish holds on most opponents and escape most of theirs by tapping fast.
+- **Mashing loses**: long strings of punches stop locking the opponent in place and they shell up after four; a
+  blocked punch leaves you a beat late; tired punches barely stun. The AI covers up under a barrage and hits back.
+  Measured: a pure button-masher beats a beginner ~85 % of the time and a champion ~25 %.
+- **Health events**: fighters get rocked (banner, slow motion, pulsing red or gold screen edge, wobbling, guard
+  weak) several times a fight and can recover; a strong body shot doubles a fighter over ("Hurt to the body"); a
+  worn leg makes them limp. Knockdowns more often let the fighter get back up.
+- **Takedowns and getting up**: the AI rests 9-16 s between takedown attempts; the sprawl window is longer and a
+  sprawl pressed as the shot comes in counts (any downward swipe works); in ground scrambles the AI reads the arrow
+  at a person's speed; the referee stands the fighters up after 8 s without progress and after 20 s on the ground in
+  any case; an on-screen hint says how to get up, escape, pass or submit.
+- Balance re-measured (`docs/FIGHT-DESIGN.md`): styles 37-59 % against the field; decisions 39 %, KO 24 %, TKO 17 %,
+  submissions 20 %. New tests pin each playtest problem (`tests/fight-sim.test.ts`, `tests/touch.test.ts`).
+
 ## 0.2.0 (16 October 2026): launch features and fixes
 
 - **First fight lesson**: six steps (jab, power punch, block, slip, kick, takedown) against a sparring partner, with

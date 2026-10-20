@@ -300,16 +300,35 @@
   top: 0;
   bottom: 0;
   left: 0;
+  width: 100%;
   background: linear-gradient(90deg, var(--red), #ff7a5a);
   transform-origin: left center;
 }
+/* the finish line: the hold is complete when the bar reaches it */
 .hud .tug b {
   position: absolute;
   top: -5px;
   bottom: -5px;
   width: 3px;
   background: #fff;
-  left: 0;
+  right: 0;
+}
+.hud .tug.attack i {
+  background: linear-gradient(90deg, #b8862e, var(--gold));
+}
+/* every tap of the player's thumps the bar, so it is clear the taps count */
+.hud .tug.pulse {
+  animation: tugPulse 0.14s ease-out;
+}
+@keyframes tugPulse {
+  0% {
+    transform: scale(1.06);
+    box-shadow: 0 0 14px rgba(255, 255, 255, 0.55);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: none;
+  }
 }
 .coach {
   position: fixed;
@@ -352,4 +371,50 @@
   padding: 5px 12px;
   font-size: 11px;
   cursor: pointer;
+}
+
+/* health events: the screen edge pulses while a fighter is rocked */
+.hud::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s;
+}
+.hud.rocked-me::after {
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(170, 0, 0, 0.55) 100%);
+  animation: rockedPulse 0.9s ease-in-out infinite;
+}
+.hud.rocked-them::after {
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(212, 166, 74, 0.35) 100%);
+  opacity: 1;
+}
+@keyframes rockedPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* what the player can do on the ground */
+.hud .ghint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(14px + var(--safe-b));
+  transform: translateX(-50%);
+  max-width: 56vw;
+  padding: 5px 12px;
+  border-radius: 8px;
+  background: rgba(8, 8, 12, 0.7);
+  font-size: 12px;
+  text-align: center;
+  color: var(--text);
+  display: none;
+}
+.hud .ghint.on {
+  display: block;
 }

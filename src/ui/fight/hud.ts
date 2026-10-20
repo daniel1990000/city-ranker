@@ -63,6 +63,7 @@ export class FightHud {
   private promptTimer: HTMLElement;
   private tug: HTMLElement;
   private tugFill: HTMLElement;
+  private ghint: HTMLElement;
   private cache = new Map<string, string | number | boolean>();
   /** Which side the player controls (prompts are for them). */
   player: Side = 0;
@@ -101,6 +102,7 @@ export class FightHud {
     this.tug = el('div', 'tug', this.prompt);
     this.tugFill = el('i', '', this.tug);
     el('b', '', this.tug);
+    this.ghint = el('div', 'ghint', this.root);
   }
 
   private set(key: string, v: string | number | boolean, apply: () => void): void {
@@ -150,13 +152,32 @@ export class FightHud {
           if (e.perfect) this.pop('Perfect slip', e.side);
           break;
         case 'stun':
-          this.pop('Rocked!', e.side === 0 ? 1 : 0);
+          // a health event: big, and it tells the player what to do about it
+          if (e.side === this.player) this.showBanner('Rocked!', 'Cover up and get out of range', 'red');
+          else this.showBanner('Rocked!', 'Go for the finish', 'gold');
+          break;
+        case 'hurt':
+          if (e.zone === 'body') this.showBanner('Hurt to the body', e.side === this.player ? 'Breathe: back off and cover up' : 'Keep working the body', e.side === this.player ? 'red' : 'gold');
+          else this.pop(e.side === this.player ? 'Your leg is hurt' : 'Leg is hurt!', e.side);
+          break;
+        case 'recover':
+          this.pop('Recovered', e.side);
+          break;
+        case 'cover':
+          if (e.side !== this.player) this.pop('Covering up', e.side);
           break;
         case 'special':
           this.pop(MOVE_NAME[e.move] ?? 'Special', e.side);
           break;
         case 'takedown':
           this.pop('Takedown', e.side);
+          break;
+        case 'shoot':
+          // warn as the shot starts: a sprawl pressed this early works best
+          if (e.side !== this.player) this.pop('Swipe down to sprawl!', this.player);
+          break;
+        case 'standUp':
+          if (e.reason === 'ref') this.pop('Referee stands them up', this.player);
           break;
         case 'sprawl':
           if (e.success) this.pop('Sprawl!', e.side);
@@ -206,6 +227,30 @@ export class FightHud {
     this.set('clock', t, () => (this.clockT.textContent = t));
     this.set('round', s.round, () => (this.clockR.textContent = `ROUND ${s.round} / ${rounds}`));
 
+    // rocked: a pulsing red edge while the player is wobbled, gold while the opponent is
+    const rocked = (i: 0 | 1) => s.fighters[i].stunTicks > 0 && (s.fighters[i].hurtFlags & 4) !== 0;
+    const meRocked = rocked(this.player);
+    const themRocked = rocked(this.player === 0 ? 1 : 0);
+    this.set('rockedMe', meRocked, () => this.root.classList.toggle('rocked-me', meRocked));
+    this.set('rockedThem', themRocked, () => this.root.classList.toggle('rocked-them', themRocked));
+
+    // on the ground: what the player can do from here (bottom players kept asking how to get up)
+    let gh = '';
+    if (s.ground && !s.ground.scramble && !s.ground.sub && !s.result) {
+      const top = s.ground.top === this.player;
+      gh = top
+        ? s.ground.pos === 'guard'
+          ? 'Tap to strike · Swipe up to pass to mount · Swipe down for a choke'
+          : 'Tap to strike · Swipe down for an armbar'
+        : s.ground.pos === 'mount'
+          ? 'Swipe up to escape the mount · Hold to cover up'
+          : 'Swipe up to get back up · Swipe down for an armbar · Hold to cover up';
+    }
+    this.set('ghint', gh, () => {
+      this.ghint.textContent = gh;
+      this.ghint.classList.toggle('on', gh !== '');
+    });
+
     // the player's prompt
     const me = s.fighters[this.player];
     const pr = me.prompt;
@@ -217,6 +262,8 @@ export class FightHud {
       this.promptArrow.style.display = pr.kind === 'scramble' ? 'flex' : 'none';
       this.promptArrow.textContent = pr.dir ? ARROW[pr.dir] : '';
       this.tug.style.display = pr.kind === 'mash' ? 'block' : 'none';
+      // gold when the player is the one applying the hold, red when they are caught in it
+      this.tug.classList.toggle('attack', pr.kind === 'mash' && pr.attacking);
       this.promptLabel.textContent =
         pr.kind === 'sprawl'
           ? pr.attacking
@@ -238,6 +285,13 @@ export class FightHud {
         this.tugFill.style.transform = `scaleX(${(g.sub.progress / METER_MAX).toFixed(3)})`;
       }
     }
+  }
+
+  /** The player tapped in the submission battle: thump the bar. */
+  tapPulse(): void {
+    this.tug.classList.remove('pulse');
+    void this.tug.offsetWidth;
+    this.tug.classList.add('pulse');
   }
 
   private coachEl: HTMLElement | null = null;

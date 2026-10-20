@@ -4,6 +4,9 @@
 
 import { clampi, muldiv, rngChance, rngInt, rngNoise, rngWeighted, seedRng } from './math';
 import { MOVES, STRIKES } from './moves';
+import { GROUND } from './ground';
+
+const GROUND_SCRAMBLE_WINDOW = GROUND.scrambleWindow;
 import type { Archetype, Controller, Evade, FightInput, FightView, GroundDir, MoveId, Side, Strike } from './types';
 import { METER_MAX } from './types';
 
@@ -28,8 +31,8 @@ const STYLES: Record<Archetype, Style> = {
   brawler: { range: 880, weights: [10, 16, 18, 22, 14, 10, 4, 3, 3], shoot: 300, aggression: 6200, combo: 4, advance: 1200, submit: 300 },
   boxer: { range: 1000, weights: [20, 26, 16, 16, 10, 12, 2, 0, 0], shoot: 150, aggression: 5200, combo: 4, advance: 800, submit: 300 },
   kicker: { range: 1200, weights: [14, 10, 4, 4, 2, 4, 26, 20, 16], shoot: 250, aggression: 4800, combo: 3, advance: 900, submit: 500 },
-  wrestler: { range: 1100, weights: [20, 18, 10, 12, 6, 12, 10, 6, 2], shoot: 1500, aggression: 4200, combo: 2, advance: 3000, submit: 900 },
-  grappler: { range: 1100, weights: [22, 16, 8, 8, 4, 8, 14, 8, 4], shoot: 1500, aggression: 3800, combo: 2, advance: 2600, submit: 3200 },
+  wrestler: { range: 1100, weights: [20, 18, 10, 12, 6, 12, 10, 6, 2], shoot: 1100, aggression: 4200, combo: 2, advance: 3000, submit: 900 },
+  grappler: { range: 1100, weights: [22, 16, 8, 8, 4, 8, 14, 8, 4], shoot: 1100, aggression: 3800, combo: 2, advance: 2600, submit: 3200 },
 };
 
 export interface AIOptions {
@@ -62,6 +65,17 @@ export class AIController implements Controller {
   private scrambleAt = -1;
   private scrambleDir: GroundDir | null = null;
   private seenScramble = -1;
+  /** Last tick the opponent was throwing something (for covering up under pressure). */
+  private lastOppAttack = -1000;
+  /** No new takedown attempt before this tick (it rests between shots, and after a spell on the ground). */
+  private shootAfter = 0;
+  private wasGround = false;
+  private wasShooting = false;
+  /** The knockdown we already decided about (pounce or not), by its start tick. */
+  private pounceFor = -1;
+  private pounceYes = false;
+  private counterBack = false;
+  private shellUntil = -1;
 
   constructor(opts: AIOptions) {
     this.difficulty = clampi(opts.difficulty | 0, 0, 1000);
@@ -96,6 +110,13 @@ export class AIController implements Controller {
       return input;
     }
 
+    // rest between takedown attempts, and after a spell on the ground
+    const shooting = me.action === 'shoot';
+    if (shooting && !this.wasShooting) this.shootAfter = t + 540 + rngInt(this.rng, 300);
+    this.wasShooting = shooting;
+    if (this.wasGround && !view.ground) this.shootAfter = Math.max(this.shootAfter, t + 660 + rngInt(this.rng, 300));
+    this.wasGround = !!view.ground;
+
     if (view.ground) return this.ground(view, input);
     if (view.takedown) return this.takedown(view, input);
     return this.standing(view, input);
@@ -116,7 +137,12 @@ export class AIController implements Controller {
       const startTick = t - them.actionTick;
       if (startTick !== this.seenAttack) {
         this.seenAttack = startTick;
-        const defendChance = 800 + muldiv(d, 46, 10) + (stats.defense - 50) * 25;
+        // under a barrage (another attack right after the last one) it is readier to cover up
+        const pressured = startTick - this.lastOppAttack < 50;
+        const defendChance = 800 + muldiv(d, 46, 10) + (stats.defense - 50) * 25 + (pressured ? 600 + muldiv(d, 4, 1) : 0);
+        // a barrage: hold the guard up for a while instead of reacting punch by punch (a beginner rarely does)
+        if (pressured && this.chance(1200 + muldiv(d, 7, 1))) this.shellUntil = t + 30 + rngInt(this.rng, 12);
+        this.lastOppAttack = startTick;
         if (this.chance(defendChance)) {
           const move = them.action;
           const impactIn = Math.max(1, them.actionImpact - them.actionTick);
@@ -164,11 +190,57 @@ export class AIController implements Controller {
       if (input.block) return input;
     }
 
-    // the opponent is down: jump on them or let them up
-    if (them.downed && them.action === 'downed') {
-      if (view.dist > 1400) input.move = 1;
-      else if (st.shoot > 1000 || this.chance(4000)) input.shoot = true;
+
+    // rocked: cover up and get out of there (a beginner forgets to)
+    if (me.stunned && !isAttack(me.action)) {
+      if (this.chance(3000 + muldiv(d, 10, 1))) {
+        input.block = true;
+        if (view.myRoom > 500 && this.chance(5000)) {
+          input.block = false;
+          input.move = -1;
+        }
+        return input;
+      }
+    }
+
+    // blocked one and they are still in their recovery: hit back (decided once per blocked strike)
+    if (me.action === 'blockHit' && me.actionTick === 1) this.counterBack = this.chance(800 + muldiv(d, 9, 1));
+    if (this.counterBack && me.action !== 'blockHit' && isAttack(them.action) && them.actionTick > them.actionImpact) {
+      this.counterBack = false;
+      input.strike = view.dist < 950 ? (this.chance(5000) ? 'hookL' : 'uppercut') : 'cross';
+      this.lastPress = t;
+      this.plan = [view.dist < 950 ? 'hookR' : 'cross'];
       return input;
+    }
+
+    if (t < this.shellUntil && !isAttack(me.action) && !this.counterBack) {
+      input.block = true;
+      return input;
+    }
+
+    // the opponent is down: jump on them or let them up (decided once per knockdown, by style)
+    if (them.downed && them.action === 'downed') {
+      const kdStart = t - them.actionTick;
+      if (kdStart !== this.pounceFor) {
+        this.pounceFor = kdStart;
+        this.pounceYes = this.chance(st.shoot >= 1000 ? 8000 : (this.styleId ?? view.mySpec.archetype) === 'brawler' ? 5500 : 2500);
+      }
+      if (!this.pounceYes) return this.footwork(view, input, false);
+      if (view.dist > 1400) input.move = 1;
+      else input.shoot = true;
+      return input;
+    }
+    // doubled over or rocked in front of us: go for it
+    if ((them.action === 'hurtBody' || them.stunned) && view.dist <= st.range + 200 && !isAttack(me.action) && t - this.lastPress > 6 && this.chance(5000 + muldiv(d, 6, 1))) {
+      const first = this.pick(view.dist);
+      if (first) {
+        input.strike = first;
+        this.lastPress = t;
+        this.plan = [];
+        const nx = this.pick(view.dist);
+        if (nx) this.plan.push(nx);
+        return input;
+      }
     }
 
     // a counter window after a perfect evade: punish right now
@@ -197,7 +269,7 @@ export class AIController implements Controller {
       return input;
     }
     // takedown
-    if (view.dist <= 1450 && !tired && this.chance(st.shoot - (view.oppSpec.stats.wrestling - 50) * 10)) {
+    if (view.dist <= 1450 && !tired && t >= this.shootAfter && this.chance(st.shoot - (view.oppSpec.stats.wrestling - 50) * 10)) {
       input.shoot = true;
       return input;
     }
@@ -275,18 +347,20 @@ export class AIController implements Controller {
     const me = view.me;
     const them = view.opp;
 
-    // the submission tug-of-war: mash at a rate that depends on difficulty (5.5..8.5 taps a second)
+    // the submission tug-of-war: mash at a human pace that depends on difficulty (4.3..7.5 taps a second; a person
+    // on a phone manages 6..8)
     if (g.sub) {
-      const every = Math.max(6, 11 - muldiv(d, 4, 1000));
+      const every = Math.max(8, 15 - muldiv(this.difficulty, 7, 1000));
       if (t % every === 0) input.tap = true;
       return input;
     }
     // scramble: see the arrow, answer it (sometimes wrong when flustered)
     if (g.scramble) {
-      const startTick = t - (48 - g.scramble.ticksLeft);
+      const startTick = t - (GROUND_SCRAMBLE_WINDOW - g.scramble.ticksLeft);
       if (startTick !== this.seenScramble) {
         this.seenScramble = startTick;
-        this.scrambleAt = t + this.reactTicks() - 3;
+        // reading a random arrow and swiping takes a person about half a second: so does the AI (0.4..0.7 s)
+        this.scrambleAt = t + 24 + muldiv(1000 - this.difficulty, 18, 1000) + rngNoise(this.rng, 4);
         const right = this.chance(6500 + muldiv(d, 33, 10));
         this.scrambleDir = right ? g.scramble.dir : (['up', 'down', 'left', 'right'] as GroundDir[]).filter(x => x !== g.scramble?.dir)[rngInt(this.rng, 3)];
       }

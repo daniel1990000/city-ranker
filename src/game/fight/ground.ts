@@ -30,7 +30,7 @@ export const GROUND = {
   shootReach: 1500,
   shootLunge: 600,
   shootCost: 1100,
-  sprawlWindow: 20,
+  sprawlWindow: 30,
   sprawlRecovery: 36,
   stuffedRecovery: 44,
   takedownAnim: 40,
@@ -39,18 +39,20 @@ export const GROUND = {
   poundDmg: 520,
   poundCost: 260,
   poundBlockedPm: 250,
-  scrambleWindow: 48,
+  scrambleWindow: 60,
   scrambleCooldown: 90,
   scrambleCost: 450,
   advanceAnim: 30,
   escapeAnim: 30,
   standAnim: 36,
-  subStart: 3500,
+  subStart: 4500,
   subCost: 900,
   subTapCost: 30,
   subTimeLimit: 600,
   /** Ticks without progress before the referee stands them up. */
-  refIdle: 600,
+  refIdle: 480,
+  /** Longest stay on the ground before the referee stands them up anyway (20 s): nobody is held down forever. */
+  refMax: 1200,
   /** Unanswered ground strikes on a hurt fighter before the referee stops it. */
   groundTko: 7,
   pounceReach: 1500,
@@ -92,19 +94,23 @@ export function stepShoot(f: Fight, side: Side): void {
     them.move !== null &&
     (MOVES[them.move].kind === 'kick' || MOVES[them.move].kind === 'lowKick') &&
     them.actionTick < them.moveStartup + them.moveActive &&
-    rngInt(s, 10000) < 5000 + (stat(f, side, 'wrestling') - stat(f, other, 'kicking')) * 40;
+    rngInt(s, 10000) < 3500 + (stat(f, side, 'wrestling') - stat(f, other, 'kicking')) * 40;
   if (dist > GROUND.shootReach || them.action === 'swayBack' || them.action === 'knockdown' || them.action === 'downed') {
+    them.sprawlReady = false;
     // missed: they were out of range or stepped away; the shooter is left on their knees
     setAction(me, 'getUp', GROUND.stuffedRecovery);
     emit(f, { type: 'sprawl', tick: s.tick, side: other, success: true });
     return;
   }
   if (kicking) {
+    them.sprawlReady = false;
     // caught a kick: straight to the mat
     completeTakedown(f, side, true);
     return;
   }
-  s.takedown = { atk: side, tick: 0, window: GROUND.sprawlWindow, sprawlAt: -1, caughtKick: false };
+  // a sprawl pressed while the shot was still coming in counts as the earliest possible one
+  s.takedown = { atk: side, tick: 0, window: GROUND.sprawlWindow, sprawlAt: them.sprawlReady ? 0 : -1, caughtKick: false };
+  them.sprawlReady = false;
   them.prompt = { kind: 'sprawl', dir: null, ticksLeft: GROUND.sprawlWindow, window: GROUND.sprawlWindow, attacking: false };
   me.prompt = { kind: 'sprawl', dir: null, ticksLeft: GROUND.sprawlWindow, window: GROUND.sprawlWindow, attacking: true };
   // the defender is stuck reacting: whatever they were doing is cancelled
@@ -131,7 +137,7 @@ export function stepTakedown(f: Fight, inputs: [FightInput, FightInput]): void {
   let chance: number;
   if (td.sprawlAt >= 0) {
     const early = td.window - td.sprawlAt; // ticks to spare
-    chance = 5250 + wr * 50 + (stat(f, def, 'defense') - 50) * 20 + muldiv(defF.stamina - atkF.stamina, 1, 6) + early * 45;
+    chance = 5250 + wr * 50 + (stat(f, def, 'defense') - 50) * 20 + muldiv(defF.stamina - atkF.stamina, 1, 6) + early * 35;
     chance = clampi(chance, 900, 9300);
   } else {
     chance = clampi(2600 + wr * 40 + (stat(f, def, 'defense') - 50) * 20, 600, 5000);
@@ -319,7 +325,7 @@ export function stepGround(f: Fight, inputs: [FightInput, FightInput]): void {
     }
   }
 
-  if (g.idle >= GROUND.refIdle) standUp(f, 'ref');
+  if (g.idle >= GROUND.refIdle || g.tick >= GROUND.refMax) standUp(f, 'ref');
 }
 
 function landPound(f: Fight, side: Side): void {
@@ -463,7 +469,7 @@ function startSub(f: Fight, side: Side, kind: SubKind): void {
 function tapForce(f: Fight, side: Side, attacking: boolean): number {
   const me = f.state.fighters[side];
   const skill = attacking ? stat(f, side, 'submissions') : stat(f, side, 'grappling');
-  return muldiv(150 + muldiv(skill, 3, 2), 5000 + (me.stamina >> 1), 10000);
+  return muldiv(380 + skill, 5000 + (me.stamina >> 1), 10000);
 }
 
 function stepSub(f: Fight, inputs: [FightInput, FightInput]): void {
@@ -475,7 +481,7 @@ function stepSub(f: Fight, inputs: [FightInput, FightInput]): void {
   const atk = sub.atk;
   const def = opp(atk);
   // a small drift toward the better submission artist
-  let delta = muldiv(stat(f, atk, 'submissions') - stat(f, def, 'grappling'), 1, 12) + 1;
+  let delta = muldiv(stat(f, atk, 'submissions') - stat(f, def, 'grappling'), 1, 16) + 1;
   if (inputs[atk].tap) {
     delta += tapForce(f, atk, true);
     spend(f, atk, GROUND.subTapCost);

@@ -120,6 +120,14 @@ export class FightScene {
           this.excitement = 1;
           break;
         case 'stun':
+          // rocked: punch in on it, a beat of slow motion
+          this.director.punchIn(0.8);
+          this.director.shake(0.7);
+          this.excitement = Math.min(1, this.excitement + 0.5);
+          this.slowUntil = this.clock + 0.5;
+          break;
+        case 'hurt':
+          if (e.zone === 'body') this.director.punchIn(0.5);
           this.excitement = Math.min(1, this.excitement + 0.3);
           break;
         default:

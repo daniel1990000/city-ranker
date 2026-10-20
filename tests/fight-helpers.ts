@@ -17,3 +17,49 @@ export function testFighter(archetype: Archetype, bonus = 0, id = archetype): Fi
 }
 
 export const ARCHETYPES: Archetype[] = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'];
+
+import { GROUND } from '../src/game/fight/ground';
+import type { Controller, FightInput, FightView, MoveId, Side } from '../src/game/fight/types';
+import { NO_INPUT } from '../src/game/fight/types';
+
+/**
+ * A button-masher with a person's reflexes: walks in and throws power punches nonstop, never defends standing;
+ * reads ground arrows in half a second, taps 6.7 times a second in a submission, sprawls late.
+ */
+export class Masher implements Controller {
+  private n = 0;
+  next(v: FightView, side: Side): FightInput {
+    void side;
+    const out: FightInput = { ...NO_INPUT };
+    if (v.phase !== 'fight') return out;
+    if (v.me.action === 'downed') {
+      out.tap = v.tick % 8 === 0;
+      return out;
+    }
+    const g = v.ground;
+    if (g) {
+      if (g.sub) {
+        out.tap = v.tick % 9 === 0;
+        return out;
+      }
+      if (g.scramble) {
+        if (GROUND.scrambleWindow - g.scramble.ticksLeft === 30) out.ground = g.scramble.dir;
+        return out;
+      }
+      if (g.meTop) out.tap = v.tick % 12 === 0;
+      else if (v.tick % 60 === 0) out.ground = 'up';
+      return out;
+    }
+    if (v.takedown && !v.takedown.mine) {
+      if (v.takedown.ticksLeft < 8) out.shoot = true;
+      return out;
+    }
+    if (v.dist > 1050) {
+      out.move = 1;
+      return out;
+    }
+    const seq: MoveId[] = ['cross', 'hookL', 'hookR', 'uppercut', 'jab', 'cross'];
+    out.strike = seq[this.n++ % seq.length] as FightInput['strike'];
+    return out;
+  }
+}

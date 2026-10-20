@@ -288,13 +288,25 @@ const fold = st({ hip: add(S.hip, [0, -0.06, -0.08]), chest: rot(S.chest, [28, 0
 const hitBody = once([[0, S], [0.2, fold], [0.5, fold], [1, S]], undefined, 0.02);
 const buckle = st({ hip: add(S.hip, [0.04, -0.1, -0.02]), hipRot: rot(S.hipRot, [0, 0, 10]), footL: L(add(S.footL.p, [-0.06, 0.08, -0.04]), [-0.6, 0, 1]), toeL: [20, 10], chest: rot(S.chest, [6, 0, 6]) });
 const hitLeg = once([[0, S], [0.2, buckle], [0.55, buckle], [1, S]], undefined, 0.02);
+// doubled over from a liver shot: bent at the waist, elbow clamped to the side, the other glove pawing out
+const doubled = st({
+  hip: add(S.hip, [0.03, -0.14, -0.12]),
+  hipRot: rot(S.hipRot, [8, 10, 0]),
+  chest: rot(S.chest, [42, 10, -10]),
+  head: rot(S.head, [-18, 0, 0]),
+  handL: L([0.14, 1.0, 0.3], [0.6, -1, 0]),
+  handR: L([-0.16, 0.98, 0.08], [-0.6, -1, -0.3]),
+  fist: 0.5,
+});
+const hurtBody = once([[0, S], [0.12, doubled], [0.5, edit(doubled, { hip: add(doubled.hip, [0, -0.03, -0.02]) })], [0.82, doubled], [1, S]], undefined, 0.02);
 
-const woozy = st({ hip: add(S.hip, [0, -0.05, -0.03]), chest: rot(S.chest, [4, 0, 6]), head: [16, 10, 14], handL: L([0.2, 1.24, 0.22], [0.6, -1, 0]), handR: L([-0.16, 1.22, 0.14], ELBOW_R()), fist: 0.6 });
-const stunned = loop(1.6, [
+// rocked: guard sagging, knees going, the whole body drifting from side to side
+const woozy = st({ hip: add(S.hip, [0.05, -0.08, -0.05]), chest: rot(S.chest, [2, 0, 10]), head: [18, 14, 18], handL: L([0.22, 1.12, 0.24], [0.6, -1, 0]), handR: L([-0.18, 1.1, 0.16], ELBOW_R()), fist: 0.5 });
+const stunned = loop(1.3, [
   [0, woozy],
-  [0.5, edit(woozy, { chest: rot(woozy.chest, [0, 0, -12]), head: [20, 0, -16], hip: add(woozy.hip, [-0.04, -0.02, 0]) })],
+  [0.5, edit(woozy, { hip: add(woozy.hip, [-0.1, -0.03, 0.02]), chest: rot(woozy.chest, [4, 0, -20]), head: [24, -8, -22] })],
   [1, woozy],
-], 0.1);
+], 0.08);
 
 // on the canvas, face up
 const LYING: Pose = {
@@ -455,6 +467,7 @@ export const CLIPS: Record<ActionId, Clip> = {
   hitBody,
   hitLeg,
   stunned,
+  hurtBody,
   knockdown,
   downed,
   getUp,

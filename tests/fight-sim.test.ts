@@ -21,7 +21,8 @@ import {
 } from '../src/game/fight';
 import { __test } from '../src/game/fight/sim';
 import { MIN_GAP } from '../src/game/fight/core';
-import { ARCHETYPES, testFighter } from './fight-helpers';
+import { GROUND } from '../src/game/fight/ground';
+import { ARCHETYPES, Masher, testFighter } from './fight-helpers';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -270,7 +271,8 @@ describe('takedowns and the ground', () => {
       f.state.fighters[0].x = -500;
       f.state.fighters[1].x = 500;
       stepN(f, 1, { shoot: true });
-      stepN(f, 40);
+      // startup + the whole sprawl window
+      stepN(f, GROUND.shootStartup + GROUND.sprawlWindow + 4);
       if (f.state.ground) downs++;
     }
     expect(downs).toBeGreaterThan(12);
@@ -413,5 +415,120 @@ describe('positions', () => {
       });
     }
     expect(worst).toBeGreaterThanOrEqual(MIN_GAP - 1);
+  });
+});
+
+describe('owner playtest (October 2026): mashing, rocked moments, takedowns, submissions', () => {
+  function vsAI(difficulty: number, n: number, opp: (seed: number) => ReturnType<typeof testFighter> = s => testFighter(ARCHETYPES[s % 5])) {
+    let wins = 0;
+    const events: FightEvent[] = [];
+    for (let seed = 1; seed <= n; seed++) {
+      const f = createFight({ seed, a: testFighter('boxer'), b: opp(seed) });
+      const a = new Masher();
+      const b = new AIController({ difficulty, seed: seed * 7 });
+      for (let t = 0; t < 30000 && !f.state.result; t++) {
+        stepFight(f, [a.next(viewFor(f, 0), 0), b.next(viewFor(f, 1), 1)]);
+        events.push(...drainEvents(f));
+      }
+      if (f.state.result?.winner === 0) wins++;
+    }
+    return { wins, events };
+  }
+
+  it('mashing punches beats a beginner but loses to a good opponent', () => {
+    expect(vsAI(100, 20).wins).toBeGreaterThanOrEqual(12);
+    expect(vsAI(950, 20).wins).toBeLessThanOrEqual(8);
+  });
+
+  it('a long string of clean punches makes the target shell up: the next one lands on the guard', () => {
+    const f = createFight({ seed: 3, a: testFighter('brawler', 20), b: testFighter('boxer', -20) });
+    live(f);
+    f.state.fighters[0].x = -450;
+    f.state.fighters[1].x = 450;
+    const ev: FightEvent[] = [];
+    for (let i = 0; i < 240 && !ev.some(e => e.type === 'cover'); i++) {
+      stepFight(f, [I({ strike: i % 2 ? 'cross' : 'jab' }), I()]);
+      ev.push(...drainEvents(f));
+    }
+    expect(ev.some(e => e.type === 'cover')).toBe(true);
+    const after = stepN(f, 40, { strike: 'jab' });
+    expect(after.some(e => e.type === 'hit' && e.side === 0 && e.blocked)).toBe(true);
+  });
+
+  it('fights have rocked moments, body and leg hurts, and fighters recover from being rocked', () => {
+    const { events } = vsAI(600, 10);
+    const n = (t: FightEvent['type']) => events.filter(e => e.type === t).length;
+    expect(n('stun')).toBeGreaterThan(10);
+    expect(n('recover')).toBeGreaterThan(3);
+    expect(events.some(e => e.type === 'hurt' && e.zone === 'body')).toBe(true);
+  });
+
+  it('a heavy shot to a worn body doubles the fighter over', () => {
+    const f = createFight({ seed: 5, a: testFighter('brawler', 20), b: testFighter('boxer') });
+    live(f);
+    f.state.fighters[0].x = -420;
+    f.state.fighters[1].x = 420;
+    f.state.fighters[1].body = 7000;
+    let ev: FightEvent[] = [];
+    for (let i = 0; i < 6 && !ev.some(e => e.type === 'hurt'); i++) ev = ev.concat(stepN(f, 1, { strike: 'bodyShot' }), stepN(f, 40));
+    expect(ev.some(e => e.type === 'hurt' && e.side === 1 && e.zone === 'body')).toBe(true);
+  });
+
+  it('nobody is held down forever: the referee stands them up', () => {
+    const f = createFight({ seed: 8, a: testFighter('wrestler'), b: testFighter('boxer') });
+    live(f);
+    __test.enterGround(f, 0, 'guard');
+    let up = false;
+    for (let i = 0; i < GROUND.refMax + 60 && !f.state.result; i++) {
+      const ev = stepN(f, 1, { tap: i % 30 === 0 }, { block: true });
+      if (ev.some(e => e.type === 'standUp')) {
+        up = true;
+        break;
+      }
+    }
+    expect(up || !!f.state.result).toBe(true);
+  });
+
+  it('a sprawl pressed early (while the shot is coming) stops more shots than no sprawl', () => {
+    const run = (early: boolean) => {
+      let stuffed = 0;
+      for (let seed = 0; seed < 30; seed++) {
+        const f = createFight({ seed, a: testFighter('wrestler'), b: testFighter('boxer') });
+        live(f);
+        f.state.fighters[0].x = -500;
+        f.state.fighters[1].x = 500;
+        stepN(f, 1, { shoot: true });
+        if (early) stepN(f, 4, {}, { shoot: true });
+        stepN(f, GROUND.shootStartup + GROUND.sprawlWindow + 4);
+        if (!f.state.ground) stuffed++;
+      }
+      return stuffed;
+    };
+    expect(run(true)).toBeGreaterThan(run(false) + 8);
+  });
+
+  it('a person-paced bottom player gets up against a medium opponent, and the AI mashes at a human pace', () => {
+    const { events } = vsAI(500, 20, s => testFighter(s % 2 ? 'wrestler' : 'grappler'));
+    const mine = events.filter(e => e.type === 'scrambleEnd' && e.side === 0);
+    expect(mine.length).toBeGreaterThan(5);
+    expect(mine.filter(e => e.type === 'scrambleEnd' && e.success).length * 100).toBeGreaterThan(mine.length * 35);
+  });
+
+  it('submission: a person tapping 6.7 times a second can finish an even opponent the AI defends', () => {
+    let taps = 0;
+    for (let seed = 0; seed < 10; seed++) {
+      const f = createFight({ seed, a: testFighter('grappler'), b: testFighter('grappler') });
+      live(f);
+      __test.enterGround(f, 0, 'mount');
+      const ai = new AIController({ difficulty: 500, seed });
+      stepN(f, 2);
+      stepFight(f, [I({ ground: 'down' }), I()]);
+      drainEvents(f);
+      for (let t = 0; t < GROUND.subTimeLimit + 10 && f.state.ground?.sub; t++) {
+        stepFight(f, [I({ tap: t % 9 === 0 }), ai.next(viewFor(f, 1), 1)]);
+        if (drainEvents(f).some(e => e.type === 'tapOut')) taps++;
+      }
+    }
+    expect(taps).toBeGreaterThanOrEqual(6);
   });
 });

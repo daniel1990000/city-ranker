@@ -33,7 +33,7 @@ export interface Fight {
   events: FightEvent[];
 }
 
-export const SIM_VERSION = 1;
+export const SIM_VERSION = 2;
 
 export const DEFAULT_RULES: FightRules = {
   rounds: 3,
@@ -251,6 +251,11 @@ export function newFighter(x: number, facing: 1 | -1): FighterState {
     legKnockdowns: 0,
     gassed: false,
     groundCooldown: 0,
+    comboHits: 0,
+    comboTicks: 0,
+    coverTicks: 0,
+    sprawlReady: false,
+    hurtFlags: 0,
     prompt: null,
   };
 }

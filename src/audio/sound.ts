@@ -353,6 +353,17 @@ export class Sound {
           this.play('thud');
           this.play('roar', { bus: 'crowd' });
           break;
+        case 'stun':
+          // rocked: the crowd comes up out of its seats
+          this.play('roar', { bus: 'crowd', gain: 0.85 });
+          break;
+        case 'hurt':
+          if (e.zone === 'body') this.play('thud', { gain: 0.5, rate: 0.8 });
+          this.play('ooh', { bus: 'crowd', gain: 0.8 });
+          break;
+        case 'recover':
+          this.play('ooh', { bus: 'crowd', gain: 0.45, rate: 1.1 });
+          break;
         case 'takedown':
           this.play('thud', { gain: 0.7, rate: 1.2 });
           this.play('ooh', { bus: 'crowd', gain: 0.6 });
