@@ -3,6 +3,7 @@
 // all time, so the "best win" board doubles as the weekly ranking. Saved in the 'record' progress slot.
 
 import type { FightResult } from '../game/fight/types';
+import { countsForBoards, DIFFICULTY_SCORE_PCT, type DifficultyLevel } from './difficulty';
 import { int, obj } from './sanitize';
 import { registerProgressSlot } from './save';
 
@@ -13,6 +14,9 @@ export interface RecordState {
   subs: number;
   /** best fightScore so far */
   best: number;
+  /** wins and KO / TKO wins on the Easy setting: shown in the record, left off the wins and knockouts boards */
+  easyWins: number;
+  easyKos: number;
 }
 
 declare module './save' {
@@ -22,12 +26,21 @@ declare module './save' {
 }
 
 export function freshRecord(): RecordState {
-  return { v: 1, kos: 0, subs: 0, best: 0 };
+  return { v: 1, kos: 0, subs: 0, best: 0, easyWins: 0, easyKos: 0 };
 }
 
 export function sanitizeRecord(raw: unknown): RecordState {
   const o = obj(raw);
-  return { v: 1, kos: int(o.kos, 0, 0, 1_000_000), subs: int(o.subs, 0, 0, 1_000_000), best: int(o.best, 0, 0, 100_000) };
+  const kos = int(o.kos, 0, 0, 1_000_000);
+  return {
+    v: 1,
+    kos,
+    subs: int(o.subs, 0, 0, 1_000_000),
+    best: int(o.best, 0, 0, 100_000),
+    // older saves have none (there was no Easy before)
+    easyWins: int(o.easyWins, 0, 0, 1_000_000_000),
+    easyKos: Math.min(kos, int(o.easyKos, 0, 0, 1_000_000)),
+  };
 }
 
 registerProgressSlot('record', { fresh: freshRecord, sanitize: sanitizeRecord });
@@ -46,11 +59,25 @@ export function fightScore(r: Pick<FightResult, 'winner' | 'method'>, seconds: n
   return 1000 + METHOD_BONUS[r.method] + quick + opp + hard;
 }
 
-/** Count a finished fight. Returns this fight's score (0 when not a win). */
-export function recordFight(s: RecordState, r: Pick<FightResult, 'winner' | 'method'>, seconds: number, oppOverall: number, difficulty: number): number {
-  if (r.winner === 0 && (r.method === 'KO' || r.method === 'TKO')) s.kos++;
+/**
+ * Count a finished fight. Returns this fight's score (0 when not a win). `difficulty` is the AI difficulty the fight
+ * was really played at (after the setting's offset); `level` is the setting. An Easy win scores half and is kept
+ * apart (easyWins / easyKos), so the boards can leave it out.
+ */
+export function recordFight(s: RecordState, r: Pick<FightResult, 'winner' | 'method'>, seconds: number, oppOverall: number, difficulty: number, level: DifficultyLevel = 'normal'): number {
+  const ko = r.winner === 0 && (r.method === 'KO' || r.method === 'TKO');
+  if (ko) s.kos++;
   if (r.winner === 0 && r.method === 'SUB') s.subs++;
-  const score = fightScore(r, seconds, oppOverall, difficulty);
+  if (r.winner === 0 && !countsForBoards(level)) {
+    s.easyWins++;
+    if (ko) s.easyKos++;
+  }
+  const score = Math.floor((fightScore(r, seconds, oppOverall, difficulty) * DIFFICULTY_SCORE_PCT[level]) / 100);
   if (score > s.best) s.best = score;
   return score;
+}
+
+/** What the wins and knockouts leaderboards get: Easy wins left out. */
+export function boardCounts(s: RecordState, wins: number): { wins: number; knockouts: number } {
+  return { wins: Math.max(0, wins - s.easyWins), knockouts: Math.max(0, s.kos - s.easyKos) };
 }

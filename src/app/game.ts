@@ -12,7 +12,8 @@ import { addXp, canStarUp, giveCard, starUp, STARTER_ID, syncBundles, toFightSpe
 import { PACKS, rollPack, type PackId, type PackResult } from '../meta/packs';
 import { bindClock, keepClock, rewardTime, settleClock, unlock as unlockClock } from '../meta/clock';
 import { overall, ROSTER, rosterFighter, type RosterFighter } from '../meta/roster';
-import { recordFight } from '../meta/record';
+import { boardCounts, recordFight } from '../meta/record';
+import { winCash, winXp } from '../meta/difficulty';
 import { addSeasonXp, claimTier, ensureSeason, fightXp, type SeasonReward } from '../meta/season';
 import { ensureProgress, flush, loadSave, writeSave, type SaveData } from '../meta/save';
 import { startTimer, timerLeft, clearTimer } from '../meta/timers';
@@ -266,6 +267,8 @@ export class Game {
       const cash = won ? (method === 'DEC' ? 250 : 375) : 100;
       r = { cash, xp: won ? 60 : 30, gems: 0, pack: null, belt: false };
     }
+    // the difficulty setting: harder pays more per win, Easy less (meta/difficulty.ts)
+    if (won) r = { ...r, cash: winCash(r.cash, this.save.settings.difficulty), xp: winXp(r.xp, this.save.settings.difficulty) };
     addCash(this.save, r.cash);
     addGems(this.save, r.gems);
     const o = this.save.progress.fighters.owned[fighterId];
@@ -279,11 +282,12 @@ export class Game {
     countFight(this.save.ads, seconds);
     const rec = this.save.progress.record;
     const before = rec.best;
-    const score = recordFight(rec, result, seconds, overall(opp.stats), difficulty);
+    const score = recordFight(rec, result, seconds, overall(opp.stats), difficulty, this.save.settings.difficulty);
     this.persist(true);
-    // Play Games keeps each player's best, so posting every time is safe
-    submitScore('wins', this.save.wins);
-    submitScore('knockouts', rec.kos);
+    // Play Games keeps each player's best, so posting every time is safe (Easy wins don't count on the boards)
+    const boards = boardCounts(rec, this.save.wins);
+    submitScore('wins', boards.wins);
+    submitScore('knockouts', boards.knockouts);
     if (score > 0) submitScore('weekly', score);
     track('fight_end', { mode: step ? 'career' : 'quick', tier: step?.tier ?? -1, result: won ? 'W' : draw ? 'D' : 'L', method, secs: Math.round(seconds), fights: this.save.fights });
     return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before };
