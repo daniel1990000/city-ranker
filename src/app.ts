@@ -3,11 +3,13 @@
 
 import * as THREE from 'three';
 import { FightSession, type FightOutcome } from './app/fightSession';
-import { Game, type FightRewards } from './app/game';
+import { Game, type FightRewards, type TourFightDone } from './app/game';
 import { stepFight } from './game/fight';
 import { __test as simTest } from './game/fight/sim';
 import { NO_INPUT, type DivisionId, type FighterSpec } from './game/fight/types';
 import type { CareerStep } from './meta/career';
+import type { TourStep } from './meta/tournament';
+import { tournamentScreen } from './ui/tournament';
 import { DIVISION_IDS, division } from './meta/divisions';
 import { generateName } from './meta/names';
 import { baseStats, rosterOf } from './meta/roster';
@@ -85,6 +87,7 @@ export class App {
       toast: m => this.toast(m),
       startCareer: d => void this.startCareer(d),
       startQuick: d => void this.startQuick(d),
+      startTournament: () => void this.startTournament(),
       settings: () => buildSettings(this.game, m => this.toast(m)),
       boards: () => void this.openBoards(),
       offerReminders: () => this.offerReminders(),
@@ -264,6 +267,9 @@ export class App {
       case 'settings':
         el = settingsScreen(this.ctx);
         break;
+      case 'tournament':
+        el = tournamentScreen(this.ctx);
+        break;
     }
     this.screenEl = el;
     this.ui.appendChild(el);
@@ -317,11 +323,11 @@ export class App {
   // ---- fights ----------------------------------------------------------------------------------------------------
 
   private async startCareer(div: DivisionId): Promise<void> {
-    const me = this.game.pickedFor(div);
+    const me = this.game.careerFighter(div);
     const step = this.game.careerStep(div);
     if (!me || !step) return;
-    const spec = this.game.spec(me.id) as FighterSpec;
-    const venue: VenueId = VENUE_IDS[Math.min(VENUE_IDS.length - 1, step.tier + (step.kind === 'title' || step.kind === 'defense' ? 1 : 0))];
+    const spec = this.game.careerSpec(div) as FighterSpec;
+    const venue: VenueId = VENUE_IDS[Math.min(VENUE_IDS.length - 1, step.tier + (step.kind === 'title' || step.kind === 'defense' || step.kind === 'super' ? 1 : 0))];
     await this.startFight(spec, step.opponent, step.seed ^ Math.imul(this.game.save.fights + 1, 2654435761), venue, step.difficulty, step.rules, step, !this.game.save.flags.tutorialDone);
   }
 
@@ -334,6 +340,18 @@ export class App {
     const opp = quickOpponent(seed, me.division, (o?.level ?? 1) / 3 - 2);
     await this.startFight(spec, opp, seed, VENUE_IDS[seed % VENUE_IDS.length], 380 + Math.min(400, this.game.save.wins * 8), { rounds: 3, roundTicks: 75 * 60 }, null);
   }
+
+  /** The weekly tournament run's next round (the fight counts as lost if the app is closed before the result). */
+  private async startTournament(): Promise<void> {
+    const t = this.game.startTournamentFight();
+    if (!t) return;
+    this.pendingTour = t.step;
+    // the bracket's venues: a bigger arena each round
+    const venue = VENUE_IDS[Math.min(VENUE_IDS.length - 1, 2 + t.step.round)];
+    await this.startFight(t.me, t.step.opponent, t.step.seed, venue, t.step.difficulty, t.step.rules, null);
+  }
+  /** Set by startTournament for the fight startFight is about to start. */
+  private pendingTour: TourStep | null = null;
 
   private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null, tutorial = false): Promise<void> {
     this.screenEl?.remove();
@@ -369,7 +387,9 @@ export class App {
     session.resize(innerWidth, innerHeight);
     session.speed = this.qaSpeedValue;
     if (this.qaAuto) session.setAutoplay(true);
-    session.onEnd = o => this.afterFight(me, opp, difficulty, o, step);
+    const tour = this.pendingTour;
+    this.pendingTour = null;
+    session.onEnd = o => this.afterFight(me, opp, difficulty, o, step, tour);
     session.onPause = () => this.showPause();
     session.onEvents = (ev, crowd) => {
       sound.onFightEvents(ev);
@@ -445,9 +465,12 @@ export class App {
     this.ui.appendChild(p);
   }
 
-  private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null): void {
+  private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null, tourStep: TourStep | null = null): void {
     const seconds = o.result.totalTicks / 60;
-    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty);
+    const tour: TourFightDone | null = tourStep
+      ? { step: tourStep, ticks: o.result.totalTicks, maxTicks: (tourStep.rules.rounds ?? 3) * (tourStep.rules.roundTicks ?? 75 * 60), damageTaken: o.totals.damage[1] }
+      : null;
+    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty, tour);
     // Google Play's review card after a high point (a title, or the 5th win), once; Play decides if it shows
     const f = this.game.save.flags;
     if (o.result.winner === 0 && !f.ratePrompted && (rewards.belt || this.game.save.wins >= 5)) {
@@ -479,6 +502,8 @@ export class App {
           <span class="pill">+${r.xp} xp${r.levels ? ` · level up!` : ''}</span>
           ${r.pack ? `<span class="pill">+1 ${r.pack} pack</span>` : ''}
           ${r.score ? `<span class="pill">Fight score ${r.score.toLocaleString('en-US')}${r.best ? ' · new best!' : ''}</span>` : ''}
+          ${r.legacy.map(l => `<span class="pill">Legacy: ${l}</span>`).join('')}
+          ${r.tournament ? `<span class="pill">Tournament +${r.tournament.score.toLocaleString('en-US')} pts · run ${r.tournament.total.toLocaleString('en-US')}${r.tournament.champion ? ' · champion!' : r.tournament.out ? ' · out' : ''}</span>` : ''}
         </div>
         <div class="row">
           ${r.doubleOffer > 0 && this.game.rewardedReady() ? `<button class="btn ghost" data-a="double">Watch ad: +${r.doubleOffer.toLocaleString('en-US')} cash</button>` : ''}
@@ -500,6 +525,7 @@ export class App {
         await this.leaveFight();
         if (r.pack) this.nav({ s: 'packs' });
         else if (step) this.nav({ s: 'career', div: step.div });
+        else if (r.tournament) this.nav({ s: 'tournament' });
       });
     });
     this.ui.appendChild(p);
