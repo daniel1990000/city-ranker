@@ -214,3 +214,73 @@ PvP is an added feature, not a rewrite:
 - Assumed unless the owner says otherwise: landscape; 12+/Teen; blood off; same ad rules and Season Pass as
   Cartstronaut; no energy wall; English only at launch; new upload keystore; package
   `com.danielspurr.cagekings`.
+
+## 14. Roadmap (22 October 2026, after the second audit)
+
+Where we are: milestones 1–6 are built and milestone 7 (polish and audits) is under way. The second audit
+(`docs/AUDIT-2.md`) fixed the fight exploits the owner found and added the missing retention features.
+
+### Before launch (owner + Claude, about 3–4 weeks)
+1. **Real-phone pass** (owner installs the APK from the GitHub Release on a mid-range and, if possible, a cheap
+   phone): frame rate in a fight at each graphics setting, menus, a full career fight, a purchase in the closed
+   test. Claude fixes what comes back.
+2. **Accounts** (owner, see §11): Play Console app, products, AdMob ids, Play Games leaderboards and achievements,
+   privacy policy and `app-ads.txt` hosted, content rating, Data safety.
+3. **Store listing**: screenshots and the feature graphic are generated from the game (`node scripts/store.mjs`);
+   still to make: a 20–30 s gameplay video (recorded from the game with the QA camera tools).
+4. **Closed test**: 12 testers for 14 days (Google's rule for new personal accounts). Watch the funnel (below),
+   crashes and reviews; fix; then production.
+
+### First 30 days after launch
+- Weekly tournament every week (built in), one new venue look or crowd theme per fortnight via remote tuning.
+- Fix-and-tune releases from the telemetry funnel: where players stop in the lesson, first career fights,
+  the difficulty of the first boss, pack value.
+- Tune the economy remotely (`docs/REMOTE-TUNING.md`): pack prices, free pack, daily rewards, ad rewards.
+
+### 60 days
+- **New fighters**: a pack of 8 (generated with `tools/fighters/`), one legend per weight class, all earnable free.
+- **Cosmetics shop** (no stats): shorts, gloves, walkout colours, tattoos; sold for gems and earned in the Season
+  Pass. This is the money that never feels pay-to-win.
+- **Events**: weekend "KO bonus" and "submission night" events with their own leaderboard.
+- **Motion-captured animation** upgrade (a licensed MMA mocap pack): the biggest visual gain still open.
+
+### 90 days
+- **Clinch game** (against the cage: knees, dirty boxing, trips), a new layer in the fight.
+- **Rival "ghost" fights**: fight a replay-driven copy of a friend's or a top player's fighter (the input-log
+  replays already exist), the first step towards PvP.
+- **Gyms / clubs** with a weekly club score, if day-30 retention is good enough to justify it.
+
+### Live PvP (later, when the audience is there)
+The fight simulation is already deterministic, takes only inputs, can snapshot and restore, and replays from input
+logs: that is exactly what rollback netcode needs. What is still to build:
+- **Netcode**: lockstep with 2–3 frames of input delay plus rollback for the rest (restore the snapshot, re-run
+  with the late inputs). The fight runs at 60 Hz; inputs are a few bytes per tick.
+- **Server**: matchmaking (by rating and region) and a relay for the input messages (WebSocket or WebRTC data
+  channel). A small managed service (for example a Cloudflare Durable Object or a Fly.io app) costs roughly
+  $20–100 a month at a few thousand daily players; dedicated game servers are not needed.
+- **Anti-cheat**: the server (or both phones) re-runs the fight from the input log; a result that doesn't match is
+  thrown out. Fighters are plain data checked by shared code, so a hacked fighter is rejected before the fight.
+- **Fairness**: ranked PvP uses normalised fighters (same level, stars only cosmetic) so money can't buy wins.
+- Estimate: 3–5 sessions of work plus a real-phone network test.
+
+### KPIs and targets (first 30 days)
+| What | Target | Measured by (opt-in telemetry event) |
+|---|---|---|
+| Lesson finished | ≥ 80 % of installs | `lesson_done` / `app_open` (first) |
+| Day-1 retention | ≥ 35 % | `app_open` on day 1 after install |
+| Day-7 retention | ≥ 12 % | `app_open` on day 7 |
+| Day-30 retention | ≥ 4 % | `app_open` on day 30 |
+| Fights per daily player | ≥ 6 | `fight_end` |
+| Payer share | ≥ 1.5 % of monthly players | `purchase` (result ok) |
+| Revenue per daily player | ≥ $0.04 | `purchase` + ad revenue from AdMob |
+| Ad impressions per daily player | 3–6 (interstitial + rewarded) | `ad_shown` |
+| Crash-free sessions | ≥ 99.5 % | Play Console vitals, `renderer_gone` |
+
+### What the owner has to do, in order
+1. Install the latest APK from the GitHub Release on your phone and play a career fight, a tournament and the
+   practice room; tell Claude what feels wrong.
+2. Create the Play Console app and the products listed in `docs/RELEASE.md` "Known gaps".
+3. Create the AdMob app and ad units, and put the ids in the GitHub secrets (then Claude makes the first Play build).
+4. Create the Play Games leaderboards and achievements and put their ids in the secrets.
+5. Host `privacy.html`, `app-ads.txt` and `tuning.json` on your site.
+6. Fill in the content rating and Data safety forms; start the closed test with 12 testers.
