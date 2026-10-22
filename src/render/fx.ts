@@ -12,6 +12,10 @@ export class HitFx {
   private size = new Float32Array(MAX);
   private col = new Float32Array(MAX * 3);
   private next = 0;
+  /** Live particles after the last update (nothing to move or upload while it is 0). */
+  private alive = 0;
+  /** A burst wrote sizes and colours: upload them with the next update. */
+  private spawned = false;
   private geo = new THREE.BufferGeometry();
 
   constructor() {
@@ -38,6 +42,7 @@ export class HitFx {
   /** A burst at `at`, flying toward `dir` (world), strength 0..1. */
   burst(at: THREE.Vector3, dir: THREE.Vector3, strength: number, kind: 'sweat' | 'flash' = 'sweat'): void {
     const n = kind === 'flash' ? 6 : Math.round(10 + strength * 40);
+    this.spawned = true;
     for (let i = 0; i < n; i++) {
       const k = this.next;
       this.next = (this.next + 1) % MAX;
@@ -58,6 +63,8 @@ export class HitFx {
   }
 
   update(dt: number): void {
+    if (this.alive === 0 && !this.spawned) return;
+    let alive = 0;
     for (let i = 0; i < MAX; i++) {
       if (this.life[i] <= 0) continue;
       this.life[i] -= dt;
@@ -66,11 +73,18 @@ export class HitFx {
       this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
       this.pos[i * 3 + 2] += this.vel[i * 3 + 2] * dt;
       if (this.pos[i * 3 + 1] < 0) this.life[i] = 0;
+      if (this.life[i] > 0) alive++;
     }
+    // positions and lives move every frame while anything is alive (and once more to hide the last ones);
+    // sizes and colours only change when a burst spawns
     (this.geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     (this.geo.attributes.aLife as THREE.BufferAttribute).needsUpdate = true;
-    (this.geo.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-    (this.geo.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+    if (this.spawned) {
+      (this.geo.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
+      (this.geo.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+      this.spawned = false;
+    }
+    this.alive = alive;
   }
 
   dispose(): void {

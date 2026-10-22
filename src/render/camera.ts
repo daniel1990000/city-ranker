@@ -12,6 +12,9 @@ export class CameraDirector {
   private shakeT = 0;
   private punch = 0;
   private orbit = 0;
+  private readonly mid = new THREE.Vector3();
+  private readonly target = new THREE.Vector3();
+  private readonly lk = new THREE.Vector3();
   mode: CamMode = 'intro';
   /** Which side the camera sits on (+1 = +z). */
   side = 1;
@@ -38,7 +41,7 @@ export class CameraDirector {
    */
   update(a: THREE.Vector3, b: THREE.Vector3, dt: number): void {
     const cam = this.camera;
-    const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+    const mid = this.mid.addVectors(a, b).multiplyScalar(0.5);
     const sep = Math.max(1, a.distanceTo(b));
     const aspect = cam.aspect;
     const fit = aspect < 1.6 ? 1.2 : aspect < 1.9 ? 1.06 : 1;
@@ -79,8 +82,8 @@ export class CameraDirector {
     dist *= fit;
     dist *= 1 - this.punch * 0.18;
     const ang = this.orbit;
-    const target = new THREE.Vector3(mid.x + Math.sin(ang) * dist, height, mid.z + Math.cos(ang) * dist * this.side);
-    const lk = new THREE.Vector3(mid.x, lookY, mid.z);
+    const target = this.target.set(mid.x + Math.sin(ang) * dist, height, mid.z + Math.cos(ang) * dist * this.side);
+    const lk = this.lk.set(mid.x, lookY, mid.z);
     const k = 1 - Math.pow(this.mode === 'replay' ? 0.02 : 0.004, dt);
     this.pos.lerp(target, k);
     this.look.lerp(lk, Math.min(1, k * 1.6));

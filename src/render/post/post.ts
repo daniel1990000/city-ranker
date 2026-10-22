@@ -122,18 +122,24 @@ export class Post {
     this.renderer.toneMappingExposure = this.current.exposure;
     // three.js mixes fog in after the output conversion when drawing straight to the screen, but before it when
     // drawing into the post target; the venues' fog colours were tuned on the first, so convert them for the second
-    const fog = scene.fog as THREE.FogExp2 | THREE.Fog | null;
-    if (fog) {
-      const base = (scene.userData.fogBase as THREE.Color | undefined) ?? (scene.userData.fogBase = fog.color.clone());
-      fog.color.copy(base);
-      if (this.composer) fog.color.convertSRGBToLinear();
-    }
-    scene.userData.postLinear = !!this.composer;
-    // the same for a plain background colour (the screen clear is not converted either)
-    if (scene.background instanceof THREE.Color) {
-      const base = (scene.userData.bgBase as THREE.Color | undefined) ?? (scene.userData.bgBase = scene.background.clone());
-      scene.background.copy(base);
-      if (this.composer) scene.background.convertSRGBToLinear();
+    // (only when the path changes: the scene remembers which one its colours were converted for)
+    const linear = !!this.composer;
+    if (scene.userData.postLinear !== linear || scene.userData.postFog !== scene.fog || scene.userData.postBg !== scene.background) {
+      const fog = scene.fog as THREE.FogExp2 | THREE.Fog | null;
+      if (fog) {
+        const base = (scene.userData.fogBase as THREE.Color | undefined) ?? (scene.userData.fogBase = fog.color.clone());
+        fog.color.copy(base);
+        if (linear) fog.color.convertSRGBToLinear();
+      }
+      // the same for a plain background colour (the screen clear is not converted either)
+      if (scene.background instanceof THREE.Color) {
+        const base = (scene.userData.bgBase as THREE.Color | undefined) ?? (scene.userData.bgBase = scene.background.clone());
+        scene.background.copy(base);
+        if (linear) scene.background.convertSRGBToLinear();
+      }
+      scene.userData.postLinear = linear;
+      scene.userData.postFog = scene.fog;
+      scene.userData.postBg = scene.background;
     }
     if (!this.composer || !this.renderPass) {
       this.renderer.render(scene, camera);
