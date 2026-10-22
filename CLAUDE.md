@@ -4,6 +4,7 @@ Original 3D MMA fighting game for Android phones (landscape): realistic fighters
 weight class, fighter packs, a monthly Season Pass, ads and in-app purchases. Vite + TypeScript + three.js, Android via
 Capacitor 8 (package and Java package `com.danielspurr.cagekings`). This repo was City Ranker until October 2026.
 Plan: `docs/MASTER-PLAN.md`. Contracts between the parts: `docs/ARCHITECTURE.md`. Current version: `package.json`.
+Next big push (audit, fixes, overhaul): `docs/AUDIT-PROMPT.md`; its findings go in `docs/AUDIT-2.md`.
 
 ## The owner
 - Non-technical, mobile-first, writes informally. Answer in plain language, short, no jargon; explain what something
