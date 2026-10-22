@@ -2,6 +2,7 @@
 // camera and crowd excitement. Rendering only: it reads FightState and FightEvents, it never changes the fight.
 
 import * as THREE from 'three';
+import { venueEnvironment } from './env';
 import type { FightEvent, FightState, Side } from '../game/fight/types';
 import { MOVES } from '../game/fight/moves';
 import { applyVenueAtmosphere, createArena, type Arena, type Quality } from './arena/arena';
@@ -57,6 +58,13 @@ export class FightScene {
     this.anims = [new FighterAnimator(0), new FighterAnimator(0.37)];
     this.scene.add(arena.group, this.fx.points, fighters[0].root, fighters[1].root);
     applyVenueAtmosphere(this.scene, arena.venue);
+    // reflections and soft ambient light from the venue's own lights, and its colour grade for the post pass
+    const env = venueEnvironment(arena.venue);
+    if (env) {
+      this.scene.environment = env;
+      this.scene.environmentIntensity = 0.35;
+    }
+    this.scene.userData.grade = arena.venue.grade;
   }
 
   static async create(setup: FightSceneSetup): Promise<FightScene> {

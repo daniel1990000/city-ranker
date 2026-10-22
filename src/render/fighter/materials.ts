@@ -124,6 +124,13 @@ diffuseColor.rgb = mix(diffuseColor.rgb, uInk, ink * 0.85);`,
         '#include <roughnessmap_fragment>',
         `#include <roughnessmap_fragment>
 roughnessFactor = mix(roughnessFactor, 0.28, uSweat);`,
+      )
+      // skin is not grey in the shadows: light scattered under it comes back warm (a cheap subsurface stand-in)
+      .replace(
+        '#include <lights_fragment_end>',
+        `#include <lights_fragment_end>
+reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.11, 0.04, 0.03);
+reflectedLight.directDiffuse *= vec3(1.04, 0.99, 0.97);`,
       );
   };
   mat.customProgramCacheKey = () => 'ck-skin';
@@ -155,11 +162,11 @@ export type GarmentKind = 'shorts' | 'gloves' | 'top';
 /** Fabric and leather: colour with stripes / trims placed in bind-pose space. */
 export function makeGarmentMaterial(kind: GarmentKind, look: FighterLook, k: number): THREE.MeshStandardMaterial {
   const base = kind === 'gloves' ? look.gloveColor : kind === 'top' ? look.topColor : look.shortsColor;
-  const mat = new THREE.MeshStandardMaterial({
-    color: base,
-    roughness: kind === 'gloves' ? 0.42 : 0.78,
-    metalness: 0,
-  });
+  // gloves: leather with a clear-coated shine; shorts and tops: fabric with a soft sheen at grazing angles
+  const mat =
+    kind === 'gloves'
+      ? new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.48, metalness: 0, clearcoat: 0.55, clearcoatRoughness: 0.32 })
+      : new THREE.MeshPhysicalMaterial({ color: base, roughness: 0.82, metalness: 0, sheen: 0.6, sheenRoughness: 0.6, sheenColor: new THREE.Color(base).lerp(new THREE.Color(1, 1, 1), 0.35) });
   const style = kind === 'shorts' ? ['plain', 'side', 'split', 'trim'].indexOf(look.shorts) : kind === 'gloves' ? 10 : 20;
   mat.onBeforeCompile = shader => {
     shader.uniforms.uTrim = { value: new THREE.Color(look.shortsTrim) };

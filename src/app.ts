@@ -19,6 +19,8 @@ import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, pac
 import { buildSettings } from './ui/settings';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
+import { Post } from './render/post/post';
+import { setEnvRenderer } from './render/env';
 import { requestReminderPermission } from './platform/notify';
 import { priceOf, storeAvailable } from './platform/iap';
 import { PRODUCTS } from './meta/products';
@@ -50,6 +52,7 @@ export class App {
   private screenEl: HTMLElement | null = null;
   private overlay: HTMLElement | null = null;
   private quality: 'low' | 'high' = 'high';
+  private post: Post;
   private autoQ: AutoQuality;
   private route: Route = { s: 'hub' };
   private history: Route[] = [];
@@ -60,6 +63,8 @@ export class App {
     this.ui = ui;
     this.game = new Game();
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.post = new Post(this.renderer, 'off');
+    setEnvRenderer(this.renderer);
     this.autoQ = new AutoQuality(() => this.game.save.settings.autoTier, () => {
       this.game.persist();
       this.applyQuality();
@@ -104,6 +109,13 @@ export class App {
     this.quality = tier === 'low' ? 'low' : 'high';
     const cap = tier === 'low' ? 1.25 : tier === 'medium' ? 1.5 : 2;
     const ratio = Math.min(cap, devicePixelRatio) * (auto ? st.autoTier.res : 1);
+    // the broadcast finish: none on low, grade + smoothing on medium, + glow and multisampling on high (a phone
+    // that auto quality had to slow down gets medium)
+    const postTier = tier === 'low' ? 'off' : tier === 'medium' || (auto && st.autoTier.res < 0.9) ? 'medium' : 'high';
+    if (postTier !== this.post.tier) {
+      this.post.setTier(postTier);
+      this.resize();
+    }
     if (Math.abs(this.renderer.getPixelRatio() - ratio) > 1e-3) {
       this.renderer.setPixelRatio(ratio);
       this.resize();
@@ -179,6 +191,7 @@ export class App {
     this.renderer.setSize(innerWidth, innerHeight, false);
     this.session?.resize(innerWidth, innerHeight);
     this.attract?.resize(innerWidth, innerHeight);
+    this.post?.setSize(innerWidth, innerHeight);
   }
 
   private loop(t: number): void {
@@ -187,7 +200,7 @@ export class App {
     const s = this.session ?? this.attract;
     if (!s) return;
     s.frame(dt);
-    this.renderer.render(s.threeScene, s.camera);
+    this.post.render(s.threeScene, s.camera, dt);
     if (this.session?.live && this.game.save.settings.quality === 'auto' && !document.hidden) this.autoQ.frame(dt);
   }
 
@@ -362,7 +375,10 @@ export class App {
       sound.onFightEvents(ev);
       sound.setCrowd(0.25 + crowd * 0.65);
       for (const e of ev) {
-        if (e.type === 'knockdown') haptic('heavy');
+        if (e.type === 'knockdown') {
+          haptic('heavy');
+          if (!this.game.save.settings.reducedMotion) this.post.kick(0.35);
+        }
         else if (e.type === 'hit' && !e.blocked && e.strength === 'heavy') haptic(e.side === 0 ? 'light' : 'medium');
         else if (e.type === 'fightEnd' && e.result.winner === 0) haptic('success');
       }
@@ -557,6 +573,19 @@ export class App {
       f.state.fighters[top].action = sub === 'armbar' ? 'subArmbarAtk' : 'subChokeAtk';
       f.state.fighters[top === 0 ? 1 : 0].action = sub === 'armbar' ? 'subArmbarDef' : 'subChokeDef';
     }
+  }
+
+  /** QA: try the look live (post tier, environment light strength, exposure). */
+  qaLook(o: { tier?: 'off' | 'medium' | 'high'; env?: number; bloomK?: number; thresholdK?: number; noGrade?: boolean; noFxaa?: boolean }): void {
+    if (o.tier) this.post.setTier(o.tier);
+    this.post.debugNoGrade = !!o.noGrade;
+    this.post.debugNoFxaa = !!o.noFxaa;
+    if (o.bloomK !== undefined) this.post.bloomK = o.bloomK;
+    if (o.thresholdK !== undefined) this.post.thresholdK = o.thresholdK;
+    this.post.retune();
+    this.resize();
+    const s = this.session ?? this.attract;
+    if (s && o.env !== undefined) s.threeScene.environmentIntensity = o.env;
   }
 
   qaAutoplay(on: boolean): void {

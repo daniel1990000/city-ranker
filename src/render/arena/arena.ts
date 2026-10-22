@@ -128,7 +128,20 @@ function fenceTexture(): THREE.CanvasTexture {
 }
 
 /** A crowd sprite atlas: 8 silhouettes (4 standing, 4 seated / arms up) in white; colour comes per instance. */
-function crowdAtlas(): THREE.CanvasTexture {
+/** The rendered crowd: 32 CC0 MakeHuman spectators (tools/crowd), 8 x 4 cells, top two rows standing. */
+const CROWD_URL = 'assets/crowd/crowd.webp';
+let crowdTex: THREE.Texture | null = null;
+function crowdSprites(): THREE.Texture {
+  if (crowdTex) return crowdTex;
+  const t = new THREE.TextureLoader().load(CROWD_URL);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  crowdTex = t;
+  return t;
+}
+
+/** The old painted silhouettes (kept for tests and as a reference). */
+export function crowdAtlas(): THREE.CanvasTexture {
   return canvasTex(512, 256, c => {
     c.clearRect(0, 0, 512, 256);
     const r = new Rand(77);
@@ -175,14 +188,16 @@ const CROWD_COLORS: Record<string, number[]> = {
   fans: [0x1a1a1a, 0xb01818, 0x182a6a, 0x2a2a2a, 0xd4a64a, 0x404040],
 };
 
+const WHITE = new THREE.Color(1, 1, 1);
+
 function buildCrowd(v: VenuePreset, quality: Quality, excitement: { value: number }, time: { value: number }): THREE.InstancedMesh {
   let spots: Spot[] = [];
   for (const s of v.crowd.sections) spots = spots.concat(layoutCrowd([s], v.seed + spots.length));
   spots = thinCrowd(spots, quality === 'low' ? 0.5 : 1, quality === 'low' ? 1400 : 3600, v.seed);
   const geo = new THREE.PlaneGeometry(0.62, 1.15);
   geo.translate(0, 0.575, 0);
-  const tex = crowdAtlas();
-  const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, transparent: false, side: THREE.DoubleSide });
+  const tex = crowdSprites();
+  const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.45, transparent: false, side: THREE.DoubleSide });
   const lightCol = new THREE.Color(v.crowd.lightColor).multiplyScalar(v.crowd.light);
   mat.onBeforeCompile = sh => {
     sh.uniforms.uExcite = excitement;
@@ -200,8 +215,8 @@ varying float vRow;`,
         '#include <uv_vertex>',
         `#include <uv_vertex>
 float cell = aInfo.x;
-// atlas row 0 is the top half of the canvas (flipY puts it at v 0.5..1)
-vMapUv = vec2((mod(cell, 4.0) + uv.x) / 4.0, 1.0 - (floor(cell / 4.0) + 1.0 - uv.y) / 2.0);`,
+// 8 x 4 cells; atlas row 0 is the top of the image (flipY puts it at v 0.75..1)
+vMapUv = vec2((mod(cell, 8.0) + uv.x) / 8.0, 1.0 - (floor(cell / 8.0) + 1.0 - uv.y) / 4.0);`,
       )
       .replace(
         '#include <begin_vertex>',
@@ -240,9 +255,10 @@ gl_Position = projectionMatrix * mvPosition;`,
     const h = s.seated ? 0.78 + r.next() * 0.1 : 0.92 + r.next() * 0.16;
     m.makeScale(0.9 + r.next() * 0.25, h, 1).setPosition(s.x, s.y, s.z);
     mesh.setMatrixAt(i, m);
-    col.setHex(palette[Math.floor(r.next() * palette.length)]).multiplyScalar(0.7 + r.next() * 0.6);
+    // the sprites carry their own clothes: a light tint of the venue's palette and a little brightness variety
+    col.setHex(palette[Math.floor(r.next() * palette.length)]).lerp(WHITE, 0.8).multiplyScalar(0.75 + r.next() * 0.35);
     mesh.setColorAt(i, col);
-    info[i * 4] = s.seated ? 4 + Math.floor(r.next() * 4) : Math.floor(r.next() * 4);
+    info[i * 4] = s.seated ? 16 + Math.floor(r.next() * 16) : Math.floor(r.next() * 16);
     info[i * 4 + 1] = r.next();
     info[i * 4 + 2] = s.seated ? 1 : 0;
     info[i * 4 + 3] = s.row;
@@ -343,6 +359,7 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
     // each panel has its own material so the ones between the camera and the fight can fade out
     const pm = keep(fenceMat.clone());
     pm.transparent = true;
+    // (the chain-link stays dark: reflections would turn it into a white haze over the crowd)
     const panel = new THREE.Mesh(panelGeo, pm);
     panels.push({ mesh: panel, mat: pm, n: new THREE.Vector3(pc.x, 0, pc.z).normalize() });
     panel.position.set(pc.x, CAGE.fenceBottom + fh / 2, pc.z);
@@ -353,6 +370,7 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
     sidePad.transparent = true;
     panels[k].pads = sidePad;
     const rail = new THREE.Mesh(railGeo, sidePad);
+    rail.userData.reflect = true;
     rail.position.set(pc.x, CAGE.railY, pc.z);
     rail.lookAt(0, CAGE.railY, 0);
     rail.rotateZ(Math.PI / 2);
@@ -366,6 +384,7 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
     const postMat = keep(padMat.clone());
     postMat.transparent = true;
     const post = new THREE.Mesh(keep(new THREE.CylinderGeometry(CAGE.padRadius, CAGE.padRadius, CAGE.postHeight, 14)), postMat);
+    post.userData.reflect = true;
     post.position.set(cv.x, CAGE.postHeight / 2, cv.z);
     group.add(post);
     posts.push({ mat: postMat, x: cv.x, z: cv.z });
@@ -412,6 +431,7 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
   const coneMat = keep(
     new THREE.MeshBasicMaterial({ color: rig.beam.color, transparent: true, opacity: rig.beam.opacity * (quality === 'low' ? 0.6 : 1), blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
   );
+  const beamOpacity = coneMat.opacity;
   const coneGeo = keep(new THREE.ConeGeometry(1.15, rig.trussHeight, 20, 1, true));
   coneGeo.translate(0, -rig.trussHeight / 2, 0);
   const canGeo = keep(new THREE.CylinderGeometry(0.12, 0.16, 0.3, 10));
@@ -442,7 +462,9 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
         uniforms: { top: { value: new THREE.Color(v.sky.top) }, hor: { value: new THREE.Color(v.sky.horizon) }, bot: { value: new THREE.Color(v.sky.bottom) } },
         vertexShader: 'varying vec3 vP; void main(){ vP = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader:
-          'uniform vec3 top; uniform vec3 hor; uniform vec3 bot; varying vec3 vP; void main(){ float y = vP.y; vec3 c = y > 0.0 ? mix(hor, top, pow(y, 0.6)) : mix(hor, bot, pow(-y, 0.5)); gl_FragColor = vec4(c, 1.0); }',
+          // the colours were picked to be shown as they are: undo the sRGB step the output applies (it happens in the
+          // shader when drawing straight to the screen, in the post pass otherwise), so both paths look the same
+          'uniform vec3 top; uniform vec3 hor; uniform vec3 bot; varying vec3 vP; void main(){ float y = vP.y; vec3 c = y > 0.0 ? mix(hor, top, pow(y, 0.6)) : mix(hor, bot, pow(-y, 0.5)); gl_FragColor = vec4(pow(c, vec3(2.2)), 1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n}',
       }),
     );
     sky = new THREE.Mesh(keep(new THREE.SphereGeometry(90, 24, 16)), skyMat);
@@ -459,12 +481,24 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
     group.add(screen.mesh);
   }
 
+  // the venue's reflection lighting (scene.environment) is for the cage and the fighters: the stands, floor and
+  // backdrop keep their own look
+  group.traverse(o => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh || m.userData.reflect) return;
+    for (const mm of Array.isArray(m.material) ? m.material : [m.material]) if ('envMapIntensity' in mm) (mm as THREE.MeshStandardMaterial).envMapIntensity = 0;
+  });
+
   return {
     group,
     venue: v,
     key,
     update(dt, camera) {
       time.value += dt;
+      // additive beams add light on top of the picture: when the post pass is on that happens in linear light, where
+      // the same opacity reads far brighter (a grey haze over the dark crowd), so it is brought down to match
+      const linear = !!group.parent?.userData.postLinear;
+      coneMat.opacity = linear ? Math.pow(beamOpacity, 2.2) * 1.6 : beamOpacity;
       // fade the fence panels the camera looks through (the broadcast trick), keep the far ones solid
       const cp = camera.position;
       for (const p of panels) {
