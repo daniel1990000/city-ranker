@@ -56,9 +56,9 @@
 }
 .bc-plate {
   position: absolute;
-  bottom: calc(16vh + var(--safe-b));
-  width: min(40vw, 360px);
-  padding: 8px 14px 10px;
+  bottom: calc(10px + var(--safe-b));
+  width: min(37vw, 340px);
+  padding: 6px 14px 8px;
   background: linear-gradient(180deg, rgba(14, 14, 20, 0.92), rgba(8, 8, 12, 0.84));
   opacity: 0;
   animation: plateInL 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
@@ -85,7 +85,7 @@
 }
 .bc-plate .nm {
   font-family: var(--display);
-  font-size: clamp(20px, 7vh, 32px);
+  font-size: clamp(18px, 6.2vh, 30px);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: 0.03em;
@@ -134,8 +134,9 @@
 }
 .bc-skip {
   position: absolute;
-  right: calc(14px + var(--safe-r));
-  top: calc(64px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(14px + var(--safe-b));
   font-size: 11px;
   color: var(--muted);
   letter-spacing: 0.06em;

@@ -103,7 +103,7 @@ export class BroadcastHud {
       };
       fact('Record', p.record);
       fact('Overall', String(p.ovr));
-      fact('From', p.hometown);
+      fact('Fights out of', p.hometown);
     });
     el('div', 'bc-skip', wrap, 'Tap to skip');
     this.plates = wrap;
