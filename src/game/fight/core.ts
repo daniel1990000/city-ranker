@@ -209,7 +209,7 @@ export function applyZoneDamage(f: Fight, side: Side, zone: Zone, dmg: number): 
     return dmg;
   }
   // legs wear down slower than heads: it takes a sustained low-kick game to chop someone down
-  const l = muldiv(dmg, 6, 10);
+  const l = muldiv(dmg, 45, 100);
   me.legs = Math.min(METER_MAX, me.legs + l);
   spend(f, side, dmg >> 2);
   return l;
@@ -256,6 +256,8 @@ export function newFighter(x: number, facing: 1 | -1): FighterState {
     coverTicks: 0,
     sprawlReady: false,
     hurtFlags: 0,
+    lastMove: null,
+    repeats: 0,
     prompt: null,
   };
 }

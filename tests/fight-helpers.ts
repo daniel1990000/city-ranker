@@ -63,3 +63,19 @@ export class Masher implements Controller {
     return out;
   }
 }
+
+/** A one-trick bot: walks in and throws only `strike`, otherwise plays like the Masher (ground, sprawls, getting up). */
+export class SpamBot implements Controller {
+  private readonly human = new Masher();
+  constructor(
+    private readonly strike: FightInput['strike'],
+    private readonly range = 1050,
+  ) {}
+  next(v: FightView, side: Side): FightInput {
+    if (v.phase !== 'fight' || v.ground || v.takedown || v.me.action === 'downed') return this.human.next(v, side);
+    const out: FightInput = { ...NO_INPUT };
+    if (v.dist > this.range) out.move = 1;
+    else out.strike = this.strike;
+    return out;
+  }
+}

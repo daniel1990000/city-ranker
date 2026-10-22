@@ -49,12 +49,14 @@ export const GROUND = {
   subCost: 900,
   subTapCost: 30,
   subTimeLimit: 600,
+  /** Progress a hold must reach to count as a real attempt on the judges' cards. */
+  subDeep: 7000,
   /** Ticks without progress before the referee stands them up. */
   refIdle: 480,
   /** Longest stay on the ground before the referee stands them up anyway (20 s): nobody is held down forever. */
   refMax: 1200,
   /** Unanswered ground strikes on a hurt fighter before the referee stops it. */
-  groundTko: 7,
+  groundTko: 9,
   pounceReach: 1500,
 } as const;
 
@@ -206,7 +208,8 @@ export function pounce(f: Fight, side: Side): void {
   enterGround(f, side, 'mount');
   // still dazed from the knockdown: keep the referee's count running
   bottom.unanswered = unanswered;
-  bottom.hurt = Math.max(hurt, 8000);
+  if (hurt >= 7000) bottom.hurt = Math.max(hurt, 8000);
+  else bottom.hurt = hurt;
   emit(f, { type: 'pounce', tick: s.tick, side });
 }
 
@@ -452,9 +455,8 @@ function startSub(f: Fight, side: Side, kind: SubKind): void {
   const s = f.state;
   const g = s.ground;
   if (!g) return;
-  g.sub = { atk: side, kind, progress: GROUND.subStart, tick: 0 };
+  g.sub = { atk: side, kind, progress: GROUND.subStart, tick: 0, peak: GROUND.subStart };
   spend(f, side, costFor(f, side, GROUND.subCost));
-  roundStats(f, side).subAttempts++;
   g.idle = 0;
   const def = opp(side);
   setAction(s.fighters[side], kind === 'armbar' ? 'subArmbarAtk' : 'subChokeAtk', 0);
@@ -491,6 +493,9 @@ function stepSub(f: Fight, inputs: [FightInput, FightInput]): void {
     spend(f, def, GROUND.subTapCost);
   }
   sub.progress = clampi(sub.progress + delta, 0, METER_MAX);
+  // the judges count a hold that got deep (spamming attempts that never threaten scores nothing)
+  if (sub.peak < GROUND.subDeep && sub.progress >= GROUND.subDeep) roundStats(f, atk).subAttempts++;
+  sub.peak = Math.max(sub.peak, sub.progress);
   const left = GROUND.subTimeLimit - sub.tick;
   for (const me of s.fighters) if (me.prompt) me.prompt.ticksLeft = Math.max(0, left);
   if (sub.progress >= METER_MAX) {

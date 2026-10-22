@@ -22,7 +22,7 @@ import {
 import { __test } from '../src/game/fight/sim';
 import { MIN_GAP } from '../src/game/fight/core';
 import { GROUND } from '../src/game/fight/ground';
-import { ARCHETYPES, Masher, testFighter } from './fight-helpers';
+import { ARCHETYPES, Masher, SpamBot, testFighter } from './fight-helpers';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -156,15 +156,18 @@ describe('standing mechanics', () => {
     expect(ev.some(e => e.type === 'miss')).toBe(true);
   });
 
-  it('a held guard blocks punches but not low kicks', () => {
+  it('a held guard blocks punches and checks low kicks (the kicker shin takes it)', () => {
     const f = closeFight();
     let ev = stepN(f, 1, { strike: 'cross' }, { block: true }).concat(stepN(f, 25, {}, { block: true }));
     const blocked = ev.find(e => e.type === 'hit');
     expect(blocked && blocked.type === 'hit' && blocked.blocked).toBe(true);
     ev = stepN(f, 1, { strike: 'lowKick' }, { block: true }).concat(stepN(f, 30, {}, { block: true }));
+    expect(ev.some(e => e.type === 'check' && e.side === 1)).toBe(true);
+    expect(f.state.fighters[0].legs).toBeGreaterThan(f.state.fighters[1].legs);
+    // an open stance takes the kick
+    ev = stepN(f, 60).concat(stepN(f, 1, { strike: 'lowKick' }), stepN(f, 30));
     const leg = ev.find(e => e.type === 'hit' && e.move === 'lowKick');
     expect(leg && leg.type === 'hit' && !leg.blocked).toBe(true);
-    expect(f.state.fighters[1].legs).toBeGreaterThan(0);
   });
 
   it('a well-timed slip makes a straight punch miss and opens a counter window', () => {
@@ -530,5 +533,57 @@ describe('owner playtest (October 2026): mashing, rocked moments, takedowns, sub
       }
     }
     expect(taps).toBeGreaterThanOrEqual(6);
+  });
+});
+
+describe('audit 2 (October 2026): one-move spam never beats a strong opponent', () => {
+  function closeFight() {
+    const f = createFight({ seed: 1, a: testFighter('boxer'), b: testFighter('boxer') });
+    live(f);
+    f.state.fighters[0].x = -450;
+    f.state.fighters[1].x = 450;
+    return f;
+  }
+
+  for (const [strike, range] of [['lowKick', 1200], ['headKick', 1300], ['uppercut', 800], ['cross', 1050]] as const) {
+    it(`${strike} spam loses to a champion`, () => {
+      let wins = 0;
+      for (let seed = 1; seed <= 12; seed++) {
+        const f = createFight({ seed, a: testFighter('boxer'), b: testFighter(ARCHETYPES[seed % 5]) });
+        const a = new SpamBot(strike, range);
+        const b = new AIController({ difficulty: 950, seed: seed * 7 });
+        for (let t = 0; t < 30000 && !f.state.result; t++) {
+          stepFight(f, [a.next(viewFor(f, 0), 0), b.next(viewFor(f, 1), 1)]);
+          drainEvents(f);
+        }
+        if (f.state.result?.winner === 0) wins++;
+      }
+      expect(wins).toBeLessThanOrEqual(2);
+    });
+  }
+
+  it('repeating a strike makes it predictable (slower), a different one resets it', () => {
+    const f = closeFight();
+    const startups: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      stepN(f, 1, { strike: 'cross' });
+      startups.push(f.state.fighters[0].moveStartup);
+      stepN(f, 60);
+    }
+    expect(startups[3]).toBeGreaterThan(startups[0]);
+    stepN(f, 1, { strike: 'hookL' });
+    stepN(f, 60);
+    stepN(f, 1, { strike: 'cross' });
+    expect(f.state.fighters[0].moveStartup).toBe(startups[0]);
+  });
+
+  it('a guard raised just before a punch lands parries it: nothing gets through and a counter window opens', () => {
+    const f = closeFight();
+    stepN(f, 1, { strike: 'cross' });
+    const startup = f.state.fighters[0].moveStartup;
+    stepN(f, startup - 3);
+    const ev = stepN(f, 8, {}, { block: true });
+    expect(ev.some(e => e.type === 'parry' && e.side === 1)).toBe(true);
+    expect(f.state.fighters[1].counterTicks).toBeGreaterThan(0);
   });
 });

@@ -309,6 +309,9 @@ export interface FighterState {
   sprawlReady: boolean;
   /** Already went "hurt" in this zone this round (each happens once a round): bit 1 body, bit 2 legs. */
   hurtFlags: number;
+  /** The last strike started and how many times in a row it has been repeated (predictable = slower, weaker). */
+  lastMove: MoveId | null;
+  repeats: number;
 
   /** What the HUD should prompt this fighter to do, or null. */
   prompt: FighterPrompt | null;
@@ -333,6 +336,8 @@ export interface SubState {
   kind: SubKind;
   progress: number;
   tick: number;
+  /** Highest progress reached: only a hold that got deep counts as an attempt for the judges. */
+  peak: number;
 }
 
 export interface GroundState {
@@ -457,6 +462,12 @@ export type FightEvent =
   | { type: 'recover'; tick: number; side: Side }
   /** `side` shelled up under a long string of punches. */
   | { type: 'cover'; tick: number; side: Side }
+  /** `side` blocked at the last moment: no damage through, and a counter window. */
+  | { type: 'parry'; tick: number; side: Side }
+  /** `side` keeps throwing the same strike: it is getting slower and weaker (the HUD says "Mix it up"). */
+  | { type: 'predictable'; tick: number; side: Side }
+  /** `side` checked a leg kick: the kicker's shin took it. */
+  | { type: 'check'; tick: number; side: Side }
   | { type: 'taunt'; tick: number; side: Side }
   | { type: 'shoot'; tick: number; side: Side }
   | { type: 'sprawl'; tick: number; side: Side; success: boolean }

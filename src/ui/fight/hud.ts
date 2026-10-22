@@ -163,6 +163,15 @@ export class FightHud {
         case 'recover':
           this.pop('Recovered', e.side);
           break;
+        case 'predictable':
+          if (e.side === this.player) this.pop('Predictable: mix it up!', e.side);
+          break;
+        case 'parry':
+          this.pop('Parry!', e.side);
+          break;
+        case 'check':
+          this.pop('Checked!', e.side);
+          break;
         case 'cover':
           if (e.side !== this.player) this.pop('Covering up', e.side);
           break;

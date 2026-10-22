@@ -551,7 +551,7 @@ export class App {
     while (f.state.phase === 'intro') stepFight(f, [{ ...NO_INPUT }, { ...NO_INPUT }]);
     simTest.enterGround(f, top, pos);
     if (sub && f.state.ground) {
-      f.state.ground.sub = { atk: top, kind: sub, progress: 5000, tick: 0 };
+      f.state.ground.sub = { atk: top, kind: sub, progress: 5000, tick: 0, peak: 5000 };
       f.state.fighters[top].action = sub === 'armbar' ? 'subArmbarAtk' : 'subChokeAtk';
       f.state.fighters[top === 0 ? 1 : 0].action = sub === 'armbar' ? 'subArmbarDef' : 'subChokeDef';
     }

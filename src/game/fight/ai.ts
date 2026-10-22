@@ -76,6 +76,11 @@ export class AIController implements Controller {
   private pounceYes = false;
   private counterBack = false;
   private shellUntil = -1;
+  /** How often the opponent has thrown each move this fight (it reads habits) and shot for takedowns. */
+  private seenMoves = new Map<MoveId, number>();
+  private oppShots = 0;
+  private seenTotal = 0;
+  private punishThis = false;
 
   constructor(opts: AIOptions) {
     this.difficulty = clampi(opts.difficulty | 0, 0, 1000);
@@ -139,7 +144,15 @@ export class AIController implements Controller {
         this.seenAttack = startTick;
         // under a barrage (another attack right after the last one) it is readier to cover up
         const pressured = startTick - this.lastOppAttack < 50;
-        const defendChance = 800 + muldiv(d, 46, 10) + (stats.defense - 50) * 25 + (pressured ? 600 + muldiv(d, 4, 1) : 0);
+        const md0 = MOVES[them.action as MoveId];
+        // slow, telegraphed attacks (kicks, specials) are easier to read; habits it has seen this fight even more so
+        const telegraph = md0.startup >= 15 ? 1500 : 0;
+        const habit = Math.min(2000, (this.seenMoves.get(them.action as MoveId) ?? 0) * 200);
+        this.seenMoves.set(them.action as MoveId, (this.seenMoves.get(them.action as MoveId) ?? 0) + 1);
+        this.seenTotal++;
+        // answer it in its recovery (slow moves leave the bigger opening)
+        this.punishThis = this.chance(800 + muldiv(d, 9, 1) + (md0.recovery >= 17 ? 1500 : 0) + muldiv(habit, 1, 2));
+        const defendChance = 1200 + muldiv(d, 7, 1) + (stats.defense - 50) * 25 + (pressured ? 600 + muldiv(d, 4, 1) : 0) + telegraph + muldiv(habit, d, 560);
         // a barrage: hold the guard up for a while instead of reacting punch by punch (a beginner rarely does)
         if (pressured && this.chance(1200 + muldiv(d, 7, 1))) this.shellUntil = t + 30 + rngInt(this.rng, 12);
         this.lastOppAttack = startTick;
@@ -151,7 +164,8 @@ export class AIController implements Controller {
           const evadePref = 1000 + muldiv(d, 3, 1) + ((this.styleId ?? view.mySpec.archetype) === 'boxer' ? 1800 : 0);
           let kind: 'block' | 'evade' | 'back' = 'block';
           let evade: Evade | undefined;
-          if (md.kind === 'lowKick') kind = 'back';
+          // a leg kick: check it (raise the guard / leg) or step out of range; better fighters check
+          if (md.kind === 'lowKick') kind = this.chance(4500 + muldiv(d, 8, 1)) ? 'block' : 'back';
           else if (this.chance(evadePref)) {
             if (md.kind === 'straight' || md.kind === 'lunge') {
               kind = 'evade';
@@ -228,6 +242,30 @@ export class AIController implements Controller {
       if (!this.pounceYes) return this.footwork(view, input, false);
       if (view.dist > 1400) input.move = 1;
       else input.shoot = true;
+      return input;
+    }
+    // they threw and are still recovering: hit back now
+    if (this.punishThis && isAttack(them.action) && them.actionTick > them.actionImpact + 1 && !isAttack(me.action) && view.dist <= 1150 && me.action !== 'blockHit') {
+      this.punishThis = false;
+      input.strike = view.dist < 900 ? (this.chance(5000) ? 'hookR' : 'hookL') : 'cross';
+      this.lastPress = t;
+      return input;
+    }
+    // a one-trick opponent: when they are free and in range of their favourite, expect it (guard up / leg ready)
+    if (!isAttack(them.action) && !isAttack(me.action) && this.seenTotal >= 6 && t >= this.shellUntil) {
+      let fav: MoveId | null = null;
+      let n = 0;
+      for (const [m, c] of this.seenMoves) if (c > n) [fav, n] = [m, c];
+      if (fav && n * 2 >= this.seenTotal && view.dist <= MOVES[fav].reach + 100 && this.chance(muldiv(d, 5, 1))) {
+        this.shellUntil = t + 14 + rngInt(this.rng, 10);
+        input.block = true;
+        return input;
+      }
+    }
+    // their shot got stuffed and they are scrambling up: make them pay
+    if (them.action === 'getUp' && !them.downed && view.dist <= 1100 && !isAttack(me.action) && t - this.lastPress > 8 && this.chance(3000 + muldiv(d, 8, 1))) {
+      input.strike = view.dist < 900 ? 'uppercut' : 'cross';
+      this.lastPress = t;
       return input;
     }
     // doubled over or rocked in front of us: go for it
@@ -310,7 +348,11 @@ export class AIController implements Controller {
   private footwork(view: FightView, input: FightInput, fresh: boolean): FightInput {
     const st = this.style as Style;
     const me = view.me;
-    const want = me.stamina < 2400 ? st.range + 500 : st.range;
+    let want = me.stamina < 2400 ? st.range + 500 : st.range;
+    // against someone who lives on kicks, get inside them
+    let kicks = 0;
+    for (const [m, c] of this.seenMoves) if (MOVES[m].kind === 'kick' || MOVES[m].kind === 'lowKick') kicks += c;
+    if (this.seenTotal >= 6 && kicks * 2 >= this.seenTotal && this.skill > 150) want = Math.min(want, 860);
     if (view.dist > want + 140) input.move = 1;
     else if (view.dist < want - 220) input.move = view.myRoom > 450 ? -1 : 1;
     else if (fresh && this.chance(1800)) input.move = rngInt(this.rng, 2) === 0 ? 1 : -1;
@@ -326,7 +368,9 @@ export class AIController implements Controller {
       return input;
     }
     if (this.sprawlAt < 0) {
-      const chance = 2500 + muldiv(this.skill, 6, 1) + (view.mySpec.stats.wrestling - 50) * 30;
+      // every shot it has already seen makes it readier for the next one
+      const chance = 2500 + muldiv(this.skill, 6, 1) + (view.mySpec.stats.wrestling - 50) * 30 + Math.min(3000, this.oppShots * 600);
+      this.oppShots++;
       this.sprawlAt = this.chance(chance) ? view.tick + this.reactTicks() - 6 : view.tick + 1000;
     }
     if (view.tick >= this.sprawlAt) {

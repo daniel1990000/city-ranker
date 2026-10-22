@@ -73,6 +73,17 @@ const HURT_BODY_TICKS = 54;
 const HURT_BODY = 1;
 const HURT_LEGS = 2;
 const ROCKED = 4;
+/** A guard raised this few ticks before the impact parries it. */
+const PARRY_TICKS = 5;
+/** Counter window after a parry. */
+const PARRY_COUNTER = 30;
+/** Extra recovery for a kick that missed or was blocked: a kicker who gets it wrong is exposed. */
+const KICK_PUNISH = 6;
+/** Predictability: each straight repeat of the same strike (after the first, or the second for a jab) adds startup
+ *  ticks and takes damage off, up to this many repeats. Mixing it up resets it. */
+const REPEAT_MAX = 4;
+const REPEAT_STARTUP = 2;
+const REPEAT_DMG_PCT = 12;
 
 // ---- create -----------------------------------------------------------------------------------------------------
 
@@ -208,6 +219,8 @@ function endRound(f: Fight): void {
     me.coverTicks = 0;
     me.sprawlReady = false;
     me.hurtFlags = 0;
+    me.lastMove = null;
+    me.repeats = 0;
     me.guard = METER_MAX;
     me.head = Math.max(0, me.head - 900);
     me.body = Math.max(0, me.body - 700);
@@ -275,11 +288,11 @@ function decay(f: Fight): void {
       case 'stunned':
       case 'gndGuardTop':
       case 'gndMountTop':
-        regen = 26;
+        regen = 21;
         break;
       case 'walkFwd':
       case 'walkBack':
-        regen = 18;
+        regen = 14;
         break;
       case 'block':
       case 'gndGuardBottom':
@@ -456,8 +469,15 @@ function startMove(f: Fight, side: Side, move: MoveId, chain: number): void {
     me.special = 0;
     emit(f, { type: 'special', tick: s.tick, side, move });
   }
+  // the same strike again and again: they see it coming
+  if (!isSpecial(move)) {
+    me.repeats = move === me.lastMove ? Math.min(REPEAT_MAX + 1, me.repeats + 1) : 0;
+    me.lastMove = move;
+  }
   const speedup = Math.min(chain, CHAIN_MAX) * CHAIN_SPEEDUP;
-  const startup = Math.max(4, d.startup + startupPenalty(f, side, move) - speedup);
+  const pred = predictable(me, move);
+  if (pred === 2) emit(f, { type: 'predictable', tick: s.tick, side });
+  const startup = Math.max(4, d.startup + startupPenalty(f, side, move) - speedup + pred * REPEAT_STARTUP);
   me.move = move;
   me.moveStartup = startup;
   me.moveActive = d.active;
@@ -471,6 +491,12 @@ function startMove(f: Fight, side: Side, move: MoveId, chain: number): void {
   spend(f, side, costFor(f, side, d.cost));
   roundStats(f, side).thrown++;
   emit(f, { type: 'strike', tick: s.tick, side, move, chain });
+}
+
+/** How predictable this strike is (0 = fine): repeats beyond the first (up to three jabs in a row are free). */
+function predictable(me: FighterState, move: MoveId): number {
+  if (me.lastMove !== move) return 0;
+  return clampi(me.repeats - (move === 'jab' ? 2 : 0), 0, REPEAT_MAX);
 }
 
 /** Travel forward during an attack's startup, never into the other fighter. */
@@ -489,7 +515,8 @@ function lunge(f: Fight, side: Side): void {
 
 type Outcome =
   | { kind: 'hit'; counter: boolean; window: boolean }
-  | { kind: 'block' }
+  | { kind: 'block'; parry: boolean }
+  | { kind: 'check' }
   | { kind: 'evade'; perfect: boolean }
   | { kind: 'whiff' };
 
@@ -505,7 +532,8 @@ function checkAttack(f: Fight, side: Side): Outcome | null {
   const d = MOVES[me.move];
   const them = s.fighters[opp(side)];
   const dist = Math.abs(them.x - me.x);
-  const downedish = them.action === 'knockdown' || them.action === 'downed' || them.action === 'getUp' || them.action === 'shoot';
+  // a fighter rising from a knockdown or a stuffed shot can be hit (that is the price of a failed shot)
+  const downedish = them.action === 'knockdown' || them.action === 'downed' || them.action === 'shoot';
   if (dist > d.reach || (downedish && them.action !== 'shoot')) {
     return t >= activeEnd ? { kind: 'whiff' } : null;
   }
@@ -520,9 +548,13 @@ function checkAttack(f: Fight, side: Side): Outcome | null {
   // shelled up after a long string: the guard is there unless they are busy attacking, dodging or wobbling
   const covered = them.coverTicks > 0 && them.stunTicks === 0 && them.move === null && them.action !== 'slipL' && them.action !== 'slipR' && them.action !== 'swayBack' && them.action !== 'hurtBody';
   const guarding = (them.action === 'block' || them.action === 'blockHit' || covered) && them.guardBrokenTicks === 0;
-  if (guarding && d.blockable) return { kind: 'block' };
+  // a leg kick into a raised guard is checked: shin meets shin
+  if (guarding && d.kind === 'lowKick' && them.stunTicks === 0) return { kind: 'check' };
+  // blocked at the last moment (the guard came up just before the impact): a parry
+  if (guarding && d.blockable) return { kind: 'block', parry: them.action === 'block' && them.actionTick <= PARRY_TICKS && them.stunTicks === 0 };
   // caught: they were winding up their own attack, walking into it, or showboating
-  const caught = (them.move !== null && them.actionTick < them.moveStartup) || them.action === 'walkFwd' || them.action === 'taunt';
+  // walking onto a head shot is a counter; a kick to the leg or body of someone stepping in is just a kick
+  const caught = d.zone === 'head' && ((them.move !== null && them.actionTick < them.moveStartup) || them.action === 'walkFwd' || them.action === 'taunt');
   return { kind: 'hit', counter: me.moveCounter || caught, window: me.moveCounter };
 }
 
@@ -538,12 +570,30 @@ function applyOutcome(f: Fight, side: Side, o: Outcome, move: MoveId, chain: num
   const them = s.fighters[other];
 
   switch (o.kind) {
-    case 'whiff':
+    case 'whiff': {
       me.moveResult = 4;
-      me.moveRecovery += 4;
-      me.actionLength += 4;
+      const extra = 4 + (d.kind === 'kick' || d.kind === 'lowKick' ? KICK_PUNISH : 0);
+      me.moveRecovery += extra;
+      me.actionLength += extra;
       emit(f, { type: 'miss', tick: s.tick, side, move });
       return;
+    }
+    case 'check': {
+      // the kicker's shin takes most of it; the checker barely feels it
+      me.moveResult = 2;
+      me.moveRecovery += 10;
+      me.actionLength += 10;
+      const dmg = muldiv(d.dmg, attackPm(f, side, move), 1000);
+      applyZoneDamage(f, other, 'legs', dmg >> 2);
+      applyZoneDamage(f, side, 'legs', muldiv(dmg, 45, 100));
+      roundStats(f, other).defended++;
+      addSpecial(f, other, 500);
+      clearMove(them);
+      setAction(them, 'blockHit', d.blockstun);
+      emit(f, { type: 'hit', tick: s.tick, side, move, zone: 'legs', dmg: dmg >> 2, strength: 'light', counter: false, blocked: true, chain });
+      emit(f, { type: 'check', tick: s.tick, side: other });
+      return;
+    }
     case 'evade':
       me.moveResult = 3;
       me.moveRecovery += 6;
@@ -557,12 +607,19 @@ function applyOutcome(f: Fight, side: Side, o: Outcome, move: MoveId, chain: num
       return;
     case 'block': {
       me.moveResult = 2;
-      // a blocked strike leaves the attacker a little late: the defender gets the next move
-      me.moveRecovery += 3;
-      me.actionLength += 3;
+      // a blocked strike leaves the attacker a little late: the defender gets the next move (more after a kick, more
+      // still after a parry)
+      const late = 3 + (d.kind === 'kick' ? KICK_PUNISH : 0) + (o.parry ? 6 : 0);
+      me.moveRecovery += late;
+      me.actionLength += late;
       let dmg = muldiv(d.dmg, attackPm(f, side, move), 1000);
-      const chip = muldiv(dmg, them.stunTicks > 0 ? d.chip * 2 : d.chip, 1000);
-      them.guard -= muldiv(dmg, them.stunTicks > 0 ? 22 : 11, 10);
+      const chip = o.parry ? 0 : muldiv(dmg, them.stunTicks > 0 ? d.chip * 2 : d.chip, 1000);
+      if (!o.parry) them.guard -= muldiv(dmg, them.stunTicks > 0 ? 22 : 11, 10);
+      if (o.parry) {
+        them.counterTicks = PARRY_COUNTER;
+        addSpecial(f, other, 400);
+        emit(f, { type: 'parry', tick: s.tick, side: other });
+      }
       spend(f, other, dmg >> 2);
       const applied = chip > 0 ? applyZoneDamage(f, other, d.zone, chip) : 0;
       dmg = applied;
@@ -598,6 +655,7 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
 
   let dmg = muldiv(d.dmg, attackPm(f, side, move), 1000);
   if (counter) dmg = muldiv(dmg, window ? 16 : 14, 10);
+  dmg = muldiv(dmg, 100 - predictable(me, move) * REPEAT_DMG_PCT, 100);
   dmg = muldiv(dmg, 100 + Math.min(chain, CHAIN_MAX) * 5, 100);
   // defense: a sharp defender rolls with shots (half damage), a wobbled one cannot
   if (them.stunTicks === 0 && !counter) {
@@ -681,7 +739,7 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
         return;
       }
       them.legKnockdowns++;
-      them.legs = 6500;
+      them.legs = 4500;
       knockdown(f, other, move, false, true);
       return;
     }
@@ -696,7 +754,7 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
       return;
     }
     // a heavy shot to a worn body: doubled over, wide open, the air gone
-    if (them.body >= 5500 && (applied >= 650 || counter) && !(them.hurtFlags & HURT_BODY)) {
+    if (them.body >= 4500 && (applied >= 500 || move === 'bodyKick') && !(them.hurtFlags & HURT_BODY)) {
       them.hurtFlags |= HURT_BODY;
       them.coverTicks = 0;
       setAction(them, 'hurtBody', HURT_BODY_TICKS);
@@ -729,7 +787,8 @@ function knockdown(f: Fight, side: Side, by: MoveId, counter: boolean, legs = fa
     endFight(f, attacker, 'TKO', { by, stoppage: 'strikes' });
     return;
   }
-  me.hurt = 7500;
+  // a punch or kick to the head leaves them dazed; a leg giving out does not
+  if (!legs) me.hurt = 7500;
   me.downTicks = 70 + severity * 2;
   me.unanswered = 0;
   addSpecial(f, attacker, 2000);
