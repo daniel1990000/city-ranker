@@ -73,6 +73,7 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
     }));
   row('Left-handed controls (attack on the left)', toggle(s.leftHanded, x => (s.leftHanded = x)));
   row('Reduced motion (less shake, no flashes)', toggle(s.reducedMotion, x => (s.reducedMotion = x)));
+  row('Commentary captions in fights', toggle(s.commentary, x => (s.commentary = x)));
   const q = document.createElement('select');
   for (const o of ['auto', 'low', 'medium', 'high']) {
     const opt = document.createElement('option');

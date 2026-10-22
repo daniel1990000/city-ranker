@@ -1,0 +1,414 @@
+/* The broadcast layer: walkout plates, commentary captions, the corner screen and the replay overlay. Above the touch
+   controls (z 12) only where it needs taps; animations use transform/opacity only. `.reduced` = Settings > Reduced
+   motion: fades, no slides. */
+
+.bc {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 15;
+  font-family: var(--ui);
+  color: var(--text);
+}
+.bc-catch {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* ---- commentary caption: lower third, between the move pad and the buttons, under the ground hint ---- */
+.bc-caption {
+  position: absolute;
+  left: 50%;
+  bottom: calc(54px + var(--safe-b));
+  max-width: min(52vw, 470px);
+  display: flex;
+  align-items: stretch;
+  background: rgba(8, 8, 12, 0.82);
+  border-left: 3px solid var(--gold);
+  font-size: clamp(12px, 3.6vh, 15px);
+  line-height: 1.25;
+  opacity: 0;
+  transform: translate(-50%, 8px);
+  transition: opacity 0.25s, transform 0.25s;
+}
+.bc-caption i {
+  flex: none;
+  width: 6px;
+  background: linear-gradient(180deg, var(--red), #8a1a1a);
+}
+.bc-caption span {
+  padding: 5px 12px 6px 10px;
+}
+.bc-caption.on {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.bc.reduced .bc-caption {
+  transform: translate(-50%, 0);
+}
+
+/* ---- walkout name plates ---- */
+.bc-plates {
+  position: absolute;
+  inset: 0;
+}
+.bc-plate {
+  position: absolute;
+  bottom: calc(16vh + var(--safe-b));
+  width: min(40vw, 360px);
+  padding: 8px 14px 10px;
+  background: linear-gradient(180deg, rgba(14, 14, 20, 0.92), rgba(8, 8, 12, 0.84));
+  opacity: 0;
+  animation: plateInL 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+.bc-plate.red {
+  left: calc(14px + var(--safe-l));
+  border-left: 5px solid var(--red);
+}
+.bc-plate.blue {
+  right: calc(14px + var(--safe-r));
+  border-right: 5px solid var(--blue);
+  text-align: right;
+  animation-name: plateInR;
+}
+.bc-plate .corner {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ff6b6b;
+}
+.bc-plate.blue .corner {
+  color: #6aa6ff;
+}
+.bc-plate .nm {
+  font-family: var(--display);
+  font-size: clamp(20px, 7vh, 32px);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bc-plate .nk {
+  font-size: 13px;
+  color: var(--gold-2);
+  margin-top: 1px;
+}
+.bc-plate .facts {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.bc-plate.blue .facts {
+  justify-content: flex-end;
+}
+.bc-plate .facts span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.bc-plate .facts b {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bc-plate .facts small {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bc-plates.out .bc-plate {
+  animation: plateOut 0.35s forwards !important;
+  opacity: 1;
+}
+.bc-skip {
+  position: absolute;
+  right: calc(14px + var(--safe-r));
+  top: calc(64px + var(--safe-t));
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+}
+.bc.reduced .bc-plate,
+.bc.reduced .bc-plate.blue {
+  animation-name: fadeIn;
+}
+@keyframes plateInL {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes plateInR {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes plateOut {
+  to {
+    opacity: 0;
+  }
+}
+
+/* ---- corner screen ---- */
+.bc-corner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.42);
+  animation: fadeIn 0.25s;
+}
+.bc-corner.out {
+  animation: plateOut 0.25s forwards;
+}
+.bc-corner .panel {
+  width: min(560px, 74vw);
+  max-height: calc(100vh - 70px - var(--safe-t) - var(--safe-b));
+  margin-top: 40px;
+  overflow: hidden;
+  padding: 10px 16px 10px;
+  background: linear-gradient(180deg, rgba(16, 16, 22, 0.95), rgba(8, 8, 12, 0.93));
+  border-top: 3px solid var(--gold);
+  font-size: clamp(11px, 3.4vh, 14px);
+}
+.bc-corner .hd {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--display);
+  text-transform: uppercase;
+}
+.bc-corner .hd .tag {
+  background: var(--gold);
+  color: #111;
+  padding: 1px 8px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 700;
+}
+.bc-corner .hd .rd {
+  font-size: clamp(16px, 5vh, 22px);
+  letter-spacing: 0.06em;
+}
+.bc-corner .st {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0 4px;
+}
+.bc-corner .st td,
+.bc-corner .st th {
+  padding: 2px 4px;
+  font-variant-numeric: tabular-nums;
+}
+.bc-corner .st th {
+  font-weight: 500;
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+.bc-corner .st td {
+  width: 32%;
+  font-family: var(--display);
+  font-size: 1.15em;
+}
+.bc-corner .st td.a {
+  text-align: left;
+  border-left: 3px solid var(--red);
+  padding-left: 8px;
+}
+.bc-corner .st td.b {
+  text-align: right;
+  border-right: 3px solid var(--blue);
+  padding-right: 8px;
+}
+.bc-corner .st td.lead {
+  color: var(--gold-2);
+}
+.bc-corner .st tr.names td {
+  font-size: 0.95em;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+.bc-corner .st tr + tr td,
+.bc-corner .st tr + tr th {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.bc-corner .verdict {
+  margin: 4px 0 2px;
+  font-family: var(--display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 0.95em;
+}
+.bc-corner .verdict.good {
+  color: var(--gold-2);
+}
+.bc-corner .verdict.bad {
+  color: #ff7a7a;
+}
+.bc-corner .adv {
+  margin-top: 4px;
+  padding: 4px 0 0 10px;
+  border-left: 3px solid var(--gold);
+}
+.bc-corner .adv p {
+  margin: 0 0 4px;
+  line-height: 1.3;
+}
+.bc-corner .adv p::before {
+  content: 'Corner: ';
+  font-weight: 700;
+  color: var(--gold);
+}
+.bc-corner .ft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.bc-corner .ft .bar {
+  flex: 1;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.bc-corner .ft .bar i {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+  transform-origin: left center;
+}
+
+/* ---- finish: watch replay ---- */
+.bc-watch {
+  position: absolute;
+  left: 50%;
+  top: 66%;
+  transform: translateX(-50%);
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  background: rgba(8, 8, 12, 0.85);
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  animation: fadeIn 0.4s;
+}
+.bc-watch i {
+  width: 0;
+  height: 0;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  border-left: 11px solid var(--gold-2);
+}
+
+/* ---- replay overlay ---- */
+.bc-replay > .hud,
+.bc-replay > .touch,
+.bc-replay > .coach,
+.bc-replay > .result-screen,
+.bc-replay > .bc .bc-caption {
+  visibility: hidden;
+}
+.bc-replayov .lb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 9vh;
+  background: #000;
+  transform-origin: center top;
+  animation: lbIn 0.35s ease-out;
+}
+.bc-replayov .lb.top {
+  top: 0;
+}
+.bc-replayov .lb.bot {
+  bottom: 0;
+  transform-origin: center bottom;
+}
+.bc-replayov .bug {
+  position: absolute;
+  top: calc(9vh + 10px);
+  left: calc(16px + var(--safe-l));
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 10px;
+  background: rgba(8, 8, 12, 0.8);
+  border-left: 3px solid var(--gold);
+  font-family: var(--display);
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.bc-replayov .bug i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: recBlink 1s steps(2) infinite;
+}
+.bc-replayov .skip {
+  position: absolute;
+  bottom: calc(9vh + 10px);
+  right: calc(16px + var(--safe-r));
+  font-size: 12px;
+  color: var(--muted);
+}
+.bc.reduced .bc-replayov .lb,
+.bc.reduced .bc-replayov .bug i {
+  animation: none;
+}
+@keyframes lbIn {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes recBlink {
+  to {
+    opacity: 0.2;
+  }
+}

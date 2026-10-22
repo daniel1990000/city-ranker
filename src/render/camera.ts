@@ -18,8 +18,24 @@ export class CameraDirector {
 
   constructor(readonly camera: THREE.PerspectiveCamera) {}
 
-  /** Settings > Reduced motion: no shake, no punch-ins. */
+  /** Settings > Reduced motion: no shake, no punch-ins, no replay orbit. */
   reduced = false;
+  /** Replay mode: the fighters are on the ground (the cinematic camera drops to the mat). */
+  replayGround = false;
+  private _mid = new THREE.Vector3();
+  private _target = new THREE.Vector3();
+  private _lk = new THREE.Vector3();
+
+  /**
+   * Start a finish replay: a cut to a low, close camera that slowly orbits from one side of the fighters to the
+   * other (a fixed low angle with reduced motion). Call snap() after the first frame's positions are known.
+   */
+  startReplay(): void {
+    this.mode = 'replay';
+    this.orbit = this.reduced ? -0.35 : -0.55;
+    this.shakeAmp = 0;
+    this.punch = 0;
+  }
 
   /** A hit: strength 0..1. */
   shake(strength: number): void {
@@ -38,7 +54,7 @@ export class CameraDirector {
    */
   update(a: THREE.Vector3, b: THREE.Vector3, dt: number): void {
     const cam = this.camera;
-    const mid = new THREE.Vector3().addVectors(a, b).multiplyScalar(0.5);
+    const mid = this._mid.addVectors(a, b).multiplyScalar(0.5);
     const sep = Math.max(1, a.distanceTo(b));
     const aspect = cam.aspect;
     const fit = aspect < 1.6 ? 1.2 : aspect < 1.9 ? 1.06 : 1;
@@ -58,10 +74,17 @@ export class CameraDirector {
         this.orbit += dt * 0.12;
         break;
       case 'replay':
-        dist = 3.4;
-        height = 1.3;
-        lookY = 0.95;
-        this.orbit += dt * 0.35;
+        // low and close, looking slightly up at the fighters (on the ground: down at mat level), a slow orbit
+        if (this.replayGround) {
+          dist = 2.5 + sep * 0.3;
+          height = 0.8;
+          lookY = 0.35;
+        } else {
+          dist = 2.4 + sep * 0.45;
+          height = 1.0;
+          lookY = 1.3;
+        }
+        if (!this.reduced) this.orbit = Math.min(0.6, this.orbit + dt * 0.12);
         break;
       case 'result':
         dist = 4.4;
@@ -79,8 +102,8 @@ export class CameraDirector {
     dist *= fit;
     dist *= 1 - this.punch * 0.18;
     const ang = this.orbit;
-    const target = new THREE.Vector3(mid.x + Math.sin(ang) * dist, height, mid.z + Math.cos(ang) * dist * this.side);
-    const lk = new THREE.Vector3(mid.x, lookY, mid.z);
+    const target = this._target.set(mid.x + Math.sin(ang) * dist, height, mid.z + Math.cos(ang) * dist * this.side);
+    const lk = this._lk.set(mid.x, lookY, mid.z);
     const k = 1 - Math.pow(this.mode === 'replay' ? 0.02 : 0.004, dt);
     this.pos.lerp(target, k);
     this.look.lerp(lk, Math.min(1, k * 1.6));
