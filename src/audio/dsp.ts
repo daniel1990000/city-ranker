@@ -170,6 +170,46 @@ export function glide(f0: number, f1: number, t: number, len: number): number {
   return f0 * Math.pow(f1 / f0, k);
 }
 
+/** Per-sample exponential pitch sweep (cheaper than calling glide every sample). */
+export class Sweep {
+  private k: number;
+  private n: number;
+  constructor(public f: number, f1: number, len: number, sr: number) {
+    this.n = Math.max(1, Math.round(len * sr));
+    this.k = Math.pow(f1 / f, 1 / this.n);
+  }
+  next(): number {
+    const f = this.f;
+    if (this.n > 0) {
+      this.n--;
+      this.f *= this.k;
+    }
+    return f;
+  }
+}
+
+/** Per-sample `ad` envelope: linear attack, then a multiplicative decay (no exp per sample). */
+export class Env {
+  private v = 0;
+  private i = 0;
+  private up: number;
+  private k: number;
+  constructor(attack: number, tau: number, sr: number, private peak = 1) {
+    this.up = Math.max(1, Math.round(attack * sr));
+    this.k = Math.exp(-1 / (tau * sr));
+  }
+  next(): number {
+    if (this.i < this.up) {
+      this.i++;
+      this.v = (this.i / this.up) * this.peak;
+    } else {
+      this.v *= this.k;
+      if (this.v < 1e-9) this.v = 0;
+    }
+    return this.v;
+  }
+}
+
 export function smoothstep(a: number, b: number, x: number): number {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
   return t * t * (3 - 2 * t);
