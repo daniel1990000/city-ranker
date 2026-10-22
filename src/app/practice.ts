@@ -11,10 +11,11 @@
 
 import type { Fight } from '../game/fight';
 import { enterGround, standUp } from '../game/fight/ground';
-import type { FightEvent, FightInput, GroundPos, Side, Strike } from '../game/fight/types';
+import type { DivisionId, FightEvent, FighterSpec, FightInput, GroundPos, Side, Strike } from '../game/fight/types';
 import { METER_MAX } from '../game/fight/types';
 import { isSpecial } from '../game/fight/moves';
 import { DummyController, type DummyMode } from './dummy';
+import { division } from '../meta/divisions';
 
 /** Practice rules: one very long round (an hour), a short walk-in. */
 export const PRACTICE_RULES = { rounds: 1, roundTicks: 60 * 60 * 60, introTicks: 60, breakTicks: 60 } as const;
@@ -33,6 +34,22 @@ export const GROUND_STARTS: Record<GroundStartId, { label: string; start: Ground
   guardTop: { label: 'Guard, you on top', start: { pos: 'guard', top: 0 } },
   guardBottom: { label: 'Guard, you underneath', start: { pos: 'guard', top: 1 } },
 };
+
+/** The sparring partner: an average fighter of the player's division, a little tougher to hurt. */
+export function practicePartner(div: DivisionId): FighterSpec {
+  const sex = division(div).sex;
+  return {
+    id: `practice-${div}`,
+    name: 'Sparring Partner',
+    nickname: 'Training Room',
+    division: div,
+    archetype: 'wrestler',
+    rarity: 'common',
+    stats: { power: 40, speed: 45, chin: 70, cardio: 80, striking: 45, kicking: 45, wrestling: 45, grappling: 45, submissions: 40, defense: 45 },
+    lookSeed: sex === 'f' ? 31337 : 4242,
+    lookHints: { sex, build: 'athletic', beard: sex === 'm' },
+  };
+}
 
 // ---- drills ---------------------------------------------------------------------------------------------------
 

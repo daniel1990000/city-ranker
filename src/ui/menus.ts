@@ -17,6 +17,7 @@ import { isNative } from '../platform/platform';
 import { portrait } from '../render/portraits';
 import type { CardResult } from '../meta/fighters';
 import type { PackResult } from '../meta/packs';
+import type { PracticeOptions } from '../app/practice';
 import { sound } from '../audio/sound';
 import './menus.css';
 
@@ -28,7 +29,8 @@ export type Route =
   | { s: 'packs' }
   | { s: 'shop' }
   | { s: 'season' }
-  | { s: 'settings' };
+  | { s: 'settings' }
+  | { s: 'practice' };
 
 export interface MenuCtx {
   game: Game;
@@ -37,6 +39,8 @@ export interface MenuCtx {
   toast(msg: string): void;
   startCareer(div: DivisionId): void;
   startQuick(div: DivisionId): void;
+  /** Training Room: a practice fight (ui/practice.ts). */
+  startPractice(o: PracticeOptions): void;
   settings(): HTMLElement;
   /** Open the Play Games leaderboards (signs in if needed). */
   boards(): void;

@@ -1,0 +1,382 @@
+/* Training Room: the setup screen (fighter, sparring partner, drills) and the in-fight practice layer. */
+
+.practice-screen .pr-free {
+  font-size: 12px;
+  margin-right: 6px;
+}
+.pr-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+}
+.pr-col {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pr-setup {
+  flex: 1 1 52%;
+  min-width: 0;
+}
+.pr-drills {
+  flex: 1 1 48%;
+  min-width: 0;
+}
+.pr-label {
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.pr-label small {
+  font-family: var(--ui);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+/* fighters: one row that scrolls sideways */
+.pr-fighters {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-x;
+  padding-bottom: 4px;
+  flex: none;
+}
+.pr-fighter {
+  flex: none;
+  width: 72px;
+  padding: 0 0 4px;
+  border-radius: 8px;
+  border: 2px solid #6e7380;
+  background: linear-gradient(180deg, #2a2c36, #121318);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+.pr-fighter.rare {
+  border-color: #3a8cff;
+}
+.pr-fighter.epic {
+  border-color: #a95cff;
+}
+.pr-fighter.legend {
+  border-color: var(--gold);
+}
+.pr-fighter.on {
+  outline: 3px solid var(--gold-2);
+  outline-offset: -1px;
+  box-shadow: 0 0 14px rgba(243, 210, 122, 0.45);
+}
+.pr-fighter .por {
+  display: block;
+  width: 100%;
+  height: 52px;
+  background: center 18% / cover no-repeat;
+}
+.pr-fighter b {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: uppercase;
+  max-width: 66px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pr-fighter small {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* segmented choices */
+.pr-seg {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pr-seg[hidden] {
+  display: none;
+}
+.pr-seg button {
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pr-seg button.on {
+  background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  border-color: var(--gold);
+  color: #111;
+  font-weight: 600;
+}
+.pr-ground button {
+  min-height: 32px;
+  font-size: 12px;
+  padding: 4px 10px;
+}
+.pr-hint {
+  font-size: 12px;
+  min-height: 16px;
+}
+.pr-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 4px;
+}
+.pr-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.pr-check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--gold);
+}
+
+/* drills: a two-column grid that scrolls */
+.pr-drill-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  align-content: start;
+}
+.pr-drill {
+  position: relative;
+  text-align: left;
+  color: var(--text);
+  padding: 8px 10px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pr-drill b {
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pr-drill small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.pr-drill ol {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  font-size: 11px;
+  color: #c9ccd4;
+}
+.pr-drill .go {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-family: var(--display);
+  font-size: 13px;
+  color: var(--gold-2);
+  text-transform: uppercase;
+}
+.pr-drill:active {
+  transform: translateY(1px);
+  border-color: var(--gold);
+}
+
+/* ---- in the fight ---- */
+.hud.practice .clock {
+  display: none;
+}
+.practice-hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 16;
+  font-family: var(--display);
+}
+.practice-hud .pr-bar {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 4px 4px 10px;
+  border-radius: 8px;
+  background: rgba(8, 8, 12, 0.78);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+.practice-hud .tag {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+}
+.practice-hud .mode {
+  font-family: var(--ui);
+  font-size: 11px;
+  color: var(--muted);
+}
+.practice-hud .pr-moves {
+  pointer-events: auto;
+  border: 1px solid var(--gold);
+  background: rgba(212, 166, 74, 0.18);
+  color: var(--text);
+  font-family: var(--display);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.practice-hud .pr-card {
+  position: absolute;
+  top: calc(52px + var(--safe-t));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(34vw, 300px);
+  padding: 6px 10px 7px;
+  border-radius: 10px;
+  background: rgba(8, 8, 12, 0.82);
+  border: 1px solid var(--gold);
+  font-family: var(--ui);
+  font-size: 12px;
+  color: var(--text);
+}
+.practice-hud .pr-card .n {
+  font-family: var(--display);
+  font-size: 11px;
+  color: var(--gold);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.practice-hud .pr-card ol {
+  list-style: none;
+  margin: 3px 0 2px;
+  padding: 0;
+}
+.practice-hud .pr-card li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.practice-hud .pr-card li i {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1.5px solid #5d616c;
+}
+.practice-hud .pr-card li.now {
+  color: var(--text);
+  font-weight: 600;
+}
+.practice-hud .pr-card li.now i {
+  border-color: var(--gold-2);
+}
+.practice-hud .pr-card li.done {
+  color: #8fd694;
+  text-decoration: line-through;
+  text-decoration-color: rgba(143, 214, 148, 0.5);
+}
+.practice-hud .pr-card li.done i {
+  border-color: var(--green);
+  background: var(--green);
+  box-shadow: inset 0 0 0 2px rgba(8, 8, 12, 0.8);
+}
+.practice-hud .pr-card li em {
+  font-style: normal;
+  color: var(--gold-2);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.practice-hud .pr-card .how {
+  margin-top: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--line);
+  color: #e8dcb8;
+  font-size: 11px;
+}
+.practice-hud .pr-card .how.done {
+  color: #8fd694;
+}
+.practice-hud .pr-card.bump {
+  animation: prBump 0.25s ease-out;
+}
+.practice-hud .pr-card.nice {
+  animation: prNice 0.6s ease-out;
+}
+@keyframes prBump {
+  50% {
+    transform: translateX(-50%) scale(1.04);
+  }
+}
+@keyframes prNice {
+  30% {
+    box-shadow: 0 0 22px rgba(57, 181, 74, 0.8);
+    border-color: var(--green);
+  }
+}
+.practice-hud .pr-flash {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(28px, 9vh, 46px);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.8);
+  animation: prFlash 1.4s ease-out forwards;
+}
+@keyframes prFlash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -30%) scale(0.8);
+  }
+  15%,
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@media (max-height: 420px) {
+  .pr-drill ol {
+    display: none;
+  }
+}

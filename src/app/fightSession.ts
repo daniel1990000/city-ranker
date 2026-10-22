@@ -36,6 +36,14 @@ export interface FightSessionSetup {
   /** Settings: attack on the left; less camera motion. */
   leftHanded?: boolean;
   reducedMotion?: boolean;
+  /** Training Room: the dummy drives the opponent, and the room looks at every tick (app/practice.ts). */
+  practice?: PracticeHooks;
+}
+
+/** What a practice fight plugs in (app/practice.ts PracticeRoom). */
+export interface PracticeHooks {
+  readonly dummy: Controller;
+  afterTick(f: Fight, events: readonly FightEvent[], inputs: readonly [FightInput, FightInput]): void;
 }
 
 export interface FightOutcome {
@@ -71,7 +79,7 @@ export class FightSession {
 
   private constructor(readonly setup: FightSessionSetup) {
     this.fight = createFight({ seed: setup.seed, a: setup.player, b: setup.opponent, rules: setup.rules });
-    this.ai = new AIController({ difficulty: setup.difficulty, seed: setup.seed ^ 0x5151 });
+    this.ai = setup.practice ? setup.practice.dummy : new AIController({ difficulty: setup.difficulty, seed: setup.seed ^ 0x5151 });
     this.auto = setup.autoplay ? new AIController({ difficulty: 650, seed: setup.seed ^ 0x777 }) : null;
     this.recorder = new ReplayRecorder(this.fight);
     this.hintsShown = setup.showHints;
@@ -87,6 +95,8 @@ export class FightSession {
       reducedMotion: setup.reducedMotion,
     });
     s.hud = new FightHud(ui, [setup.player, setup.opponent]);
+    // practice has no clock (practice.css hides it)
+    if (setup.practice) s.hud.root.classList.add('practice');
     s.overlay = new TouchOverlay(ui, () => s.onPause?.(), setup.showHints && !setup.tutorial, setup.leftHanded);
     if (setup.tutorial) {
       const t = new Tutorial(setup.seed ^ 0x7777);
@@ -174,6 +184,7 @@ export class FightSession {
       stepFight(this.fight, inputs);
       this.lastInput = mine;
       const ev = drainEvents(this.fight);
+      this.setup.practice?.afterTick(this.fight, ev, inputs);
       if (ev.length) {
         events = events.concat(ev);
         this.scene.onEvents(ev, this.fight.state);
