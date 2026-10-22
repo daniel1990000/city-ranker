@@ -378,7 +378,7 @@ export class App {
     this.session.setPaused(true);
     const p = document.createElement('div');
     p.className = 'modal-back';
-    p.innerHTML = `<div class="modal panel"><h2>Paused</h2><div class="row"><button class="btn" data-a="resume">Resume</button><button class="btn ghost" data-a="quit">Forfeit</button></div></div>`;
+    p.innerHTML = `<div class="modal panel"><h2>Paused</h2><div class="row"><button class="btn" data-a="resume">Resume</button><button class="btn ghost" data-a="quit">Retire (counts as a loss)</button></div></div>`;
     p.querySelector('[data-a=resume]')?.addEventListener('click', () => {
       p.remove();
       this.overlay = null;
@@ -387,7 +387,9 @@ export class App {
     p.querySelector('[data-a=quit]')?.addEventListener('click', () => {
       p.remove();
       this.overlay = null;
-      void this.leaveFight();
+      // retiring is a loss (otherwise a losing title defence could be quit to keep the belt)
+      if (this.session && !this.session.fight.state.result) this.session.forfeit();
+      else void this.leaveFight();
     });
     this.ui.appendChild(p);
     this.overlay = p;

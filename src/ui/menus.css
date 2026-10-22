@@ -192,6 +192,8 @@
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  /* rows as tall as the cards: in a fixed-height scroller, auto rows shrink to fit and the cards overlap */
+  grid-auto-rows: max-content;
   gap: 8px;
   align-content: start;
   flex: 1;
@@ -212,10 +214,9 @@
   padding: 0;
   text-align: left;
 }
-.fcard::before {
-  content: '';
-  display: block;
-  padding-top: 133%;
+.fcard {
+  /* a fixed card shape (a padding-top hack collapses the grid rows inside a scrolling grid) */
+  aspect-ratio: 3 / 4;
 }
 .fcard.rare {
   border-color: #3a8cff;

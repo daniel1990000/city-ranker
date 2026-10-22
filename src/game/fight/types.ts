@@ -372,7 +372,8 @@ export type FinishMethod = 'KO' | 'TKO' | 'SUB' | 'DEC';
 export type DecisionKind = 'unanimous' | 'split' | 'majority' | 'draw';
 
 /** Why the referee stopped it (TKO): strikes standing, ground-and-pound, leg kicks or body shots. */
-export type StoppageKind = 'strikes' | 'ground' | 'legs' | 'body';
+/** Why the referee stopped it ('forfeit': the fighter retired, e.g. the player quit from the pause menu). */
+export type StoppageKind = 'strikes' | 'ground' | 'legs' | 'body' | 'forfeit';
 
 /** One judge's card: 10-point-must scores per round [fighter 0, fighter 1] and the totals. */
 export interface JudgeCard {

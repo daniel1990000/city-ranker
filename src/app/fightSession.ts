@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { AIController, createFight, drainEvents, ReplayRecorder, stepFight, viewFor, type Fight } from '../game/fight';
+import { endFight } from '../game/fight/core';
 import type { Controller, FightEvent, FightInput, FightResult, FighterSpec, FightRules, Replay, Side } from '../game/fight/types';
 import { METER_MAX, TICK_HZ } from '../game/fight/types';
 import type { TouchContext } from '../game/touch/types';
@@ -123,6 +124,13 @@ export class FightSession {
   /** Live play worth measuring for auto quality (not paused, not finished, normal speed). */
   get live(): boolean {
     return !this.paused && !this.ended && this.speed === 1;
+  }
+
+  /** The player retires from the fight (pause menu): a loss by TKO, then the normal result flow. */
+  forfeit(): void {
+    if (this.fight.state.result) return;
+    endFight(this.fight, 1, 'TKO', { stoppage: 'forfeit' });
+    this.paused = false;
   }
 
   setPaused(p: boolean): void {

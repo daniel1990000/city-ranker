@@ -38,3 +38,11 @@ counter) was barely rewarded. All of that is fixed: no single-move spam beats a 
 | F3 | Fight | S2 | Takedown + submission spam won decisions: every submission attempt scored for the judges. | fixed: only a hold that gets to 70 % counts; the AI sprawls better with every shot it has seen; a stuffed shooter getting up can be hit |
 | F4 | Fight | S3 | Good defence was barely rewarded. | fixed: **parry** (guard raised within 5 ticks of the impact: no chip, no guard damage, attacker late, counter window), **checks** (a guard up against a leg kick hurts the kicker's shin), kicks that miss or are blocked leave the kicker exposed longer |
 | F5 | Fight | S3 | "Hurt to the body" almost never happened after counters became head-only. | fixed: body over 45 % and a strong body shot or any body kick |
+| F6 | UI | S2 | The Fighters list collapsed on phones: card rows shrank to 28 px inside the scrolling grid and the cards overlapped (only a strip of each showed). | fixed: fixed card shape (aspect-ratio) and rows as tall as the cards |
+| F7 | Career | S2 | "Forfeit" in the pause menu didn't count as a loss: a champion could quit a losing title defence and keep the belt. | fixed: it is now "Retire (counts as a loss)", a TKO loss through the normal result flow |
+| F8 | Retention | S2 | Achievements are synced to Play Games but nothing in the game ever awards one. | open → features |
+| F9 | Retention | S3 | The weekly tournament module (`src/meta/weekly.ts`) has no game mode. | open → features |
+| F10 | UI | S3 | Tablet (1280x800) layout is stretched with big empty areas; at 640x360 the fighter detail and career screens cut text at the bottom. | open → UI overhaul |
+| F11 | Career | S3 | After the first title the career is only title defences against harder and harder opponents (the economy sim's win rate falls to ~20 % over 60 days): a thin, frustrating loop. | open → features |
+| F12 | UI | S4 | Pack art is a plain "2x" / "3x"; menus are functional but look generic. | open → UI overhaul |
+| F13 | Graphics | S3 | The crowd is flat cut-out silhouettes; no image-based lighting, no post-processing (bloom, grading, vignette); materials look plasticky in places. | open → graphics overhaul |

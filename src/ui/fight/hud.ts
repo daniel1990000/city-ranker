@@ -202,7 +202,7 @@ export class FightHud {
           const who = r.winner === null ? '' : specs[r.winner].name;
           const by = r.by ? MOVE_NAME[r.by] ?? '' : '';
           const big = r.method === 'KO' ? 'K.O.!' : r.method === 'TKO' ? 'T.K.O.' : r.method === 'SUB' ? 'Submission' : r.winner === null ? 'Draw' : 'Decision';
-          const sub = r.winner === null ? 'The judges score it even' : r.method === 'DEC' ? `${who} wins by ${r.decision} decision` : `${who} wins${by ? ' · ' + by : ''}${r.sub ? ' · ' + (r.sub === 'armbar' ? 'Armbar' : 'Choke') : ''}`;
+          const sub = r.stoppage === 'forfeit' ? `${who} wins · the other corner retired` : r.winner === null ? 'The judges score it even' : r.method === 'DEC' ? `${who} wins by ${r.decision} decision` : `${who} wins${by ? ' · ' + by : ''}${r.sub ? ' · ' + (r.sub === 'armbar' ? 'Armbar' : 'Choke') : ''}`;
           this.showBanner(big, sub, r.winner === this.player ? 'gold' : 'red', true);
           break;
         }
