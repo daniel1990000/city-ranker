@@ -447,7 +447,7 @@ export class App {
 
   private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null): void {
     const seconds = o.result.totalTicks / 60;
-    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty);
+    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty, o.rounds);
     // Google Play's review card after a high point (a title, or the 5th win), once; Play decides if it shows
     const f = this.game.save.flags;
     if (o.result.winner === 0 && !f.ratePrompted && (rewards.belt || this.game.save.wins >= 5)) {

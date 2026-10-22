@@ -24,9 +24,11 @@ import { paidPacksStatus } from '../platform/country';
 import { buy, finish, queryPurchases } from '../platform/iap';
 import { interstitialReady, rewardedAvailable, showInterstitial, showRewarded } from '../platform/ads';
 import { isNative } from '../platform/platform';
-import { submitScore } from '../platform/games';
+import { submitScore, syncAchievements } from '../platform/games';
 import { track } from '../platform/telemetry';
-import type { FighterStats } from '../game/fight/types';
+import type { FighterStats, RoundStats } from '../game/fight/types';
+import { earnAchievements, fightFacts, type AchievementDef } from '../meta/achievements';
+import { missionsView, progressMissions, type MissionEvent, type MissionPayout, type MissionView } from '../meta/missions';
 
 /** What the daily login pays, by day of the 7-day cycle. */
 export const DAILY_REWARDS: { cash: number; gems: number; pack?: PackId }[] = [
@@ -52,9 +54,18 @@ export interface FightRewards {
   /** This win's leaderboard score (0 for a loss or draw), and whether it is the player's best. */
   score: number;
   best: boolean;
+  /** achievements and missions this fight completed (already paid; also sent to `onEarned` listeners) */
+  earned: Earned;
 }
 
-export type BuyPackResult = { ok: true; result: PackResult; cards: CardResult[] } | { ok: false; reason: 'funds' | 'blocked' };
+/** Achievements awarded and missions finished by one action (already paid), for toasts. */
+export interface Earned {
+  achievements: AchievementDef[];
+  /** null when the action can't move a mission on */
+  missions: MissionPayout | null;
+}
+
+export type BuyPackResult = { ok: true; result: PackResult; cards: CardResult[]; earned: Earned } | { ok: false; reason: 'funds' | 'blocked' };
 
 const amounts = (): Amounts => ({ gemPacks: TUNING.gemPacks, starterGems: TUNING.starterGems, starterCash: TUNING.starterCash, bundleGems: TUNING.bundleGems });
 
@@ -62,6 +73,9 @@ export class Game {
   save: SaveData;
   /** Listeners for wallet / progress changes (top bar). */
   private listeners: (() => void)[] = [];
+  private earnedListeners: ((e: Earned) => void)[] = [];
+  /** earned before anyone listened (achievements awarded for progress made before they existed, at launch) */
+  private earnedPending: Earned[] = [];
 
   /** When the loaded save was last written (before this launch touched it), for the native-copy check. */
   readonly loadedSavedAt: number;
@@ -80,6 +94,7 @@ export class Game {
     ensureWeek(this.save);
     syncBundles(this.save.progress.fighters, this.save.paidBundles);
     this.save.ads.sessions++;
+    this.checkEarned();
     this.persist();
     this.booted = true;
   }
@@ -96,6 +111,7 @@ export class Game {
     ensureSeason(this.save);
     ensureWeek(this.save);
     syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.checkEarned();
     this.persist(true);
   }
 
@@ -123,6 +139,7 @@ export class Game {
     ensureSeason(this.save);
     ensureWeek(this.save);
     syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.checkEarned();
     flush();
     this.persist(true);
   }
@@ -139,6 +156,44 @@ export class Game {
 
   flush(): void {
     flush();
+  }
+
+  // ---- achievements and daily missions ------------------------------------------------------------------------
+
+  /**
+   * Hear every achievement awarded and mission finished (already paid), to show a toast. What was earned before the
+   * first listener (at launch, or by a restored save) is delivered to it at once.
+   */
+  onEarned(fn: (e: Earned) => void): void {
+    this.earnedListeners.push(fn);
+    const pending = this.earnedPending.splice(0);
+    for (const e of pending) fn(e);
+  }
+
+  /** Pay a meta event (a pack opened, a stat trained, ...) into the missions and check the achievements. */
+  private earn(ev: MissionEvent | null, ctx: Parameters<typeof earnAchievements>[1] = {}): Earned {
+    const missions = ev ? progressMissions(this.save, ev) : null;
+    const achievements = earnAchievements(this.save, ctx);
+    const e: Earned = { achievements, missions };
+    if (achievements.length) syncAchievements(this.save);
+    if (achievements.length || missions?.done.length) {
+      if (this.earnedListeners.length) for (const l of this.earnedListeners) l(e);
+      else if (this.earnedPending.length < 20) this.earnedPending.push(e);
+    }
+    return e;
+  }
+
+  /** Award anything the save already qualifies for (launch, restores, the daily login, the season track). */
+  private checkEarned(): Earned {
+    return this.earn(null);
+  }
+
+  /** Today's three missions (a new set after midnight on the reward clock) and whether the all-done bonus is paid. */
+  missions(): { list: MissionView[]; bonus: boolean } {
+    const day = this.save.progress.missions.day;
+    const v = missionsView(this.save);
+    if (this.save.progress.missions.day !== day) this.persist();
+    return v;
   }
 
   private firstRun(): void {
@@ -199,6 +254,7 @@ export class Game {
     o.train[stat] = pts + 1;
     const mins = trainMinutes(pts);
     if (mins > 0) startTimer(this.save, `train:${id}`, mins * 60_000);
+    this.earn({ kind: 'train' });
     this.persist();
     return { ok: true };
   }
@@ -240,6 +296,7 @@ export class Game {
     const o = this.save.progress.fighters.owned[id];
     if (!o || !canStarUp(o)) return false;
     starUp(o);
+    this.checkEarned();
     this.persist();
     return true;
   }
@@ -253,8 +310,11 @@ export class Game {
 
   // ---- after a fight -----------------------------------------------------------------------------------------------
 
-  /** Pay out a finished fight. `step` for career fights; null for quick fights (smaller rewards, no ladder move). */
-  finishFight(fighterId: string, result: FightResult, seconds: number, step: CareerStep | null, opp: FighterSpec, difficulty: number): FightRewards {
+  /**
+   * Pay out a finished fight. `step` for career fights; null for quick fights (smaller rewards, no ladder move).
+   * `rounds` is the fight's per-round stats (FightState.stats, [player, opponent]) for missions and achievements.
+   */
+  finishFight(fighterId: string, result: FightResult, seconds: number, step: CareerStep | null, opp: FighterSpec, difficulty: number, rounds?: readonly (readonly [RoundStats, RoundStats])[]): FightRewards {
     const won = result.winner === 0;
     const draw = result.winner === null;
     const method = result.method;
@@ -280,13 +340,15 @@ export class Game {
     const rec = this.save.progress.record;
     const before = rec.best;
     const score = recordFight(rec, result, seconds, overall(opp.stats), difficulty);
+    const facts = fightFacts(result, rounds, rosterFighter(fighterId)?.division ?? opp.division, !!step);
+    const earned = this.earn({ kind: 'fight', fight: facts }, { fight: facts });
     this.persist(true);
     // Play Games keeps each player's best, so posting every time is safe
     submitScore('wins', this.save.wins);
     submitScore('knockouts', rec.kos);
     if (score > 0) submitScore('weekly', score);
     track('fight_end', { mode: step ? 'career' : 'quick', tier: step?.tier ?? -1, result: won ? 'W' : draw ? 'D' : 'L', method, secs: Math.round(seconds), fights: this.save.fights });
-    return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before };
+    return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before, earned };
   }
 
   /**
@@ -345,8 +407,9 @@ export class Game {
     if (def.paid && !this.paidPacksAllowed()) return { ok: false, reason: 'blocked' };
     if (def.gems > 0 ? !spendGems(this.save, def.gems) : !spendCash(this.save, def.cash)) return { ok: false, reason: 'funds' };
     const r = this.open(id);
+    const earned = this.earn({ kind: 'pack', count: 1 });
     this.persist(true);
-    return { ok: true, ...r };
+    return { ok: true, ...r, earned };
   }
 
   /** Open an earned pack (never gated: it was not bought). */
@@ -354,8 +417,9 @@ export class Game {
     if (this.save.progress.packs.unopened[id] <= 0) return { ok: false, reason: 'funds' };
     this.save.progress.packs.unopened[id]--;
     const r = this.open(id);
+    const earned = this.earn({ kind: 'pack', count: 1 });
     this.persist(true);
-    return { ok: true, ...r };
+    return { ok: true, ...r, earned };
   }
 
   freePackAvailable(): boolean {
@@ -386,13 +450,17 @@ export class Game {
     addCash(this.save, r.cash);
     addGems(this.save, r.gems);
     if (r.pack) this.save.progress.packs.unopened[r.pack]++;
+    this.checkEarned();
     this.persist(true);
     return { day, ...r };
   }
 
   claimSeason(track: 'free' | 'prem', tier: number): SeasonReward | null {
     const r = claimTier(this.save, track, tier);
-    if (r) this.persist(true);
+    if (r) {
+      this.checkEarned();
+      this.persist(true);
+    }
     return r;
   }
 

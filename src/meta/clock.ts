@@ -78,6 +78,10 @@ export function unlock(save: SaveData, real: number, dayOf: (t: number) => numbe
   const today = dayOf(real);
   if (save.daily.lastDay > today) save.daily.lastDay = today;
   if (save.season.day > today) save.season.day = today;
+  // missions dated ahead become today's, with what they already paid (so the day can't pay twice)
+  // (the slot is optional here: tools and tests may load the save without the missions code)
+  const missions = (save.progress as { missions?: { day: number } }).missions;
+  if (missions && missions.day > today) missions.day = today;
   for (const t of Object.values(save.timers)) if (t.at > real + t.len) t.at = real + t.len;
 }
 
