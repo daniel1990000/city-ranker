@@ -17,6 +17,7 @@ import { setPortraitRenderer } from './render/portraits';
 import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
 import { buildSettings } from './ui/settings';
+import { achievementsScreen } from './ui/achievements';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
 import { Post } from './render/post/post';
@@ -263,6 +264,9 @@ export class App {
         break;
       case 'settings':
         el = settingsScreen(this.ctx);
+        break;
+      case 'achievements':
+        el = achievementsScreen(this.ctx);
         break;
     }
     this.screenEl = el;
