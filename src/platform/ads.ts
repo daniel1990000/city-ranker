@@ -42,6 +42,7 @@ let rewardSettle: ((earned: boolean) => void) | null = null;
 /** settles the interstitial promise when the ad is closed (true) or could not be shown (false) */
 let interSettle: ((shown: boolean) => void) | null = null;
 let rewardEarned = false;
+let rewardAt = 0;
 
 export function setAdHooks(h: AdHooks): void {
   listeners = h;
@@ -162,18 +163,28 @@ export function rewardedAvailable(): boolean {
 
 /** Show a rewarded video. Resolves true only when the player earned the reward; false if it was closed early or failed. */
 export function showRewarded(): Promise<boolean> {
-  if (!rewardedAvailable()) return Promise.resolve(false);
-  rewardSettle?.(false);
+  // a second tap while an ad is already on its way must not cancel the first one (the player would watch it for
+  // nothing): the second caller gets false and the first keeps its reward
+  // (an ad that never reported back within 3 minutes is given up, so one lost event can't block rewards for good)
+  if (rewardSettle && Date.now() - rewardAt > 180000) {
+    rewardSettle(false);
+    rewardSettle = null;
+  }
+  if (rewardSettle || !rewardedAvailable()) return Promise.resolve(false);
+  rewardAt = Date.now();
   rewardEarned = false;
+  rewardedLoaded = false; // this ad is used up whatever happens; the Dismissed / failure handlers load the next one
   // settled by the Dismissed event (with whether the reward was earned) or by a failure to show
-  const settled = new Promise<boolean>((resolve) => (rewardSettle = resolve));
+  let mine: ((earned: boolean) => void) | null = null;
+  const settled = new Promise<boolean>((resolve) => (rewardSettle = mine = resolve));
   AdMob.showRewardVideoAd()
     .then(() => (rewardEarned = true))
     .catch(() => {
-      rewardedLoaded = false;
       loadRewarded();
-      rewardSettle?.(false);
-      rewardSettle = null;
+      if (rewardSettle === mine) {
+        rewardSettle?.(false);
+        rewardSettle = null;
+      }
     });
   return settled;
 }

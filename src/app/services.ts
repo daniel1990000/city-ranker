@@ -62,6 +62,7 @@ export async function startServices(game: Game, hooks: ServiceHooks): Promise<vo
       void regainAudioFocus().then(ok => sound.setMuted(!ok));
       game.resumed();
       void game.syncPurchases();
+      void refreshPaidPacks();
       void cloud?.start();
     },
     onBack: () => hooks.onBack(),
@@ -91,6 +92,8 @@ export async function startServices(game: Game, hooks: ServiceHooks): Promise<vo
   }
   try {
     if (await initIap()) await game.syncPurchases();
+    // the country check (paid packs) runs after billing is up, on the same queue
+    void refreshPaidPacks();
   } catch (e) {
     console.warn('purchases', e);
   }

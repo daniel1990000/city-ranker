@@ -73,7 +73,9 @@ function remember(save: SaveData, token: string, g: Grant): void {
 /** The one-time effects of a newly seen purchase. */
 function grantNew(save: SaveData, p: Purchase, amounts: Amounts, now: number): Grant {
   const id = p.productId;
-  const fresh = !p.time || now - p.time <= FRESH_MS;
+  // a purchase Play still holds as unacknowledged was never finished anywhere: it is a new sale, however long ago it
+  // was ordered (a slow pending payment that cleared days later still brings its gems and cash)
+  const fresh = !p.time || now - p.time <= FRESH_MS || !p.acknowledged;
   const g: Grant = { gems: 0, cash: 0 };
   if (id === PRODUCTS.starter) {
     // the Starter Pack's gems, cash and season pass come with the sale. Seen again long after (a new phone, cleared

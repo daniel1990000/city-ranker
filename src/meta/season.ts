@@ -146,7 +146,8 @@ export function ensureSeason(save: SaveData, now = Date.now()): { rolled: boolea
       if (isPremium(save, now, s.id) && !s.prem.includes(t)) add(grant(save, premiumReward(t, s.id)));
     }
   }
-  save.season = { id, xp: 0, free: [], prem: [], day: -1, dayXp: 0 };
+  // the day's fight-xp count carries over: a clock flipped across months must not hand out a fresh daily cap
+  save.season = { id, xp: 0, free: [], prem: [], day: s.day, dayXp: s.dayXp };
   return paid;
 }
 

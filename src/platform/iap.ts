@@ -34,7 +34,32 @@ function toPurchase(t: Transaction): Purchase {
   };
 }
 
-export async function initIap(): Promise<boolean> {
+/**
+ * Every billing call goes through this queue, one at a time: the plugin opens a fresh billing connection per call and
+ * closes the previous one (and some calls close "the current" one when they finish), so overlapping calls - the
+ * country check at start-up, a purchase query on resume, a purchase in progress - would cut each other off.
+ */
+let chain: Promise<unknown> = Promise.resolve();
+function serial<T>(fn: () => Promise<T>, ms = 20000): Promise<T> {
+  // a call that never answers fails after `ms` instead of blocking every later billing call
+  const timed = () =>
+    new Promise<T>((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error('billing call timed out')), ms);
+      fn().then(
+        (v) => (clearTimeout(t), resolve(v)),
+        (e: unknown) => (clearTimeout(t), reject(e instanceof Error ? e : new Error(String(e)))),
+      );
+    });
+  const run = chain.then(timed, timed);
+  chain = run.catch(() => undefined);
+  return run;
+}
+
+export function initIap(): Promise<boolean> {
+  return serial(initIapNow, 60000);
+}
+
+async function initIapNow(): Promise<boolean> {
   if (!isNative) return false;
   try {
     // the game acknowledges and consumes every purchase itself, after the grant is saved: make sure the plugin's
@@ -71,7 +96,7 @@ export function productInfo(id: string): StoreProduct | null {
 export async function storeCountry(): Promise<string | null> {
   if (!isNative) return null;
   try {
-    const { countryCode } = await NativePurchases.getStorefront();
+    const { countryCode } = await serial(() => NativePurchases.getStorefront());
     return /^[A-Za-z]{2}$/.test(countryCode) ? countryCode.toUpperCase() : null;
   } catch {
     return null;
@@ -90,7 +115,7 @@ export async function buy(id: string): Promise<BuyResult> {
   buying = true;
   try {
     // isConsumable:false + no auto-acknowledge: the plugin only reports the purchase, the game finishes it
-    const t = await NativePurchases.purchaseProduct({ productIdentifier: id, productType: PURCHASE_TYPE.INAPP, isConsumable: false, autoAcknowledgePurchases: false });
+    const t = await serial(() => NativePurchases.purchaseProduct({ productIdentifier: id, productType: PURCHASE_TYPE.INAPP, isConsumable: false, autoAcknowledgePurchases: false }), 15 * 60000);
     const p = t ? toPurchase(t) : null;
     if (p && p.state === 'purchased' && p.token) return { status: 'purchased', purchase: p };
     return { status: p?.state === 'pending' ? 'pending' : 'failed' };
@@ -116,7 +141,7 @@ export function queryPurchases(): Promise<Purchase[] | null> {
   // resume fires several events at once: they share one query instead of racing on the billing connection
   querying ??= (async () => {
     try {
-      const { purchases } = await NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP });
+      const { purchases } = await serial(() => NativePurchases.getPurchases({ productType: PURCHASE_TYPE.INAPP }));
       return purchases.map(toPurchase);
     } catch (e) {
       console.warn('Purchase query failed', e);
@@ -133,8 +158,8 @@ export async function finish(action: StoreAction): Promise<boolean> {
   if (!supported) return false;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      if (action.kind === 'consume' || (REPEATABLE as readonly string[]).includes(action.productId)) await NativePurchases.consumePurchase({ purchaseToken: action.token });
-      else await NativePurchases.acknowledgePurchase({ purchaseToken: action.token });
+      if (action.kind === 'consume' || (REPEATABLE as readonly string[]).includes(action.productId)) await serial(() => NativePurchases.consumePurchase({ purchaseToken: action.token }));
+      else await serial(() => NativePurchases.acknowledgePurchase({ purchaseToken: action.token }));
       return true;
     } catch (e) {
       console.warn('Finishing purchase failed', e);
