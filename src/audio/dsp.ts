@@ -1,6 +1,6 @@
 // A tiny DSP kit for synthesising the game's sounds in plain TypeScript (no AudioContext): seeded noise, biquad
 // filters, wavetable / polyBLEP oscillators, envelopes, a small "Freeverb"-style arena reverb, normalising and
-// seamless-loop crossfades. Everything writes into Float32Arrays, so the sound bank can be built and tested in Node
+// seamless loops. Everything writes into Float32Arrays, so the sound bank can be built and tested in Node
 // and handed to WebAudio as plain buffers (no OfflineAudioContext round trips at start-up).
 
 /** A rendered sound: one (mono) or two (stereo) channels at `sr` samples per second. */
@@ -10,6 +10,9 @@ export interface Pcm {
 }
 
 export const TAU = Math.PI * 2;
+
+/** Below this a recursive filter's state is flushed to zero (inaudible, and keeps the maths off subnormals). */
+const DENORMAL = 1e-24;
 
 /** Seeded uniform random numbers in [0, 1) (mulberry32). */
 export function rng(seed: number): () => number {
@@ -87,6 +90,9 @@ export class Biquad {
     const y = this.b0 * x + this.z1;
     this.z1 = this.b1 * x - this.a1 * y + this.z2;
     this.z2 = this.b2 * x - this.a2 * y;
+    // flush decaying tails before they reach subnormal numbers (which are ~100x slower to compute with)
+    if (this.z1 < DENORMAL && this.z1 > -DENORMAL) this.z1 = 0;
+    if (this.z2 < DENORMAL && this.z2 > -DENORMAL) this.z2 = 0;
     return y;
   }
 }
@@ -100,6 +106,7 @@ export class OnePole {
   }
   run(x: number): number {
     this.y += this.k * (x - this.y);
+    if (this.y < DENORMAL && this.y > -DENORMAL) this.y = 0;
     return this.y;
   }
 }
@@ -182,12 +189,13 @@ export function peakOf(p: Pcm): number {
   return m;
 }
 
-/** Scale so the loudest sample is `peak`; short fades at both ends so nothing clicks. */
+/** Scale so the loudest sample is `peak`; short fades at both ends so nothing clicks (0 = no fade, for loops). */
 export function finish(p: Pcm, peak = 0.9, fadeIn = 0.0005, fadeOut = 0.02): Pcm {
   const m = peakOf(p);
   const g = m > 0 ? peak / m : 0;
-  const fi = Math.max(1, Math.round(fadeIn * p.sr));
-  const fo = Math.max(1, Math.round(fadeOut * p.sr));
+  // a fade of 0 leaves that end untouched (loops)
+  const fi = Math.round(fadeIn * p.sr);
+  const fo = Math.round(fadeOut * p.sr);
   for (const c of p.ch) {
     const n = c.length;
     for (let i = 0; i < n; i++) c[i] *= g;
@@ -215,18 +223,14 @@ export function mixInto(dst: Pcm, src: Pcm, at: number, gain = 1): void {
 }
 
 /**
- * Make a buffer loop without a seam: the last `xfade` seconds are crossfaded (equal power) into the start and cut off.
- * The result is `xfade` shorter, and its end flows straight into its start.
+ * Wrap a buffer that was rendered `loopSeconds` long plus a tail: everything after the loop point is added back onto
+ * the start (circular rendering), so the loop is exactly seamless, with the same density across the seam.
  */
-export function loopify(p: Pcm, xfade: number): Pcm {
-  const f = Math.round(xfade * p.sr);
-  const n = lengthOf(p) - f;
+export function fold(p: Pcm, loopSeconds: number): Pcm {
+  const n = Math.round(loopSeconds * p.sr);
   const ch = p.ch.map(c => {
     const o = c.slice(0, n);
-    for (let i = 0; i < f; i++) {
-      const k = (i / f) * (Math.PI / 2);
-      o[i] = c[i] * Math.sin(k) + c[n + i] * Math.cos(k);
-    }
+    for (let i = n; i < c.length; i++) o[i % n] += c[i];
     return o;
   });
   return { sr: p.sr, ch };
@@ -244,6 +248,7 @@ class Comb {
   run(x: number): number {
     const y = this.buf[this.i];
     this.store = y * (1 - this.damp) + this.store * this.damp;
+    if (this.store < DENORMAL && this.store > -DENORMAL) this.store = 0;
     this.buf[this.i] = x + this.store * this.fb;
     if (++this.i >= this.buf.length) this.i = 0;
     return y;
@@ -258,7 +263,8 @@ class Allpass {
   }
   run(x: number): number {
     const b = this.buf[this.i];
-    this.buf[this.i] = x + b * 0.5;
+    const w = x + b * 0.5;
+    this.buf[this.i] = w < DENORMAL && w > -DENORMAL ? 0 : w;
     if (++this.i >= this.buf.length) this.i = 0;
     return b - x;
   }
