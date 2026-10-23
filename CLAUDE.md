@@ -34,7 +34,7 @@ npm run typecheck
 npm run build          # store build (no window.cageKings debug hook)
 npm run build:qa       # keeps window.cageKings for Playwright QA scripts
 npm run android:apk    # web build + cap sync + release APK (needs android/keystore.properties and an Android SDK)
-# simulations CI also runs (they honour OUT=<report path>):
+# simulations CI also runs (they honour OUT=<report path>; add --exclude '.claude/**' if agent worktrees exist):
 OUT=/tmp/q/balance.md RUNS=30 npx vitest run --config /dev/null scripts/qa/fight-balance.test.ts
 OUT=/tmp/q/econ.md npx vitest run --config /dev/null scripts/qa/econ-sim.test.ts
 ./tools/fighters/build.sh   # rebuild the fighter bodies (Blender 4.2 + MPFB, downloads CC0 assets to .cache)
@@ -69,7 +69,8 @@ node scripts/store.mjs      # Play Store screenshots (docs/store) and feature gr
   clock, ad pacing, cloud read-before-write, leaderboard scores).
 - `src/platform/` iap, ads (UMP consent first, Google test ids until real ones are in the secrets), games (Play Games
   leaderboards + cloud save), telemetry (opt-in), notify, platform, country (paid-pack gating).
-- `src/audio/sound.ts` all sound, synthesised at start-up (no sample files).
+- `src/audio/` all sound, synthesised (no sample files): `sound.ts` (start-up bank, buses, event mapping) and the full
+  bank built in a worker (`bankWorker.ts` -> `sfx.ts`, `crowd.ts`, `music.ts`, on the `dsp.ts` kit).
 - Android: `android/` (from Cartstronaut: R8 + resource shrinking, renderer-crash recovery, Play Games plugin).
 
 ## Release routine
@@ -82,12 +83,16 @@ node scripts/store.mjs      # Play Store screenshots (docs/store) and feature gr
    a debug-signed test APK (not for Play). Set the `UPLOAD_CERT_SHA256` variable to lock the upload key.
 - There is no Android SDK in the cloud session: CI builds the APK.
 
-## Status (20 October 2026, version 0.3.0)
-- Built: fight engine + AI + replays (tested, balanced), realistic generated fighters with IK animation, six venues,
-  broadcast camera, HUD + touch controls, full menus (hub, career, fighters, training, packs with odds/pity/reveal,
-  shop, season, settings), first-fight lesson (`src/app/tutorial.ts`), leaderboards (`src/meta/record.ts`), cloud save that reads before it
-  writes (`src/app/cloud.ts`), auto graphics quality (`src/render/autoQuality.ts`), economy (simulated), synthesised sound, platform services, Android project, CI.
-- 0.3.0 fixed the owner's first phone playtest (submission bar, mashing, rocked/hurt moments, takedown spam and
-  getting up); `tests/fight-sim.test.ts` "owner playtest" pins them. Re-check them after any fight tuning.
-- Next (see `docs/RELEASE.md` "Known gaps"): motion-captured animation upgrade, women's ground poses
-  polish, real-phone performance pass, store listing assets, closed test.
+## Status (23 October 2026, version 0.4.0)
+- Built: fight engine + AI + replays (tested, balanced, spam-proof), realistic generated fighters with IK animation,
+  six venues with post-processing, reflection lighting and a Blender-rendered crowd (`tools/crowd/`), broadcast
+  camera and TV layer (plates, corner screen, captions, finish replay: `src/ui/fight/broadcast*.ts`), HUD + touch
+  controls, menus (hub, career with champion options, fighters, training, packs, shop, season, weekly tournament
+  `src/ui/tournament.ts`, training room `src/ui/practice.ts`, achievements, daily missions), first-fight lesson,
+  leaderboards, cloud save that reads before it writes, auto graphics quality, simulated economy, synthesised sound
+  (start-up bank in `src/audio/sound.ts`, full bank built in a worker: `sfx.ts`, `crowd.ts`, `music.ts`), platform
+  services, Android project, CI.
+- 0.4.0 = the second audit (`docs/AUDIT-2.md`, F1-F13 and B1-B13 all fixed). Unfinished: the clinch and an animation
+  rewrite, kept as patches in `docs/wip/` (not in the game).
+- Next (see `docs/MASTER-PLAN.md` section 14 and `docs/RELEASE.md` "Known gaps"): real-phone pass, owner accounts
+  (Play Console, AdMob, Play Games items), closed test; then motion-captured animation, the clinch, cosmetics.

@@ -217,8 +217,10 @@ PvP is an added feature, not a rewrite:
 
 ## 14. Roadmap (22 October 2026, after the second audit)
 
-Where we are: milestones 1–6 are built and milestone 7 (polish and audits) is under way. The second audit
-(`docs/AUDIT-2.md`) fixed the fight exploits the owner found and added the missing retention features.
+Where we are: milestones 1–6 are built and milestone 7 (polish and audits) is nearly done. Version 0.4.0 shipped
+the second audit (`docs/AUDIT-2.md`): fight exploits fixed, the weekly tournament, training room, difficulty,
+achievements, daily missions, the champion's career, a TV-style fight presentation, the graphics and menu overhaul,
+arena sound and a money bug hunt. The clinch moved to the 90-day list (started: `docs/wip/clinch.patch`).
 
 ### Before launch (owner + Claude, about 3–4 weeks)
 1. **Real-phone pass** (owner installs the APK from the GitHub Release on a mid-range and, if possible, a cheap

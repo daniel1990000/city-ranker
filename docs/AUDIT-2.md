@@ -67,5 +67,6 @@ A read-only bug hunt of the money and save code (8 confirmed findings), all fixe
 | B11 | S2 | Fighter portraits on cards (pack opening, Fighters list) stayed invisible after the redesign. | fixed |
 | B12 | S3 | First launch: the daily reward card opened before the lesson and could stack with the cloud-save card. | fixed |
 
-Left for later (not bugs today): live cloud last-writer-wins between two phones used at the same time; save codes can
-be used to re-roll paid packs (export, open, re-import), a design gap to close if save codes stay in the game.
+| B13 | S2 | Save codes could re-roll packs (export, open, re-import, open again); and no save recorded when it began. | fixed: the roll depends only on the save; `firstAt` is set at the first launch |
+
+Left for later: the cloud copy is last-writer-wins between two phones used at the same time.

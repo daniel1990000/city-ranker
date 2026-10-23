@@ -1,5 +1,41 @@
 # Releases
 
+## 0.4.0 (23 October 2026): the big overhaul
+
+A second full audit (`docs/AUDIT-2.md`), then fixes, a new look, new modes and a money bug hunt.
+- **Fights that reward skill**: spamming one move no longer beats a good opponent (leg kicks, head kicks, uppercuts,
+  takedown-and-submission spam all lose to the champion AI now). Repeating the same strike makes it slower and weaker
+  ("Mix it up!"), a block at the last moment is a **parry** (no damage, counter chance), a guard against a leg kick
+  **checks** it, and the AI reads your habits and punishes them.
+- **TV-style fights**: walkout name plates, a **corner screen between rounds** (stats and two lines of advice that use
+  the real controls), **commentary captions** (Settings > Commentary), and a **slow-motion replay** of knockouts and
+  submissions with a cinematic camera.
+- **New modes**: the **Weekly tournament** (an 8-fighter bracket, the same for everyone that week, its own leaderboard
+  and prizes; a free entry a day, a loaner fighter if you have none in that weight class), the **Training room**
+  (sparring partner who stands, blocks, attacks or shoots; 6 step-by-step drills; a full move list, also in the pause
+  menu), **difficulty** (Easy / Normal / Hard / Pro: harder pays more, Easy wins stay off the leaderboards).
+- **Reasons to come back**: **21 achievements** (paid once, synced to Google Play Games), **3 daily missions** with a
+  bonus for all three, and a real **champion's career**: fair title defences, big non-title super fights, Legacy ranks,
+  Prestige re-runs and moving weight class (champions now win about half their fights instead of one in five).
+- **New look**: post-processing per graphics setting (colour grade, glow, vignette, smoother edges), reflection
+  lighting, a crowd of realistic people rendered in Blender, leather gloves, fabric shorts, warmer skin, soft shadows
+  under the fighters, camera flashes in the crowd. A redesigned menu: broadcast-style home screen, foil pack art,
+  metallic rarity frames, new icons, a new result screen; phones and tablets both fit.
+- **Arena sound**: punches and kicks that sound different, a crowd of voices that swells with the action (oohs, roars,
+  cheers, applause), the bell, the clapper, the cage, menu stings and menu music. Built in the background after start-up
+  (about 4 seconds), so the game opens as fast as before.
+- **Money and save fixes** (bug hunt, `docs/AUDIT-2.md` B1-B13): clock tricks no longer give extra season tiers or
+  daily rewards; a fixed phone clock no longer locks the free pack; last month's season rewards are paid before a new
+  pass is bought; a double tap on "Watch ad" no longer loses the reward; a bought bundle fighter is never taken by an
+  early cloud restore; retiring pays nothing; no ad break right after a title; packs can't be re-rolled with save codes;
+  purchase calls to Google Play run one at a time.
+- **First session**: the daily reward card waits until after the first fight; cards never stack; opt-in funnel events
+  (lesson start / done / skip, day after install, pack opens, shop and offer views) for the targets in
+  `docs/MASTER-PLAN.md` section 14.
+- Not in this release (kept in `docs/wip/`): the clinch, and a rewrite of the animation. Both need more work.
+- Owner: set up the new Play Games items: a 4th leaderboard ("Weekly tournament") and 21 achievements; their ids go in
+  the `PGS_LEADERBOARDS` (key `tournament`) and `PGS_ACHIEVEMENTS` secrets (the achievement keys and names are in `src/meta/achievements.ts`).
+
 ## 0.3.0 (20 October 2026): fixes from the first phone playtest
 
 The owner played 0.2.0 on a phone: the submission bar didn't fill, mashing punches always won, fights were only
