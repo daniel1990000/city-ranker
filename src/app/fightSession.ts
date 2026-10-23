@@ -152,7 +152,7 @@ export class FightSession {
     if (!setup.silent) {
       s.bc = new BroadcastHud(ui, !!setup.reducedMotion);
       s.commentary = new Commentary([setup.player, setup.opponent]);
-      if (s.fight.state.phase === 'intro') s.bc.showPlates(setup.plates ?? [plateInfo(setup.player), plateInfo(setup.opponent)], () => s.endPlates());
+      if (s.fight.state.phase === 'intro' && !setup.practice) s.bc.showPlates(setup.plates ?? [plateInfo(setup.player), plateInfo(setup.opponent)], () => s.endPlates());
     }
     if (setup.tutorial) {
       const t = new Tutorial(setup.seed ^ 0x7777);
@@ -430,7 +430,7 @@ export class FightSession {
         this.scene.onEvents(ev, this.fight.state);
         this.hud.onEvents(ev, [this.setup.player, this.setup.opponent]);
         const line = this.commentary?.feed(ev, this.fight.state);
-        if (line && this.setup.commentary !== false && !this.coachOn && !this.bc?.cornerOn && !this.bc?.platesOn) this.bc?.say(line);
+        if (line && this.setup.commentary !== false && !this.setup.practice && !this.coachOn && !this.bc?.cornerOn && !this.bc?.platesOn) this.bc?.say(line);
       }
       if (this.hintsShown && this.fight.state.phase === 'fight' && this.fight.state.round === 1 && this.fight.state.clock < this.fight.rules.roundTicks - 60 * 8) {
         this.overlay.hideHints();
