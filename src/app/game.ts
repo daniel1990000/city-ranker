@@ -268,6 +268,8 @@ export class Game {
   }
 
   private firstRun(): void {
+    // when this save began (packs roll from it, so every player's packs differ; the funnel counts days from it)
+    if (!this.save.firstAt) this.save.firstAt = Date.now();
     const f = this.save.progress.fighters;
     if (Object.keys(f.owned).length === 0) {
       giveCard(f, STARTER_ID);
@@ -610,7 +612,11 @@ export class Game {
   }
 
   private open(id: PackId): { result: PackResult; cards: CardResult[] } {
-    const seed = (Date.now() ^ (this.save.progress.packs.opened[id] * 7919) ^ (this.save.fights * 31)) >>> 0;
+    // the roll depends only on the save (when it began, which pack, how many of that pack were opened): restoring an
+    // older save code or cloud copy and opening again gives the very same cards, so packs can't be re-rolled
+    const t = this.save.firstAt || 1;
+    let seed = ((t % 4294967296) ^ Math.floor(t / 4294967296) ^ Math.imul(this.save.progress.packs.opened[id] + 1, 2654435761)) >>> 0;
+    for (const ch of id) seed = Math.imul(seed ^ ch.charCodeAt(0), 16777619) >>> 0;
     const result = rollPack(this.save.progress.packs, id, seed);
     const cards = result.cards.map(c => giveCard(this.save.progress.fighters, c.id));
     const opened = Object.values(this.save.progress.packs.opened).reduce((a, n) => a + n, 0);

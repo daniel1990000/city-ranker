@@ -41,8 +41,31 @@ counter) was barely rewarded. All of that is fixed: no single-move spam beats a 
 | F6 | UI | S2 | The Fighters list collapsed on phones: card rows shrank to 28 px inside the scrolling grid and the cards overlapped (only a strip of each showed). | fixed: fixed card shape (aspect-ratio) and rows as tall as the cards |
 | F7 | Career | S2 | "Forfeit" in the pause menu didn't count as a loss: a champion could quit a losing title defence and keep the belt. | fixed: it is now "Retire (counts as a loss)", a TKO loss through the normal result flow |
 | F8 | Retention | S2 | Achievements are synced to Play Games but nothing in the game ever awards one. | fixed: 21 achievements (`src/meta/achievements.ts`) awarded after fights, packs, star-ups, the daily login and the season, each paid once and pushed to Play Games at once; achievements screen; plus daily missions (`src/meta/missions.ts`) |
-| F9 | Retention | S3 | The weekly tournament module (`src/meta/weekly.ts`) has no game mode. | open → features |
-| F10 | UI | S3 | Tablet (1280x800) layout is stretched with big empty areas; at 640x360 the fighter detail and career screens cut text at the bottom. | open → UI overhaul |
-| F11 | Career | S3 | After the first title the career is only title defences against harder and harder opponents (the economy sim's win rate falls to ~20 % over 60 days): a thin, frustrating loop. | open → features |
-| F12 | UI | S4 | Pack art is a plain "2x" / "3x"; menus are functional but look generic. | open → UI overhaul |
-| F13 | Graphics | S3 | The crowd is flat cut-out silhouettes; no image-based lighting, no post-processing (bloom, grading, vignette); materials look plasticky in places. | open → graphics overhaul |
+| F9 | Retention | S3 | The weekly tournament module (`src/meta/weekly.ts`) has no game mode. | fixed: an 8-fighter weekly bracket, the same for everyone (`src/meta/tournament.ts`), points for wins, finishes, speed and damage avoided, a Play Games board, prize tiers once a week, a free entry a day (+1 for a rewarded video), a loaner fighter for players without one in the week's division |
+| F10 | UI | S3 | Tablet (1280x800) layout is stretched with big empty areas; at 640x360 the fighter detail and career screens cut text at the bottom. | fixed: menu redesign (scrolling shelves and tabs inside their own scrollers, tablet sizes, short tile names on narrow phones), checked at 640x360, 844x390 and 1280x800 |
+| F11 | Career | S3 | After the first title the career is only title defences against harder and harder opponents (the economy sim's win rate falls to ~20 % over 60 days): a thin, frustrating loop. | fixed: defence opponents capped at a fair level, non-title super fights, Legacy ranks for defences, Prestige re-runs (1-5) and moving weight class; the sim's champion win rate is now 56-67 % (`docs/ECONOMY.md`) |
+| F12 | UI | S4 | Pack art is a plain "2x" / "3x"; menus are functional but look generic. | fixed: foil pack art per tier, original line icons, metallic rarity frames, broadcast-style hub, result screen redesign |
+| F13 | Graphics | S3 | The crowd is flat cut-out silhouettes; no image-based lighting, no post-processing (bloom, grading, vignette); materials look plasticky in places. | fixed: crowd rendered from CC0 MakeHuman people in Blender (`tools/crowd`), venue reflection lighting, post-processing by quality tier, leather / fabric / skin materials, contact shadows, camera flashes |
+
+## Second pass (22-23 October 2026)
+
+A read-only bug hunt of the money and save code (8 confirmed findings), all fixed with tests (`tests/bughunt.test.ts`,
+`tests/season-clock.test.ts`):
+
+| ID | Sev | Finding | Status |
+|---|---|---|---|
+| B1 | S1 | Flipping the phone clock months ahead and back re-created the season with a fresh daily xp cap (12 tier claims a day). | fixed: the day's xp count survives a re-created season |
+| B2 | S2 | A clock that had run ahead and was fixed locked the free daily pack (and the offer card) for as long as it had been ahead. | fixed: the release caps them to today |
+| B3 | S2 | Buying next month's Season Pass before the old season rolled over lost last month's unclaimed premium rewards. | fixed: the season rolls over on resume and before any purchase |
+| B4 | S2 | Two quick taps on a "Watch ad" button: the ad played and paid nothing. | fixed: a second tap never cancels the first |
+| B5 | S2 | Loading the cloud copy before Google Play answered took a bought, levelled bundle fighter (given back at level 1 later). | fixed: nothing paid is taken back until Play has answered this session |
+| B6 | S2 | Retiring from a title fight paid 30 % of the purse every time: a quit-for-cash loop. | fixed: retiring pays nothing |
+| B7 | S3 | Stepping the date a few days ahead and back roughly doubled the daily login rewards (the 7-day release forgave the borrowed days). | fixed: only an offset over a month is ever released |
+| B8 | S3 | An ad break could follow a title win or a level up, against the pacing rules. | fixed |
+| B9 | S2 | Billing calls could close each other's connection (the country check at start-up, a purchase on resume). | fixed: one queue with time-outs; the country check runs after billing is up and on resume |
+| B10 | S3 | A pending Starter Pack payment that cleared days later paid only No Ads. | fixed: an unacknowledged purchase is always a new sale |
+| B11 | S2 | Fighter portraits on cards (pack opening, Fighters list) stayed invisible after the redesign. | fixed |
+| B12 | S3 | First launch: the daily reward card opened before the lesson and could stack with the cloud-save card. | fixed |
+
+Left for later (not bugs today): live cloud last-writer-wins between two phones used at the same time; save codes can
+be used to re-roll paid packs (export, open, re-import), a design gap to close if save codes stay in the game.
