@@ -146,7 +146,7 @@ export class Game {
     this.firstRun();
     ensureSeason(this.save);
     ensureWeek(this.save);
-    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.syncBundleFighters();
     this.save.ads.sessions++;
     this.checkEarned();
     this.persist();
@@ -164,7 +164,7 @@ export class Game {
     this.firstRun();
     ensureSeason(this.save);
     ensureWeek(this.save);
-    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.syncBundleFighters();
     this.checkEarned();
     this.persist(true);
   }
@@ -172,6 +172,9 @@ export class Game {
   /** Back in the app: a phone clock that was moved back is believed again after 7 days (meta/clock.ts). */
   resumed(): void {
     if (settleClock(this.save, Date.now(), dayNumber)) this.persist();
+    // a new month while the app slept: last month's unclaimed tiers pay out before anything else can touch the
+    // season (a Season Pass bought now must not hide last month's premium rewards)
+    if (ensureSeason(this.save).rolled) this.persist();
   }
 
   /**
@@ -192,10 +195,24 @@ export class Game {
     this.firstRun();
     ensureSeason(this.save);
     ensureWeek(this.save);
-    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.syncBundleFighters();
     this.checkEarned();
     flush();
     this.persist(true);
+  }
+
+  /** Google Play has answered a purchase query this session (until then nothing paid is taken away). */
+  private playChecked = false;
+
+  /**
+   * Give or take the bundle fighters. On the phone, a fighter is only taken back once Play has answered this session:
+   * a restore or a launch before that (offline, Play slow) would otherwise take a bought, levelled fighter, and the
+   * later sync would give it back at level 1.
+   */
+  private syncBundleFighters(): void {
+    const f = this.save.progress.fighters;
+    const paid = isNative && !this.playChecked ? [...this.save.paidBundles, ...Object.keys(f.bundle)] : this.save.paidBundles;
+    syncBundles(f, paid);
   }
 
   onChange(fn: () => void): void {
@@ -514,6 +531,9 @@ export class Game {
       const cash = won ? (method === 'DEC' ? 250 : 375) : 100;
       r = { cash, xp: won ? 60 : 30, gems: 0, pack: null, belt: false, legacy: [] };
     }
+    // retiring from a fight (pause > Retire) counts as a loss but pays nothing: quitting must not be a cash farm
+    const forfeit = result.stoppage === 'forfeit';
+    if (forfeit) r = { ...r, cash: 0, xp: 0 };
     // the difficulty setting: harder pays more per win, Easy less (meta/difficulty.ts)
     if (won) r = { ...r, cash: winCash(r.cash, this.save.settings.difficulty), xp: winXp(r.xp, this.save.settings.difficulty) };
     const tournament = !step && tour ? applyTourResult(this.save, tour.step, { won, method, ticks: tour.ticks, maxTicks: tour.maxTicks, damageTaken: tour.damageTaken }, draw) : null;
@@ -523,7 +543,7 @@ export class Game {
     const o = this.save.progress.fighters.owned[fighterId];
     const levels = o ? addXp(o, r.xp) : 0;
     if (r.pack) this.save.progress.packs.unopened[r.pack]++;
-    const seasonXp = addSeasonXp(this.save, fightXp(won ? 120 : 60), Date.now(), 'fight');
+    const seasonXp = addSeasonXp(this.save, fightXp(won ? 120 : forfeit ? 0 : 60), Date.now(), 'fight');
     this.save.fights++;
     if (won) this.save.wins++;
     this.save.fightLog.push({ t: Date.now(), k: mode, o: step?.opponent.id ?? (tour ? tour.step.opponent.id.slice(0, 40) : 'quick'), r: won ? 'W' : draw ? 'D' : 'L', m: method, s: Math.round(seconds) });
@@ -566,8 +586,8 @@ export class Game {
   }
 
   /** Show an interstitial if the pacing rules allow (behind an "Ad break" card in the UI). */
-  interstitialDue(): boolean {
-    return interstitialReady() && interstitialDue(this.save.ads, { now: Date.now(), noAds: this.save.flags.noAds, highlight: false });
+  interstitialDue(highlight = false): boolean {
+    return interstitialReady() && interstitialDue(this.save.ads, { now: Date.now(), noAds: this.save.flags.noAds, highlight });
   }
 
   async showInterstitial(): Promise<void> {
@@ -665,9 +685,10 @@ export class Game {
     if (!isNative) return 'unavailable';
     const r = await buy(id);
     if (r.status !== 'purchased') return r.status === 'owned' || r.status === 'busy' ? 'failed' : r.status;
+    ensureSeason(this.save);
     const g = applyPurchase(this.save, r.purchase, amounts());
     if (g.granted) track('purchase', { id, fights: this.save.fights });
-    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.syncBundleFighters();
     this.persist(true);
     if (g.action) await finish(g.action);
     return 'purchased';
@@ -677,8 +698,10 @@ export class Game {
   async syncPurchases(): Promise<{ granted: string[]; revoked: string[] } | null> {
     const list = await queryPurchases();
     if (!list) return null;
+    this.playChecked = true;
+    ensureSeason(this.save);
     const r = reconcile(this.save, list, amounts());
-    syncBundles(this.save.progress.fighters, this.save.paidBundles);
+    this.syncBundleFighters();
     this.persist(true);
     for (const a of r.actions) await finish(a);
     return { granted: r.granted, revoked: r.revoked };

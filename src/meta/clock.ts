@@ -8,7 +8,8 @@ import { obj } from './sanitize';
  * is moving it forward, claiming, then moving it back and claiming again. So the reward clock never goes backwards:
  * if the phone's clock falls behind the latest time the game has seen, the reward clock carries on from that time
  * (an offset) and the rewards stay where they were. Small corrections (network time, up to 10 minutes) are ignored.
- * A phone whose clock really was wrong gets let go after 7 days, so an honest fix never locks rewards for long.
+ * A phone whose clock was more than a month ahead gets let go after 7 days, so an honest fix never locks rewards for
+ * long; a smaller offset simply stays (it locks nothing).
  *
  * Season months, the weekly tournament, ad pacing and analytics use the real clock: they must match other players.
  */
@@ -23,6 +24,11 @@ export interface ClockState {
 
 const SLACK = 10 * 60 * 1000;
 const RELEASE = 7 * 86400000;
+/**
+ * Only a clock that was far ahead is let go. A smaller offset just stays (it locks nothing: rewards keep coming once
+ * a day on the reward clock), so stepping the date a few days ahead, claiming, and stepping back gains nothing.
+ */
+const RELEASE_OVER = 30 * 86400000;
 
 let bound: ClockState | null = null;
 
@@ -51,7 +57,7 @@ export function rewardTime(real = Date.now()): number {
 }
 
 /**
- * At launch and resume: after 7 days on a moved-back clock, believe the phone again. Rewards claimed "in the future"
+ * At launch and resume: 7 days after a clock more than a month ahead was moved back, believe the phone again. Rewards claimed "in the future"
  * then count as claimed today, and timers are capped, so nothing stays locked. Returns whether it let go.
  */
 export function settleClock(save: SaveData, real: number, dayOf: (t: number) => number): boolean {
@@ -62,7 +68,7 @@ export function settleClock(save: SaveData, real: number, dayOf: (t: number) => 
     unlock(save, real, dayOf);
     return false;
   }
-  if (c.offset <= 0 || real - c.since < RELEASE) return false;
+  if (c.offset <= RELEASE_OVER || real - c.since < RELEASE) return false;
   c.offset = 0;
   c.since = 0;
   c.high = real;
@@ -80,8 +86,13 @@ export function unlock(save: SaveData, real: number, dayOf: (t: number) => numbe
   if (save.season.day > today) save.season.day = today;
   // missions dated ahead become today's, with what they already paid (so the day can't pay twice)
   // (the slot is optional here: tools and tests may load the save without the missions code)
-  const missions = (save.progress as { missions?: { day: number } }).missions;
-  if (missions && missions.day > today) missions.day = today;
+  const slots = save.progress as { missions?: { day: number }; packs?: { freeDay: number }; tournament?: { day: number } };
+  if (slots.missions && slots.missions.day > today) slots.missions.day = today;
+  // the free pack and the tournament's daily entry were taken "today" at the latest: a clock that was ahead must not
+  // lock them for as many days as it was ahead
+  if (slots.packs && slots.packs.freeDay > today) slots.packs.freeDay = today;
+  if (slots.tournament && slots.tournament.day > today) slots.tournament.day = today;
+  if (save.offerDay > today) save.offerDay = today;
   for (const t of Object.values(save.timers)) if (t.at > real + t.len) t.at = real + t.len;
 }
 

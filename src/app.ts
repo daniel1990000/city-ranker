@@ -655,7 +655,8 @@ export class App {
     });
     p.querySelector('[data-a=next]')?.addEventListener('click', () => {
       p.remove();
-      void this.adBreakThen(async () => {
+      // never right after a high point (a title, a level up, a tournament win)
+      void this.adBreakThen(!!(r.belt || r.levels > 0 || r.tournament?.champion), async () => {
         await this.leaveFight();
         if (r.pack) this.nav({ s: 'packs' });
         else if (step) this.nav({ s: 'career', div: step.div });
@@ -666,8 +667,8 @@ export class App {
   }
 
   /** Interstitial pacing: when one is due, an "Ad break" card counts down first. */
-  private async adBreakThen(next: () => Promise<void>): Promise<void> {
-    if (!this.game.interstitialDue()) {
+  private async adBreakThen(highlight: boolean, next: () => Promise<void>): Promise<void> {
+    if (!this.game.interstitialDue(highlight)) {
       await next();
       return;
     }
