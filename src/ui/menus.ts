@@ -238,6 +238,7 @@ export function dailyModal(ctx: MenuCtx, onClose: () => void): HTMLElement | nul
   card.innerHTML = `<div class="mhead">${icon('gift')}<h2>Daily reward</h2></div><p class="muted">Come back every day: the rewards grow for 7 days in a row.</p><div class="days">${days}</div><button class="btn" data-a="claim">Claim</button>`;
   on(card.querySelector('[data-a=claim]'), () => {
     const r = g.claimDaily();
+    if (r) sound.play('claim', { bus: 'music' });
     back.remove();
     if (r) ctx.toast(`Day ${r.day}: ${[r.cash ? `${fmt(r.cash)} cash` : '', r.gems ? `${r.gems} gems` : '', r.pack ? PACKS[r.pack].name : ''].filter(Boolean).join(' + ')}`);
     onClose();
@@ -372,7 +373,10 @@ export function fighterScreen(ctx: MenuCtx, id: string): HTMLElement {
       const sb = h('button', 'btn', `${icon('star')}Star up`);
       if (o.shards < STAR_COST[o.stars + 1]) sb.setAttribute('disabled', '');
       on(sb, () => {
-        if (g.starUp(id)) ctx.toast(`${f.name} is now ${o.stars}★`);
+        if (g.starUp(id)) {
+          sound.play('starUp', { bus: 'music' });
+          ctx.toast(`${f.name} is now ${o.stars}★`);
+        }
         ctx.nav({ s: 'fighter', id });
       });
       row.appendChild(sb);
@@ -423,7 +427,8 @@ export function revealModal(ctx: MenuCtx, r: PackResult, cards: CardResult[], on
   if (ctx.game.save.settings.reducedMotion) v.classList.add('calm');
   const best = Math.max(...r.cards.map(c => ['common', 'rare', 'epic', 'legend'].indexOf(c.rarity)));
   v.classList.add(`best${best}`);
-  setTimeout(() => sound.play(`reveal${best}`), 250 + (r.cards.length - 1) * 450);
+  r.cards.forEach((_, i) => setTimeout(() => sound.play('cardFlip', { gain: 0.7 }), 250 + i * 450));
+  setTimeout(() => sound.play(`reveal${best}`, { bus: 'music' }), 250 + (r.cards.length - 1) * 450 + 200);
   v.innerHTML = `<div class="rays"></div><div class="rhead"><span class="kick">${icon('packs')}Pack opened</span><div class="logo">${PACKS[r.pack].name}${r.pityHit ? ' · <b>Guarantee!</b>' : ''}</div></div>`;
   const row = h('div', 'row cardsrow');
   r.cards.forEach((c, i) => {

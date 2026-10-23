@@ -105,7 +105,7 @@ export class App {
     this.game.onEarned(e => {
       const msgs = earnedMessages(e);
       if (!msgs.length) return;
-      sound.play(e.achievements.length ? 'reveal2' : 'reveal1');
+      sound.play(e.achievements.length ? 'achievement' : 'mission', { bus: 'music' });
       msgs.forEach((m, i) => setTimeout(() => this.toast(m), i * 1500));
     });
     this.game.onChange(() => {
@@ -243,6 +243,7 @@ export class App {
     // re-rendering the same screen (after an action) does not add to the history
     if (r.s !== this.route.s) this.history.push(this.route);
     this.route = r;
+    sound.setMusic(true);
     this.render();
   }
 
@@ -407,6 +408,7 @@ export class App {
   private pendingTour: TourStep | null = null;
 
   private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null, tutorial = false, practice: PracticeRoom | null = null): Promise<void> {
+    sound.setMusic(false);
     this.screenEl?.remove();
     this.screenEl = null;
     this.applyQuality();
@@ -614,6 +616,7 @@ export class App {
 
   private showRewards(o: FightOutcome, r: FightRewards, step: CareerStep | null): void {
     const won = o.result.winner === 0;
+    sound.play(r.belt || r.tournament?.champion ? 'trophy' : won ? 'win' : 'lose', { bus: 'music', gain: 0.8 });
     const t = o.totals;
     const p = document.createElement('div');
     p.className = 'screen result-screen';
@@ -737,6 +740,11 @@ export class App {
   }
 
   /** QA: try the look live (post tier, environment light strength, exposure). */
+  /** QA: how far the full sound bank has got. */
+  qaSound(): { built: number; beds: boolean; music: boolean; state: string } {
+    return sound.debug();
+  }
+
   qaLook(o: { tier?: 'off' | 'medium' | 'high'; env?: number; bloomK?: number; thresholdK?: number; noGrade?: boolean; noFxaa?: boolean }): void {
     if (o.tier) this.post.setTier(o.tier);
     this.post.debugNoGrade = !!o.noGrade;

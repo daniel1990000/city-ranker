@@ -1,8 +1,20 @@
 // All the game's sound, synthesised with WebAudio: no sample files to license or download. Short sounds are rendered
 // once into buffers (OfflineAudioContext) at start-up, then played with pitch / gain variation through three buses
 // (sfx, crowd, music) into a limiter. The crowd is a looping bed whose level and brightness follow the excitement.
+// That small bank is ready at once; the full arena bank (layered impacts, a synthesised crowd of voices, the bell,
+// UI stings, menu music: sfx.ts, crowd.ts, music.ts) is built in a worker and takes over sound by sound as it arrives.
 
-import type { FightEvent } from '../game/fight/types';
+/** What a full-bank sound falls back to while it is still being built. */
+const FALLBACK: Record<string, string> = {
+  jab: 'light', power: 'heavy', body: 'medium', bodyKick: 'kick', legKick: 'kick', headKick: 'kick', pound: 'medium',
+  blocked: 'block', parried: 'block', checked: 'block', knockdown: 'thud', slam: 'thud', cage: 'thud', whooshHeavy: 'whoosh',
+  bellFinal: 'bell', clapper: 'clap', applause: 'clap', cheer: 'roar', claim: 'buy', starUp: 'reveal2', levelUp: 'reveal1',
+  achievement: 'reveal2', mission: 'reveal1', trophy: 'reveal3', win: 'reveal2', cardFlip: 'whoosh',
+};
+const KICKS: Partial<Record<MoveId | 'pound', string>> = { lowKick: 'legKick', bodyKick: 'bodyKick', headKick: 'headKick', flyingKnee: 'power' };
+
+import type { FightEvent, MoveId } from '../game/fight/types';
+import type { BankMessage } from './bankWorker';
 
 type Bus = 'sfx' | 'crowd' | 'music';
 
@@ -215,6 +227,12 @@ export class Sound {
   private volumes: Record<Bus, number> = { sfx: 0.9, crowd: 0.7, music: 0.6 };
   private ready = false;
   private muted = false;
+  /** the full bank, filled by the worker */
+  private hq = new Map<string, AudioBuffer[]>();
+  private beds: { calm: GainNode; hot: GainNode } | null = null;
+  private crowdLevel = 0;
+  private music: { src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  private musicWanted = true; // the game opens on the menus
 
   /** Create the context (needs a user gesture on mobile to start) and render the sound bank. */
   async init(): Promise<void> {
@@ -283,6 +301,7 @@ export class Sound {
     src.start();
     this.bed = { src, gain, filter };
     this.ready = true;
+    this.startBank();
     const unlock = () => void ctx.resume();
     addEventListener('pointerdown', unlock, { passive: true });
     addEventListener('keydown', unlock);
@@ -290,6 +309,88 @@ export class Sound {
       if (document.hidden) void ctx.suspend();
       else void ctx.resume();
     });
+  }
+
+  /** Build the full bank in a worker; each sound replaces its start-up stand-in as it arrives. */
+  private startBank(): void {
+    if (typeof Worker === 'undefined') return;
+    let w: Worker;
+    try {
+      w = new Worker(new URL('./bankWorker.ts', import.meta.url), { type: 'module' });
+    } catch {
+      return;
+    }
+    w.onmessage = (ev: MessageEvent<BankMessage>) => {
+      const ctx = this.ctx;
+      const m = ev.data;
+      if (!ctx || !m?.ch?.length) return;
+      const b = ctx.createBuffer(m.ch.length, m.ch[0].length, m.sr);
+      m.ch.forEach((c, i) => b.copyToChannel(c as Float32Array<ArrayBuffer>, i));
+      const list = this.hq.get(m.name) ?? [];
+      list.push(b);
+      this.hq.set(m.name, list);
+      if (m.name === 'bedHot' && this.hq.has('bedCalm')) this.startBeds();
+      if (m.name === 'music') {
+        w.terminate();
+        if (this.musicWanted) this.setMusic(true);
+      }
+    };
+    w.onerror = () => w.terminate();
+  }
+
+  /** The two crowd loops (murmur and on-its-feet) take over from the noise bed. */
+  private startBeds(): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.buses || this.beds) return;
+    const loop = (name: string) => {
+      const src = ctx.createBufferSource();
+      src.buffer = (this.hq.get(name) as AudioBuffer[])[0];
+      src.loop = true;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      src.connect(g).connect((this.buses as Record<Bus, GainNode>).crowd);
+      src.start();
+      return g;
+    };
+    this.beds = { calm: loop('bedCalm'), hot: loop('bedHot') };
+    if (this.bed) {
+      this.bed.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+      const old = this.bed.src;
+      setTimeout(() => old.stop(), 2000);
+      this.bed = null;
+    }
+    this.setCrowd(this.crowdLevel);
+  }
+
+  /** Menu music on or off (fades; starts once the music is built). */
+  setMusic(on: boolean): void {
+    this.musicWanted = on;
+    const ctx = this.ctx;
+    if (!ctx || !this.buses) return;
+    const t = ctx.currentTime;
+    if (on && !this.music) {
+      const buf = this.hq.get('music')?.[0];
+      if (!buf) return;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      src.connect(gain).connect(this.buses.music);
+      src.start();
+      gain.gain.setTargetAtTime(0.5, t, 0.8);
+      this.music = { src, gain };
+    } else if (!on && this.music) {
+      const m = this.music;
+      m.gain.gain.setTargetAtTime(0, t, 0.25);
+      setTimeout(() => m.src.stop(), 1500);
+      this.music = null;
+    }
+  }
+
+  /** QA: the full bank's progress. */
+  debug(): { built: number; beds: boolean; music: boolean; state: string } {
+    return { built: this.hq.size, beds: !!this.beds, music: !!this.music, state: this.ctx?.state ?? 'none' };
   }
 
   setVolume(bus: Bus, v: number): void {
@@ -304,7 +405,8 @@ export class Sound {
 
   play(name: string, opts: { gain?: number; rate?: number; bus?: Bus } = {}): void {
     if (!this.ready || !this.ctx || !this.buses || this.muted) return;
-    const list = this.buf.get(name);
+    // the full bank's sound if it is built, else the start-up stand-in
+    const list = this.hq.get(name) ?? this.buf.get(name) ?? (FALLBACK[name] ? this.buf.get(FALLBACK[name]) : undefined);
     if (!list) return;
     // never the same variant twice in a row; at most 12 voices
     if (this.voices >= 12) return;
@@ -325,8 +427,17 @@ export class Sound {
 
   /** Crowd bed level 0..1 (silent outside fights). */
   setCrowd(level: number): void {
-    if (!this.bed || !this.ctx) return;
+    this.crowdLevel = level;
+    if (!this.ctx) return;
     const t = this.ctx.currentTime;
+    if (this.beds) {
+      // the murmur is there whenever a crowd is; the on-its-feet loop comes in with the excitement
+      const on = level > 0.01 ? 1 : 0;
+      this.beds.calm.gain.setTargetAtTime(on * (0.35 + level * 0.25), t, 0.5);
+      this.beds.hot.gain.setTargetAtTime(on * Math.pow(Math.max(0, level - 0.25) / 0.75, 1.4) * 0.8, t, 0.35);
+      return;
+    }
+    if (!this.bed) return;
     this.bed.gain.gain.setTargetAtTime(level * 0.9, t, 0.4);
     this.bed.filter.frequency.setTargetAtTime(700 + level * 1800, t, 0.4);
   }
@@ -336,22 +447,36 @@ export class Sound {
     for (const e of events) {
       switch (e.type) {
         case 'hit':
-          if (e.blocked) this.play('block', { gain: 0.8 });
+          if (e.blocked) this.play('blocked', { gain: 0.8 });
           else {
-            const kick = e.move === 'lowKick' || e.move === 'bodyKick' || e.move === 'headKick' || e.move === 'flyingKnee';
-            this.play(kick ? 'kick' : e.strength, { gain: e.counter ? 1.25 : 1 });
+            const id = KICKS[e.move] ?? (e.move === 'pound' ? 'pound' : e.zone === 'body' ? 'body' : e.strength === 'light' ? 'jab' : 'power');
+            this.play(id, { gain: (e.counter ? 1.25 : 1) * (e.strength === 'medium' && id === 'power' ? 0.8 : 1) });
             if (e.strength === 'heavy' || e.counter) this.play('ooh', { bus: 'crowd', gain: 0.7 });
           }
           break;
         case 'miss':
-          this.play('whoosh', { gain: 0.6 });
+          this.play(e.move === 'headKick' || e.move === 'bodyKick' || e.move === 'flyingKnee' ? 'whooshHeavy' : 'whoosh', { gain: 0.6 });
           break;
         case 'evade':
           this.play('whoosh', { gain: 0.5, rate: 1.2 });
           break;
+        case 'parry':
+          this.play('parried', { gain: 0.9 });
+          break;
+        case 'check':
+          this.play('checked');
+          this.play('ooh', { bus: 'crowd', gain: 0.5 });
+          break;
+        case 'guardBreak':
+          this.play('blocked', { gain: 1.2, rate: 0.85 });
+          this.play('ooh', { bus: 'crowd', gain: 0.6 });
+          break;
         case 'knockdown':
-          this.play('thud');
+          this.play('knockdown');
           this.play('roar', { bus: 'crowd' });
+          break;
+        case 'getUp':
+          this.play('applause', { bus: 'crowd', gain: 0.6 });
           break;
         case 'stun':
           // rocked: the crowd comes up out of its seats
@@ -364,19 +489,54 @@ export class Sound {
         case 'recover':
           this.play('ooh', { bus: 'crowd', gain: 0.45, rate: 1.1 });
           break;
+        case 'special':
+          this.play('whooshHeavy', { gain: 0.8 });
+          break;
+        case 'specialReady':
+          if (e.side === 0) this.play('specialReady', { gain: 0.6 });
+          break;
+        case 'gassed':
+          if (e.side === 0) this.play('heartbeat', { gain: 0.7 });
+          break;
+        case 'shoot':
+          this.play('whooshHeavy', { gain: 0.5, rate: 0.9 });
+          break;
+        case 'sprawl':
+          if (e.success) {
+            this.play('thud', { gain: 0.6 });
+            this.play('applause', { bus: 'crowd', gain: 0.45 });
+          }
+          break;
         case 'takedown':
-          this.play('thud', { gain: 0.7, rate: 1.2 });
+          this.play('slam', { gain: 0.9 });
           this.play('ooh', { bus: 'crowd', gain: 0.6 });
           break;
+        case 'position':
+          if (e.pos === 'mount') this.play('ooh', { bus: 'crowd', gain: 0.45 });
+          break;
+        case 'subStart':
+          this.play('ooh', { bus: 'crowd', gain: 0.7, rate: 0.9 });
+          break;
+        case 'subEscape':
+          this.play('applause', { bus: 'crowd', gain: 0.6 });
+          break;
+        case 'standUp':
+          if (e.reason === 'ref') this.play('clapper', { gain: 0.5 });
+          break;
         case 'roundStart':
+          this.play('bell', { gain: 0.8 });
+          if (e.round === 1) this.play('cheer', { bus: 'crowd', gain: 0.7 });
+          break;
         case 'roundEnd':
           this.play('bell', { gain: 0.8 });
+          this.play('applause', { bus: 'crowd', gain: 0.5 });
           break;
         case 'fightEnd':
-          this.play('bell', { gain: 0.9 });
+          this.play('bellFinal', { gain: 0.9 });
           this.play('roar', { bus: 'crowd', gain: 1 });
           break;
         case 'tapOut':
+          this.play('tap', { gain: 0.8 });
           this.play('roar', { bus: 'crowd' });
           break;
         default:

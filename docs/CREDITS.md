@@ -17,6 +17,7 @@ Nothing comes from EA SPORTS UFC, the UFC, or any real fighter or brand.
 - The launcher icon and splash use Inter Display Bold (SIL OFL 1.1) to draw "CK" / "CAGE KINGS".
 
 ## Everything else
-- Sound: synthesised in code at start-up (src/audio/sound.ts). No sample files.
+- Sound: synthesised in code, no sample files: a small start-up bank (src/audio/sound.ts) and the full arena bank
+  (impacts, crowd voices, bell, UI stings, menu music: src/audio/sfx.ts, crowd.ts, music.ts, built in a worker).
 - Arena, crowd, mat logo, crown mark, invented sponsor names, icons: drawn by our own code.
 - Animation: keyframed in code (src/render/fighter/clips.ts) with our own IK solver.

@@ -3,7 +3,7 @@
 // arena reverb. Loops (the bed) are rendered circularly, so they repeat without a seam. Rendered at 22.05 kHz: a
 // crowd has little above 8 kHz and this halves the start-up cost and the memory.
 
-import { Biquad, OnePole, SINE, blep, finish, fold, look, pcm, reverb, rng, type Pcm } from './dsp';
+import { Biquad, OnePole, SINE, blep, finish, fold, look, reverb, rng, type Pcm } from './dsp';
 
 export const CROWD_SR = 22050;
 const BLOCK = 64;
