@@ -28,7 +28,8 @@ export type Route =
   | { s: 'packs' }
   | { s: 'shop' }
   | { s: 'season' }
-  | { s: 'settings' };
+  | { s: 'settings' }
+  | { s: 'achievements' };
 
 export interface MenuCtx {
   game: Game;

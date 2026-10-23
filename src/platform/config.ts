@@ -1,4 +1,5 @@
 import { PRODUCTS } from '../meta/products';
+import { ACHIEVEMENT_IDS } from '../meta/achievements';
 
 /**
  * Store, ads and services configuration.
@@ -39,7 +40,16 @@ const boards = idMap('VITE_PGS_LEADERBOARDS');
 const leaderboards: Partial<Record<BoardId, string>> = {};
 for (const k of BOARD_IDS) if (boards[k]) leaderboards[k] = boards[k];
 
-const APP_ID = 'com.danielspurr.cagekings';
+/**
+ * Achievements (meta/achievements.ts): one Play Games achievement per in-game id, from
+ * VITE_PGS_ACHIEVEMENTS='{"firstWin":"CgkI...","firstKo":"CgkI...",...}' (secret PGS_ACHIEVEMENTS). Every in-game id
+ * is listed here; an empty id is simply not mirrored to Play Games (the game still awards and pays it).
+ */
+const pgsAchievements = idMap('VITE_PGS_ACHIEVEMENTS');
+const achievements: Record<string, string> = {};
+for (const k of ACHIEVEMENT_IDS) achievements[k] = pgsAchievements[k] ?? '';
+
+const APP_ID ='com.danielspurr.cagekings';
 const STORE_URL = `https://play.google.com/store/apps/details?id=${APP_ID}`;
 
 export const CONFIG = {
@@ -61,7 +71,7 @@ export const CONFIG = {
    */
   games: {
     leaderboards,
-    /** in-game achievement id -> Play Games achievement id */
-    achievements: idMap('VITE_PGS_ACHIEVEMENTS'),
+    /** in-game achievement id -> Play Games achievement id ('' = not set yet) */
+    achievements,
   },
 };

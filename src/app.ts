@@ -17,6 +17,7 @@ import { setPortraitRenderer } from './render/portraits';
 import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
 import { buildSettings } from './ui/settings';
+import { achievementsScreen } from './ui/achievements';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
 import { Post } from './render/post/post';
@@ -264,6 +265,9 @@ export class App {
       case 'settings':
         el = settingsScreen(this.ctx);
         break;
+      case 'achievements':
+        el = achievementsScreen(this.ctx);
+        break;
     }
     this.screenEl = el;
     this.ui.appendChild(el);
@@ -447,7 +451,7 @@ export class App {
 
   private afterFight(me: FighterSpec, opp: FighterSpec, difficulty: number, o: FightOutcome, step: CareerStep | null): void {
     const seconds = o.result.totalTicks / 60;
-    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty);
+    const rewards = this.game.finishFight(me.id, o.result, seconds, step, opp, difficulty, o.rounds);
     // Google Play's review card after a high point (a title, or the 5th win), once; Play decides if it shows
     const f = this.game.save.flags;
     if (o.result.winner === 0 && !f.ratePrompted && (rewards.belt || this.game.save.wins >= 5)) {

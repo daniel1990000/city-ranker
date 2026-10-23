@@ -31,6 +31,10 @@ Example `tuning.json` (every key is optional):
 | `starterGems` / `starterCash` | what a new Starter Pack sale adds | 100+ / 1000+ |
 | `seasonFightXpCap` / `seasonDayXpCap` | season xp per fight / per day from fights | 10 – 5000 / 100 – 100,000 |
 | `paidPacksBlockedCountries` | Play Store countries where packs bought with gems are off (Belgium always stays) | 2-letter codes |
+| `missionCashPct` | cash each daily mission pays, as a percentage of the built-in amount (300-500) | 25 – 400 |
+| `missionXp` | season xp each daily mission pays | 0 – 500 |
+| `missionBonusGems` / `missionBonusXp` | the bonus for finishing all three daily missions | 0 – 100 / 0 – 1000 |
+| `achievementPct` | cash and gems every achievement pays, as a percentage of the built-in amounts | 50 – 300 |
 
 Host the file with `Content-Type: application/json` and CORS allowing the app (`Access-Control-Allow-Origin: *` is
 fine: it holds nothing secret). The game keeps the last good copy and falls back to the built-in defaults.

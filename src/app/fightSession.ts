@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { AIController, createFight, drainEvents, ReplayRecorder, stepFight, viewFor, type Fight } from '../game/fight';
 import { endFight } from '../game/fight/core';
-import type { Controller, FightEvent, FightInput, FightResult, FighterSpec, FightRules, Replay, Side } from '../game/fight/types';
+import type { Controller, FightEvent, FightInput, FightResult, FighterSpec, FightRules, Replay, RoundStats, Side } from '../game/fight/types';
 import { METER_MAX, TICK_HZ } from '../game/fight/types';
 import type { TouchContext } from '../game/touch/types';
 import type { Quality } from '../render/arena/arena';
@@ -43,6 +43,8 @@ export interface FightOutcome {
   replay: Replay;
   /** Per-fighter totals over the fight (for the result screen). */
   totals: { landed: [number, number]; thrown: [number, number]; knockdowns: [number, number]; takedowns: [number, number] };
+  /** Per-round stats [player, opponent], a copy (for missions and achievements). */
+  rounds: [RoundStats, RoundStats][];
 }
 
 export class FightSession {
@@ -216,7 +218,8 @@ export class FightSession {
         t.takedowns[i] += r[i].takedowns;
       }
     }
-    return { result: s.result as FightResult, replay: this.recorder.finish(), totals: t };
+    const rounds = s.stats.map(([a, b]): [RoundStats, RoundStats] => [{ ...a }, { ...b }]);
+    return { result: s.result as FightResult, replay: this.recorder.finish(), totals: t, rounds };
   }
 
   dispose(): void {
