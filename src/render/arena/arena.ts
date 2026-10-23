@@ -17,6 +17,8 @@ export interface Arena {
   key: THREE.SpotLight;
   update(dt: number, camera: THREE.Camera): void;
   setExcitement(v: number): void;
+  /** Phone and camera flashes in the crowd: `rate` 0..1 (a burst for big moments; call every frame for a steady stream). */
+  flashes(rate: number): void;
   setNames(a: string, b: string): void;
   dispose(): void;
 }
@@ -475,6 +477,36 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
   disposables.push(crowd.geometry, crowd.material as THREE.Material);
   group.add(crowd);
 
+  // camera flashes: a small pool of additive points placed on random spectators, each lit for a split second
+  const FLASHES = quality === 'low' ? 16 : 48;
+  const fPos = new Float32Array(FLASHES * 3);
+  const fCol = new Float32Array(FLASHES * 3);
+  const fLife = new Float32Array(FLASHES);
+  const fGeo = keep(new THREE.BufferGeometry());
+  fGeo.setAttribute('position', new THREE.BufferAttribute(fPos, 3));
+  fGeo.setAttribute('color', new THREE.BufferAttribute(fCol, 3));
+  const fMat = keep(new THREE.PointsMaterial({ size: 0.35, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, fog: false }));
+  const flashPts = new THREE.Points(fGeo, fMat);
+  flashPts.frustumCulled = false;
+  group.add(flashPts);
+  const seat = new THREE.Matrix4();
+  const seatPos = new THREE.Vector3();
+  let fNext = 0;
+  let fDue = 0;
+  let fLive = 0;
+  const spawnFlash = () => {
+    if (crowd.count === 0) return;
+    crowd.getMatrixAt((Math.random() * crowd.count) | 0, seat);
+    seatPos.setFromMatrixPosition(seat);
+    const i = fNext;
+    fNext = (fNext + 1) % FLASHES;
+    fPos[i * 3] = seatPos.x;
+    fPos[i * 3 + 1] = seatPos.y + 0.9 + Math.random() * 0.3;
+    fPos[i * 3 + 2] = seatPos.z;
+    fLife[i] = 0.08 + Math.random() * 0.1;
+    fLive = Math.max(fLive, 1);
+  };
+
   const screen = nameScreen();
   if (v.screens.jumbotron || v.screens.wall) {
     screen.mesh.position.set(0, v.screens.jumbotron ? rig.trussHeight + 1.4 : 6.2, v.screens.jumbotron ? 0 : -12);
@@ -502,8 +534,7 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
       // fade the fence panels the camera looks through (the broadcast trick), keep the far ones solid
       const cp = camera.position;
       for (const p of panels) {
-        const toCam = new THREE.Vector3(cp.x, 0, cp.z).sub(new THREE.Vector3(p.mesh.position.x, 0, p.mesh.position.z));
-        const facing = toCam.dot(p.n);
+        const facing = (cp.x - p.mesh.position.x) * p.n.x + (cp.z - p.mesh.position.z) * p.n.z;
         const want = facing > 0 ? 0.12 : 1;
         p.mat.opacity += (want - p.mat.opacity) * Math.min(1, dt * 6);
         p.mat.depthWrite = p.mat.opacity > 0.9;
@@ -521,6 +552,29 @@ export function createArena(venueId: VenueId, quality: Quality): Arena {
         q.mat.depthWrite = q.mat.opacity > 0.9;
       }
       if (sky) sky.position.copy(camera.position);
+      // flashes: spawn what is due, fade the lit ones (nothing to upload once all are dark)
+      while (fDue >= 1) {
+        spawnFlash();
+        fDue -= 1;
+      }
+      if (fLive > 0) {
+        let lit = 0;
+        for (let i = 0; i < FLASHES; i++) {
+          fLife[i] = Math.max(0, fLife[i] - dt);
+          const k = fLife[i] > 0 ? 1.6 : 0;
+          fCol[i * 3] = k;
+          fCol[i * 3 + 1] = k;
+          fCol[i * 3 + 2] = k * 1.1;
+          if (k) lit++;
+        }
+        (fGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+        (fGeo.attributes.color as THREE.BufferAttribute).needsUpdate = true;
+        fLive = lit;
+      }
+    },
+    flashes(rate) {
+      // a big moment (rate ~1) fires a dozen at once; small rates add up over frames
+      fDue += Math.max(0, Math.min(1, rate)) * (rate >= 0.5 ? 12 : 0.25);
     },
     setExcitement(x) {
       excitement.value = Math.max(0, Math.min(1, x));

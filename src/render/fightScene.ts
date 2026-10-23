@@ -13,6 +13,7 @@ import { FighterAnimator } from './fighter/animator';
 import { createFighterView, type FighterView } from './fighter/fighterView';
 import type { FighterLook } from './fighter/look';
 import { HitFx } from './fx';
+import { ContactShadows } from './contactShadows';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
@@ -42,6 +43,8 @@ export class FightScene {
   private fighters: [FighterView, FighterView];
   private anims: [FighterAnimator, FighterAnimator];
   private fx = new HitFx();
+  private contact: ContactShadows;
+  private readonly boneAt = (side: Side, bone: string, out: THREE.Vector3): THREE.Vector3 => this.bonePos(side, bone, out);
   private prevX: [number, number] = [0, 0];
   private curX: [number, number] = [0, 0];
   private excitement = 0.25;
@@ -60,7 +63,9 @@ export class FightScene {
     this.arena = arena;
     this.fighters = fighters;
     this.anims = [new FighterAnimator(0), new FighterAnimator(0.37)];
-    this.scene.add(arena.group, this.fx.points, fighters[0].root, fighters[1].root);
+    // contact shadows ground the bodies on the mat (on 'low', with no shadow map, they are the only shadows)
+    this.contact = new ContactShadows(arena.key.castShadow);
+    this.scene.add(arena.group, this.contact.mesh, this.fx.points, fighters[0].root, fighters[1].root);
     applyVenueAtmosphere(this.scene, arena.venue);
     // reflections and soft ambient light from the venue's own lights, and its colour grade for the post pass
     const env = venueEnvironment(arena.venue);
@@ -121,7 +126,10 @@ export class FightScene {
             this.fx.burst(_v, dir, strength, 'sweat');
             if ((e.strength !== 'light' || e.counter) && !this.setup.reducedMotion) this.fx.burst(_v, dir, strength, 'flash');
             this.director.shake(strength * (e.counter ? 1.3 : 1));
-            if (e.strength === 'heavy') this.director.punchIn(0.6);
+            if (e.strength === 'heavy') {
+              this.director.punchIn(0.6);
+              this.arena.flashes(0.15);
+            }
             this.excitement = Math.min(1, this.excitement + strength * 0.25);
           } else {
             this.fx.burst(_v, dir, 0.15, 'sweat');
@@ -130,6 +138,7 @@ export class FightScene {
           break;
         }
         case 'knockdown':
+          this.arena.flashes(1);
           this.director.punchIn(1);
           this.director.shake(1);
           this.excitement = 1;
@@ -140,16 +149,19 @@ export class FightScene {
           this.excitement = Math.min(1, this.excitement + 0.35);
           break;
         case 'fightEnd':
+          this.arena.flashes(1);
           this.excitement = 1;
           if (e.result.method === 'KO' || e.result.method === 'TKO') this.slowUntil = this.clock + 1.4;
           break;
         case 'tapOut':
+          this.arena.flashes(0.8);
           this.excitement = 1;
           break;
         case 'stun':
           // rocked: punch in on it, a beat of slow motion
           this.director.punchIn(0.8);
           this.director.shake(0.7);
+          this.arena.flashes(0.45);
           this.excitement = Math.min(1, this.excitement + 0.5);
           this.slowUntil = this.clock + 0.5;
           break;
@@ -215,8 +227,10 @@ export class FightScene {
       const lookW = g || fs.action === 'downed' || fs.action === 'knockdown' || fs.action === 'victory' ? 0 : 0.55;
       view.pose(pose, _v, lookW);
       view.setDamage(Math.min(1, fs.head / 5000), Math.min(1, fs.body / 7000), Math.min(1, fs.legs / 7000));
+      // sweat builds over the fight (each round adds to it, and so does the round's own clock) and with tiredness
       const work = 1 - fs.stamina / Math.max(1, fs.staminaCap);
-      view.setSweat(Math.min(1, state.tick / 9000 + work * 0.5 + 0.15));
+      const roundGone = state.phase === 'fight' ? Math.min(1, state.tick > 0 ? 1 - state.clock / Math.max(1, this.roundTicks(state)) : 0) : 0;
+      view.setSweat(Math.min(1, 0.12 + (state.round - 1) * 0.24 + roundGone * 0.16 + work * 0.42));
     }
     // camera
     if (this.replay) {
@@ -232,8 +246,18 @@ export class FightScene {
     this.arena.key.target.position.set(mid * 0.5, 0, 0);
     this.excitement = Math.max(0.22, this.excitement - dt * 0.06);
     this.arena.setExcitement(this.excitement);
+    // phones and cameras going off as the fighters walk out
+    if (state.phase === 'intro') this.arena.flashes(0.35);
+    this.contact.update(this.boneAt);
     this.arena.update(dt, this.camera);
     this.fx.update(dt);
+  }
+
+  /** Longest round clock seen (the rules are not passed to the renderer; the clock starts full each round). */
+  private maxClock = 1;
+  private roundTicks(state: FightState): number {
+    this.maxClock = Math.max(this.maxClock, state.clock);
+    return this.maxClock;
   }
 
   /** Current crowd excitement (the audio follows it). */
@@ -243,6 +267,7 @@ export class FightScene {
 
   dispose(): void {
     this.arena.dispose();
+    this.contact.dispose();
     for (const f of this.fighters) f.dispose();
     this.fx.dispose();
   }
