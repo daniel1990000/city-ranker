@@ -317,17 +317,20 @@
 .bc-watch {
   position: absolute;
   left: 50%;
-  top: 66%;
+  top: 72%;
   transform: translateX(-50%);
   pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 20px;
-  border: 1px solid var(--gold);
+  padding: 10px 22px;
+  min-height: 44px;
+  border: 1px solid var(--gold-3);
   border-radius: 999px;
-  background: rgba(8, 8, 12, 0.85);
-  color: var(--text);
+  background: linear-gradient(180deg, var(--gold-2), var(--gold));
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(243, 210, 122, 0.35);
+  color: #1a1206;
+  font-weight: 700;
   font-family: var(--display);
   font-size: 16px;
   letter-spacing: 0.08em;
@@ -340,7 +343,7 @@
   height: 0;
   border-top: 7px solid transparent;
   border-bottom: 7px solid transparent;
-  border-left: 11px solid var(--gold-2);
+  border-left: 11px solid #1a1206;
 }
 
 /* ---- replay overlay ---- */
