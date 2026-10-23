@@ -195,7 +195,7 @@ describe('leaderboard record', () => {
     recordFight(r, { winner: 1, method: 'KO' }, 100, 60, 400);
     expect([r.kos, r.subs]).toEqual([1, 1]);
     expect(r.best).toBe(fightScore({ winner: 0, method: 'SUB' }, 100, 60, 400));
-    expect(sanitizeRecord({ kos: -4, subs: 'x', best: 1e12 })).toEqual({ v: 1, kos: 0, subs: 0, best: 100_000 });
+    expect(sanitizeRecord({ kos: -4, subs: 'x', best: 1e12 })).toEqual({ v: 1, kos: 0, subs: 0, best: 100_000, easyWins: 0, easyKos: 0 });
     expect(save().progress.record).toEqual(freshRecord());
   });
 });

@@ -6,6 +6,7 @@ import { requestReminderPermission } from '../platform/notify';
 import { adChoicesRequired, showAdChoices } from '../platform/ads';
 import { setTelemetryAllowed } from '../platform/telemetry';
 import { CONFIG } from '../platform/config';
+import { DIFFICULTY_LABEL, DIFFICULTY_LEVELS, difficultyNote, type DifficultyLevel } from '../meta/difficulty';
 
 
 export function buildSettings(game: Game, toast: (m: string) => void): HTMLElement {
@@ -18,6 +19,7 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
     l.textContent = label;
     r.append(l, control);
     wrap.appendChild(r);
+    return r;
   };
   const slider = (v: number, set: (x: number) => void) => {
     const i = document.createElement('input');
@@ -71,6 +73,28 @@ export function buildSettings(game: Game, toast: (m: string) => void): HTMLEleme
           toast('Notifications are off for Cage Kings in your phone settings');
         });
     }));
+  // difficulty: shifts the computer opponent in career and quick fights, and what a win pays
+  const d = document.createElement('select');
+  d.setAttribute('aria-label', 'Difficulty');
+  for (const lv of DIFFICULTY_LEVELS) {
+    const opt = document.createElement('option');
+    opt.value = lv;
+    opt.textContent = DIFFICULTY_LABEL[lv];
+    d.appendChild(opt);
+  }
+  d.value = s.difficulty;
+  const dRow = row('Difficulty', d);
+  const dNote = document.createElement('small');
+  dNote.className = 'muted';
+  dNote.style.cssText = 'display:block;font-size:11px;margin-top:2px';
+  dNote.textContent = difficultyNote(s.difficulty);
+  dRow.querySelector('span')?.appendChild(dNote);
+  d.addEventListener('change', () => {
+    s.difficulty = d.value as DifficultyLevel;
+    dNote.textContent = difficultyNote(s.difficulty);
+    game.persist();
+    toast(`Difficulty: ${DIFFICULTY_LABEL[s.difficulty]} (from the next fight)`);
+  });
   row('Left-handed controls (attack on the left)', toggle(s.leftHanded, x => (s.leftHanded = x)));
   row('Reduced motion (less shake, no flashes)', toggle(s.reducedMotion, x => (s.reducedMotion = x)));
   const q = document.createElement('select');

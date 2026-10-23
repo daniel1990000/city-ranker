@@ -18,6 +18,11 @@ import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
 import { buildSettings } from './ui/settings';
 import { achievementsScreen } from './ui/achievements';
+import { practiceScreen, PracticeHud } from './ui/practice';
+import { buildMoveList } from './ui/fight/movelist';
+import { PracticeRoom, PRACTICE_RULES, practicePartner, type PracticeOptions } from './app/practice';
+import { DUMMY_LABEL } from './app/dummy';
+import { effectiveDifficulty } from './meta/difficulty';
 import { sound } from './audio/sound';
 import { AutoQuality } from './render/autoQuality';
 import { Post } from './render/post/post';
@@ -86,6 +91,7 @@ export class App {
       toast: m => this.toast(m),
       startCareer: d => void this.startCareer(d),
       startQuick: d => void this.startQuick(d),
+      startPractice: o => void this.startPractice(o),
       settings: () => buildSettings(this.game, m => this.toast(m)),
       boards: () => void this.openBoards(),
       offerReminders: () => this.offerReminders(),
@@ -268,6 +274,9 @@ export class App {
       case 'achievements':
         el = achievementsScreen(this.ctx);
         break;
+      case 'practice':
+        el = practiceScreen(this.ctx);
+        break;
     }
     this.screenEl = el;
     this.ui.appendChild(el);
@@ -326,7 +335,8 @@ export class App {
     if (!me || !step) return;
     const spec = this.game.spec(me.id) as FighterSpec;
     const venue: VenueId = VENUE_IDS[Math.min(VENUE_IDS.length - 1, step.tier + (step.kind === 'title' || step.kind === 'defense' ? 1 : 0))];
-    await this.startFight(spec, step.opponent, step.seed ^ Math.imul(this.game.save.fights + 1, 2654435761), venue, step.difficulty, step.rules, step, !this.game.save.flags.tutorialDone);
+    const difficulty = effectiveDifficulty(step.difficulty, this.game.save.settings.difficulty);
+    await this.startFight(spec, step.opponent, step.seed ^ Math.imul(this.game.save.fights + 1, 2654435761), venue, difficulty, step.rules, step, !this.game.save.flags.tutorialDone);
   }
 
   private async startQuick(div: DivisionId): Promise<void> {
@@ -336,10 +346,21 @@ export class App {
     const seed = (((Date.now() / 1000) | 0) ^ Math.imul(this.game.save.fights + 1, 7919)) >>> 0;
     const o = this.game.save.progress.fighters.owned[me.id];
     const opp = quickOpponent(seed, me.division, (o?.level ?? 1) / 3 - 2);
-    await this.startFight(spec, opp, seed, VENUE_IDS[seed % VENUE_IDS.length], 380 + Math.min(400, this.game.save.wins * 8), { rounds: 3, roundTicks: 75 * 60 }, null);
+    const difficulty = effectiveDifficulty(380 + Math.min(400, this.game.save.wins * 8), this.game.save.settings.difficulty);
+    await this.startFight(spec, opp, seed, VENUE_IDS[seed % VENUE_IDS.length], difficulty, { rounds: 3, roundTicks: 75 * 60 }, null);
   }
 
-  private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null, tutorial = false): Promise<void> {
+  /** Training Room: the player's fighter against the sparring partner. No rewards, nothing saved. */
+  private async startPractice(o: PracticeOptions): Promise<void> {
+    const pick = (o.fighterId && this.game.owned(o.fighterId) ? o.fighterId : null) ?? this.game.pickedFor(this.game.mainDivision())?.id;
+    const spec = pick ? this.game.spec(pick) : null;
+    if (!spec) return;
+    const room = new PracticeRoom(o);
+    const seed = ((Date.now() / 1000) | 0) >>> 0;
+    await this.startFight(spec, practicePartner(spec.division), seed, 'gym', 0, PRACTICE_RULES, null, false, room);
+  }
+
+  private async startFight(me: FighterSpec, opp: FighterSpec, seed: number, venue: VenueId, difficulty: number, rules: CareerStep['rules'], step: CareerStep | null, tutorial = false, practice: PracticeRoom | null = null): Promise<void> {
     this.screenEl?.remove();
     this.screenEl = null;
     this.applyQuality();
@@ -358,8 +379,9 @@ export class App {
         difficulty,
         rules,
         quality: this.quality,
-        showHints: this.game.save.fights < 2,
-        tutorial,
+        showHints: !practice && this.game.save.fights < 2,
+        tutorial: tutorial && !practice,
+        practice: practice ?? undefined,
         leftHanded: this.game.save.settings.leftHanded,
         reducedMotion: this.game.save.settings.reducedMotion,
       },
@@ -373,7 +395,17 @@ export class App {
     session.resize(innerWidth, innerHeight);
     session.speed = this.qaSpeedValue;
     if (this.qaAuto) session.setAutoplay(true);
-    session.onEnd = o => this.afterFight(me, opp, difficulty, o, step);
+    // practice pays nothing and saves nothing: its own end card instead of the result screen
+    session.onEnd = o => (practice ? this.practiceEnd(o, practice) : this.afterFight(me, opp, difficulty, o, step));
+    if (practice) {
+      const hud = new PracticeHud(this.ui, practice.run, DUMMY_LABEL[practice.mode], () => this.toggleMoveList());
+      practice.onChange = kind => {
+        hud.update(kind);
+        hud.setMode(DUMMY_LABEL[practice.mode]);
+      };
+      this.practiceHud = hud;
+    }
+    this.practice = practice;
     session.onPause = () => this.showPause();
     session.onEvents = (ev, crowd) => {
       sound.onFightEvents(ev);
@@ -398,7 +430,12 @@ export class App {
     this.session.setPaused(true);
     const p = document.createElement('div');
     p.className = 'modal-back';
-    p.innerHTML = `<div class="modal panel"><h2>Paused</h2><div class="row"><button class="btn" data-a="resume">Resume</button><button class="btn ghost" data-a="quit">Retire (counts as a loss)</button></div></div>`;
+    const quit = this.practice ? 'Leave practice' : 'Retire (counts as a loss)';
+    p.innerHTML = `<div class="modal panel"><h2>${this.practice ? 'Practice paused' : 'Paused'}</h2><div class="row" style="flex-wrap:wrap"><button class="btn" data-a="resume">Resume</button><button class="btn ghost" data-a="moves">Move list</button><button class="btn ghost" data-a="quit">${quit}</button></div></div>`;
+    p.querySelector('[data-a=moves]')?.addEventListener('click', () => {
+      p.hidden = true;
+      this.openMoveList(() => (p.hidden = false));
+    });
     p.querySelector('[data-a=resume]')?.addEventListener('click', () => {
       p.remove();
       this.overlay = null;
@@ -407,8 +444,9 @@ export class App {
     p.querySelector('[data-a=quit]')?.addEventListener('click', () => {
       p.remove();
       this.overlay = null;
-      // retiring is a loss (otherwise a losing title defence could be quit to keep the belt)
-      if (this.session && !this.session.fight.state.result) this.session.forfeit();
+      // retiring is a loss (otherwise a losing title defence could be quit to keep the belt); practice just ends
+      if (this.practice) void this.leaveFight();
+      else if (this.session && !this.session.fight.state.result) this.session.forfeit();
       else void this.leaveFight();
     });
     this.ui.appendChild(p);
@@ -416,12 +454,73 @@ export class App {
   }
 
   private async leaveFight(): Promise<void> {
-    sound.setCrowd(0);
-    this.session?.dispose();
-    this.session = null;
+    this.endSession();
     keepAwake(false);
     await this.startAttract();
     this.render();
+  }
+
+  /** Tear down the running fight (and its practice layer). */
+  private endSession(): void {
+    this.moveList?.remove();
+    this.moveList = null;
+    this.practiceHud?.dispose();
+    this.practiceHud = null;
+    this.practice = null;
+    sound.setCrowd(0);
+    this.session?.dispose();
+    this.session = null;
+  }
+
+  private practice: PracticeRoom | null = null;
+  private practiceHud: PracticeHud | null = null;
+  private moveList: HTMLElement | null = null;
+
+  /** The move list over the fight (the fight stays paused while it is open). */
+  private openMoveList(onClose: () => void = () => {}): void {
+    if (!this.session || this.moveList) return;
+    const wasPaused = !!this.overlay;
+    this.session.setPaused(true);
+    const spec = this.session.setup.player;
+    const list = buildMoveList({ leftHanded: this.game.save.settings.leftHanded, fighter: spec, keys: matchMedia('(pointer: fine)').matches }, () => {
+      this.moveList = null;
+      if (!wasPaused && !this.overlay) this.session?.setPaused(false);
+      onClose();
+    });
+    this.moveList = list;
+    this.ui.appendChild(list);
+  }
+
+  /** The MOVES button in practice: open or close the list. */
+  private toggleMoveList(): void {
+    if (this.moveList) (this.moveList.querySelector('[data-a=close]') as HTMLButtonElement | null)?.click();
+    else if (!this.overlay) this.openMoveList();
+  }
+
+  /** A practice fight ended (a knockout or a submission): go again from the same drill step, or leave. */
+  private practiceEnd(o: FightOutcome, room: PracticeRoom): void {
+    const r = o.result;
+    const won = r.winner === 0;
+    const what = r.method === 'SUB' ? 'Submission' : r.method === 'DEC' ? 'Time' : r.method === 'KO' ? 'Knockout' : 'Stoppage';
+    const p = document.createElement('div');
+    p.className = 'modal-back';
+    p.dataset.sticky = '1';
+    const drillDone = room.run?.done;
+    p.innerHTML = `<div class="modal panel" style="text-align:center"><h2>${what}${won ? '!' : ''}</h2>
+      <p class="muted">${drillDone ? 'Drill complete. ' : ''}${won ? 'You finished the sparring partner.' : 'The sparring partner got you.'} It's only practice: nothing is saved.</p>
+      <div class="row" style="justify-content:center"><button class="btn" data-a="again">Go again</button><button class="btn ghost" data-a="leave">Leave</button></div></div>`;
+    const opts: PracticeOptions = { ...room.options, drillStep: room.run && !room.run.done ? room.run.step : 0 };
+    p.querySelector('[data-a=again]')?.addEventListener('click', () => {
+      p.remove();
+      // straight into the next one (no menu backdrop in between)
+      this.endSession();
+      void this.startPractice(opts);
+    });
+    p.querySelector('[data-a=leave]')?.addEventListener('click', () => {
+      p.remove();
+      void this.leaveFight();
+    });
+    this.ui.appendChild(p);
   }
 
   /** Coming back to the home screen from another menu: the Starter Pack offer may show (once a day at most). */
@@ -546,6 +645,10 @@ export class App {
 
   /** Android back button: pause a fight, close a modal, go back a screen. */
   backButton(): void {
+    if (this.moveList) {
+      this.toggleMoveList();
+      return;
+    }
     if (this.session) {
       this.showPause();
       return;

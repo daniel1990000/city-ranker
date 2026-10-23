@@ -10,7 +10,7 @@ const BASE: Record<Archetype, FighterStats> = {
 };
 
 /** A fighter of `archetype` with every stat shifted by `bonus` (clamped 1..100). */
-export function testFighter(archetype: Archetype, bonus = 0, id = archetype): FighterSpec {
+export function testFighter(archetype: Archetype, bonus = 0, id: string = archetype): FighterSpec {
   const stats = { ...BASE[archetype] };
   for (const k of Object.keys(stats) as (keyof FighterStats)[]) stats[k] = Math.max(1, Math.min(100, stats[k] + bonus));
   return { id, name: `Test ${archetype}`, nickname: '', division: 'mLight', archetype, rarity: 'common', stats, lookSeed: 1, lookHints: { sex: 'm' } };

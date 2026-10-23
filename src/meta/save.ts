@@ -1,6 +1,7 @@
 import { freshClock, sanitizeClock, type ClockState } from './clock';
 import { obj, num, int, str, bool, oneOf, strList, intSet, record, jsonSize } from './sanitize';
 import { BUNDLES } from './products';
+import { DIFFICULTY_LEVELS, type DifficultyLevel } from './difficulty';
 
 /**
  * The save: everything the player has, as plain JSON in local storage (plus a native mirror on Android, a backup
@@ -62,6 +63,8 @@ export interface Settings {
   textScale: number;
   /** send anonymous play stats and error reports (only when the build has an analytics key, and only if asked) */
   analytics: boolean;
+  /** how good career and quick-fight opponents are, and what a win pays (meta/difficulty.ts) */
+  difficulty: DifficultyLevel;
 }
 
 export interface Flags {
@@ -219,7 +222,7 @@ export function ensureProgress(save: SaveData): void {
 export function freshSettings(): Settings {
   return {
     music: 0.7, sfx: 0.9, haptics: true, quality: 'auto', autoTier: { q: '', res: 1 }, leftHanded: false, reducedMotion: false,
-    autoFullscreen: true, reminders: false, controlScale: 1, textScale: 1, analytics: false,
+    autoFullscreen: true, reminders: false, controlScale: 1, textScale: 1, analytics: false, difficulty: 'normal',
   };
 }
 
@@ -348,6 +351,8 @@ export function sanitize(input: unknown): SaveData {
   s.reminders = bool(st.reminders, false);
   s.controlScale = oneOf(st.controlScale, [0.85, 1, 1.2], 1);
   s.textScale = oneOf(st.textScale, [1, 1.1, 1.2], 1);
+  // added after 0.3.0: no migration step, saves without it start on Normal (what every earlier version played)
+  s.difficulty = oneOf(st.difficulty, DIFFICULTY_LEVELS, 'normal');
 
   const fl = obj(raw.flags);
   for (const k of Object.keys(out.flags) as (keyof Flags)[]) out.flags[k] = bool(fl[k], false);

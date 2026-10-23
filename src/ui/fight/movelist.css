@@ -1,0 +1,142 @@
+/* The move list overlay: a wide card that scrolls inside itself, two columns of sections on a landscape phone. */
+
+.movelist-back {
+  z-index: 35;
+  padding: calc(8px + var(--safe-t)) calc(10px + var(--safe-r)) calc(8px + var(--safe-b)) calc(10px + var(--safe-l));
+}
+.movelist {
+  width: min(980px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 12px;
+}
+.movelist .ml-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+.movelist .ml-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.movelist .ml-head .legend {
+  flex: 1;
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.movelist .ml-head .btn {
+  padding: 6px 16px;
+  font-size: 14px;
+  min-height: 36px;
+}
+.movelist .ml-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  columns: 2 380px;
+  column-gap: 18px;
+  margin-top: 6px;
+}
+.movelist section {
+  break-inside: avoid;
+  margin-bottom: 8px;
+}
+.movelist h3 {
+  margin: 4px 0 2px;
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 2px;
+}
+.movelist h3 small {
+  font-family: var(--ui);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted);
+  margin-left: 6px;
+}
+.movelist table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.movelist tr + tr td,
+.movelist tr + tr th {
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.movelist th {
+  text-align: left;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 3px 8px 3px 0;
+  width: 1%;
+}
+.movelist td {
+  padding: 3px 6px 3px 0;
+  vertical-align: middle;
+}
+.movelist td.g {
+  color: var(--text);
+  white-space: nowrap;
+}
+.movelist td.k kbd {
+  font-family: var(--ui);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+.movelist td.t {
+  white-space: nowrap;
+  width: 1%;
+}
+.movelist td.n {
+  color: var(--muted);
+  font-size: 11px;
+}
+.pips {
+  display: inline-flex;
+  gap: 2px;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.pips i {
+  width: 5px;
+  height: 9px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.14);
+}
+.pips.p i.on {
+  background: var(--red);
+}
+.pips.s i.on {
+  background: var(--stamina);
+}
+.movelist .legend .pips {
+  margin-right: 0;
+}
+.movelist .legend .pips i {
+  width: 6px;
+}
+@media (max-height: 420px) {
+  .movelist td.n {
+    display: none;
+  }
+}
