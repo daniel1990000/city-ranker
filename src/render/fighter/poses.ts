@@ -49,37 +49,86 @@ export const RELAXED: Pose = {
   shrugR: 0,
 };
 
-/** Linear blend of two poses (t = 0 gives a). */
+/** A deep copy whose arrays the caller owns (an `out` buffer for mixPose). */
+export function clonePose(p: Pose): Pose {
+  const lt = (x: LimbTarget): LimbTarget => ({ p: [x.p[0], x.p[1], x.p[2]], pole: [x.pole[0], x.pole[1], x.pole[2]] });
+  return {
+    hip: [p.hip[0], p.hip[1], p.hip[2]],
+    hipRot: [p.hipRot[0], p.hipRot[1], p.hipRot[2]],
+    chest: [p.chest[0], p.chest[1], p.chest[2]],
+    head: [p.head[0], p.head[1], p.head[2]],
+    handL: lt(p.handL),
+    handR: lt(p.handR),
+    wristL: p.wristL,
+    wristR: p.wristR,
+    footL: lt(p.footL),
+    footR: lt(p.footR),
+    toeL: [p.toeL[0], p.toeL[1]],
+    toeR: [p.toeR[0], p.toeR[1]],
+    fist: p.fist,
+    shrugL: p.shrugL,
+    shrugR: p.shrugR,
+  };
+}
+
+/** Angle blend the short way round (a spin that ends at -392 blends into a stance at -32 without unwinding). */
+function mixAngle(x: number, y: number, t: number): number {
+  let d = (y - x) % 360;
+  if (d > 180) d -= 360;
+  if (d < -180) d += 360;
+  return x + d * t;
+}
+
+type W = number[];
+function mix3(o: V3, x: V3, y: V3, t: number): void {
+  const w = o as unknown as W;
+  w[0] = x[0] + (y[0] - x[0]) * t;
+  w[1] = x[1] + (y[1] - x[1]) * t;
+  w[2] = x[2] + (y[2] - x[2]) * t;
+}
+function mixRot(o: Rot, x: Rot, y: Rot, t: number): void {
+  const w = o as unknown as W;
+  w[0] = mixAngle(x[0], y[0], t);
+  w[1] = mixAngle(x[1], y[1], t);
+  w[2] = mixAngle(x[2], y[2], t);
+}
+function mix2(o: readonly [number, number], x: readonly [number, number], y: readonly [number, number], t: number): void {
+  const w = o as unknown as W;
+  w[0] = x[0] + (y[0] - x[0]) * t;
+  w[1] = x[1] + (y[1] - x[1]) * t;
+}
+
+/**
+ * Blend of two poses (t = 0 gives a; t outside 0..1 extrapolates). With `out` the result is written into out's own
+ * arrays (no allocation; out must come from clonePose, never a shared key pose); out may be a or b.
+ */
 export function mixPose(a: Pose, b: Pose, t: number, out?: Pose): Pose {
+  const o = out ?? clonePose(a);
   const m = (x: number, y: number) => x + (y - x) * t;
-  const v = (x: V3, y: V3): V3 => [m(x[0], y[0]), m(x[1], y[1]), m(x[2], y[2])];
-  // angles take the short way round (a spin that ends at -392 blends into a stance at -32 without unwinding)
-  const ma = (x: number, y: number) => {
-    let d = (y - x) % 360;
-    if (d > 180) d -= 360;
-    if (d < -180) d += 360;
-    return x + d * t;
-  };
-  const r = (x: Rot, y: Rot): Rot => [ma(x[0], y[0]), ma(x[1], y[1]), ma(x[2], y[2])];
-  const lt = (x: LimbTarget, y: LimbTarget): LimbTarget => ({ p: v(x.p, y.p), pole: v(x.pole, y.pole) });
-  const o: Pose = {
-    hip: v(a.hip, b.hip),
-    hipRot: r(a.hipRot, b.hipRot),
-    chest: r(a.chest, b.chest),
-    head: r(a.head, b.head),
-    handL: lt(a.handL, b.handL),
-    handR: lt(a.handR, b.handR),
-    wristL: m(a.wristL, b.wristL),
-    wristR: m(a.wristR, b.wristR),
-    footL: lt(a.footL, b.footL),
-    footR: lt(a.footR, b.footR),
-    toeL: [m(a.toeL[0], b.toeL[0]), m(a.toeL[1], b.toeL[1])],
-    toeR: [m(a.toeR[0], b.toeR[0]), m(a.toeR[1], b.toeR[1])],
-    fist: m(a.fist, b.fist),
-    shrugL: m(a.shrugL, b.shrugL),
-    shrugR: m(a.shrugR, b.shrugR),
-  };
-  if (out) Object.assign(out, o);
+  mix3(o.hip, a.hip, b.hip, t);
+  mixRot(o.hipRot, a.hipRot, b.hipRot, t);
+  mixRot(o.chest, a.chest, b.chest, t);
+  mixRot(o.head, a.head, b.head, t);
+  mix3(o.handL.p, a.handL.p, b.handL.p, t);
+  mix3(o.handL.pole, a.handL.pole, b.handL.pole, t);
+  mix3(o.handR.p, a.handR.p, b.handR.p, t);
+  mix3(o.handR.pole, a.handR.pole, b.handR.pole, t);
+  mix3(o.footL.p, a.footL.p, b.footL.p, t);
+  mix3(o.footL.pole, a.footL.pole, b.footL.pole, t);
+  mix3(o.footR.p, a.footR.p, b.footR.p, t);
+  mix3(o.footR.pole, a.footR.pole, b.footR.pole, t);
+  mix2(o.toeL, a.toeL, b.toeL, t);
+  mix2(o.toeR, a.toeR, b.toeR, t);
+  const wl = m(a.wristL, b.wristL);
+  const wr = m(a.wristR, b.wristR);
+  const f = m(a.fist, b.fist);
+  const sl = m(a.shrugL, b.shrugL);
+  const sr = m(a.shrugR, b.shrugR);
+  (o as { wristL: number }).wristL = wl;
+  (o as { wristR: number }).wristR = wr;
+  (o as { fist: number }).fist = Math.min(1, Math.max(0, f));
+  (o as { shrugL: number }).shrugL = sl;
+  (o as { shrugR: number }).shrugR = sr;
   return o;
 }
 

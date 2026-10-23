@@ -84,6 +84,17 @@ export function rotQ(r: Rot, out: THREE.Quaternion): THREE.Quaternion {
   return out.setFromEuler(_e);
 }
 
+/** rotQ from three angles (degrees), without building a Rot. */
+export function rotQ3(x: number, y: number, z: number, out: THREE.Quaternion): THREE.Quaternion {
+  _e.set(x * DEG, y * DEG, -z * DEG, 'YXZ');
+  return out.setFromEuler(_e);
+}
+
+const IDQ = new THREE.Quaternion();
+const UP = new THREE.Vector3(0, 1, 0);
+/** Pelvis height of the base male at rest (m): low hips are authored from the mat with it. */
+const PELVIS_Y = 0.945;
+
 export class FighterRig {
   private bones = new Map<string, BoneInfo>();
   private order: BoneInfo[] = [];
@@ -210,7 +221,7 @@ export class FighterRig {
     const cur = _v3.copy(b.axis).applyQuaternion(w0);
     const r = _q2.setFromUnitVectors(cur, _v2.copy(dir).normalize());
     const w = r.multiply(w0);
-    if (roll !== 0) w.premultiply(new THREE.Quaternion().setFromAxisAngle(_v2, roll * DEG));
+    if (roll !== 0) w.premultiply(this.sRoll.setFromAxisAngle(_v2, roll * DEG));
     this.setWorld(b, w);
   }
 
@@ -219,78 +230,152 @@ export class FighterRig {
     this.fk(b, b.restQ);
   }
 
+  // bone references resolved once (posing runs for two fighters every frame: no lookups, no allocations)
+  private refs: {
+    root: BoneInfo;
+    pelvis: BoneInfo;
+    spine: BoneInfo[];
+    neck: BoneInfo;
+    head: BoneInfo;
+    cl: BoneInfo[];
+    ua: BoneInfo[];
+    la: BoneInfo[];
+    hand: BoneInfo[];
+    thigh: BoneInfo[];
+    calf: BoneInfo[];
+    foot: BoneInfo[];
+    ball: BoneInfo[];
+    fingers: { b: BoneInfo; axis: THREE.Vector3; deg: number }[][];
+    thumbs: BoneInfo[][];
+  } | null = null;
+  /** Base-male pelvis height minus this body's (authored units): low hips are placed from the mat, not the rest pose. */
+  private pelvisFix = 0;
+  private lastFist = [-1, -1];
+  private readonly sHq = new THREE.Quaternion();
+  private readonly sAcc = new THREE.Quaternion();
+  private readonly sChest = new THREE.Quaternion();
+  private readonly sStep = new THREE.Quaternion();
+  private readonly sQ = new THREE.Quaternion();
+  private readonly sTurn = new THREE.Quaternion();
+  private readonly sRoll = new THREE.Quaternion();
+  private readonly sOff = new THREE.Vector3();
+  private readonly sV = new THREE.Vector3();
+  private readonly sFace = new THREE.Vector3();
+  private readonly sDir = new THREE.Vector3();
+  private readonly sT = new THREE.Vector3();
+  private readonly sD0 = new THREE.Vector3();
+  private readonly sU = new THREE.Vector3();
+  private readonly sPole = new THREE.Vector3();
+  private readonly sE = new THREE.Vector3();
+  private readonly sAim = new THREE.Vector3();
+
+  private resolve(): NonNullable<FighterRig['refs']> {
+    const B = (n: string) => this.bones.get(n) as BoneInfo;
+    const LR = (n: string) => [B(`${n}_l`), B(`${n}_r`)];
+    const fingers = (['l', 'r'] as const).map(s => {
+      const out: { b: BoneInfo; axis: THREE.Vector3; deg: number }[] = [];
+      for (const f of FINGERS) {
+        for (const i of [1, 2, 3]) {
+          const b = this.bones.get(`${f}_0${i}_${s}`);
+          const axis = b && this.fingerAxis.get(b.bone);
+          if (b && axis) out.push({ b, axis, deg: i === 1 ? 80 : i === 2 ? 95 : 70 });
+        }
+      }
+      return out;
+    });
+    const thumbs = (['l', 'r'] as const).map(s => [1, 2, 3].map(i => this.bones.get(`thumb_0${i}_${s}`)).filter((b): b is BoneInfo => !!b));
+    const refs = {
+      root: B('Root'),
+      pelvis: B('pelvis'),
+      spine: [B('spine_01'), B('spine_02'), B('spine_03')],
+      neck: B('neck_01'),
+      head: B('head'),
+      cl: LR('clavicle'),
+      ua: LR('upperarm'),
+      la: LR('lowerarm'),
+      hand: LR('hand'),
+      thigh: LR('thigh'),
+      calf: LR('calf'),
+      foot: LR('foot'),
+      ball: LR('ball'),
+      fingers,
+      thumbs,
+    };
+    this.pelvisFix = PELVIS_Y - refs.pelvis.restWP.y / this.k;
+    this.refs = refs;
+    return refs;
+  }
+
   /** Pose the skeleton. `look` (optional) is a character-space point the head turns toward (weight 0..1). */
   apply(p: Pose, look?: THREE.Vector3, lookWeight = 0): void {
+    const R = this.refs ?? this.resolve();
     const k = this.k;
-    const B = (n: string) => this.bones.get(n) as BoneInfo;
-    const root = B('Root');
+    const root = R.root;
     this.rest(root);
     // hips
-    const pelvis = B('pelvis');
-    const hq = rotQ(p.hipRot, new THREE.Quaternion());
-    this.setWorld(pelvis, _q.copy(hq).multiply(pelvis.restWQ));
-    // move the pelvis: its local position is in Root space
-    const off = new THREE.Vector3(p.hip[0] * k, p.hip[1] * k, p.hip[2] * k).applyQuaternion(_q.copy(root.wq).invert());
+    const pelvis = R.pelvis;
+    const hq = rotQ(p.hipRot, this.sHq);
+    this.setWorld(pelvis, this.sQ.copy(hq).multiply(pelvis.restWQ));
+    // move the pelvis (its local position is in Root space). Standing, the offset is from this body's own rest
+    // height (legs of any length keep the same bend); low (kneeling, sitting, lying) it is measured from the mat,
+    // so a smaller or differently built body neither floats above nor sinks into the canvas.
+    const low = Math.min(1, Math.max(0, (-p.hip[1] - 0.12) / 0.25));
+    const dy = p.hip[1] + low * low * (3 - 2 * low) * this.pelvisFix;
+    const off = this.sOff.set(p.hip[0] * k, dy * k, p.hip[2] * k);
+    pelvis.wp.copy(pelvis.restWP).add(off);
+    off.applyQuaternion(this.sQ.copy(root.wq).invert());
     pelvis.bone.position.copy(pelvis.restP).add(off);
-    pelvis.wp.copy(pelvis.restWP).add(_v.set(p.hip[0] * k, p.hip[1] * k, p.hip[2] * k));
     // spine: the chest rotation spread over three bones, then neck + head
-    const third: Rot = [p.chest[0] / 3, p.chest[1] / 3, p.chest[2] / 3];
-    const step = rotQ(third, new THREE.Quaternion());
-    const acc = hq.clone();
-    for (const n of ['spine_01', 'spine_02', 'spine_03']) {
+    const step = rotQ3(p.chest[0] / 3, p.chest[1] / 3, p.chest[2] / 3, this.sStep);
+    const acc = this.sAcc.copy(hq);
+    for (const b of R.spine) {
       acc.multiply(step);
-      const b = B(n);
-      this.setWorld(b, _q.copy(acc).multiply(b.restWQ));
+      this.setWorld(b, this.sQ.copy(acc).multiply(b.restWQ));
     }
-    const chestQ = acc.clone();
-    const neck = B('neck_01');
-    const half: Rot = [p.head[0] / 2, p.head[1] / 2, p.head[2] / 2];
-    const hstep = rotQ(half, new THREE.Quaternion());
+    const chestQ = this.sChest.copy(acc);
+    const neck = R.neck;
+    const hstep = rotQ3(p.head[0] / 2, p.head[1] / 2, p.head[2] / 2, this.sStep);
     acc.multiply(hstep);
-    this.setWorld(neck, _q.copy(acc).multiply(neck.restWQ));
+    this.setWorld(neck, this.sQ.copy(acc).multiply(neck.restWQ));
     acc.multiply(hstep);
-    const head = B('head');
-    let headQ = _q.copy(acc).multiply(head.restWQ).clone();
+    const head = R.head;
+    const headQ = this.sQ.copy(acc).multiply(head.restWQ);
     if (look && lookWeight > 0) {
       // turn the face (+z of the rest head) toward the point
-      const face = new THREE.Vector3(0, 0, 1).applyQuaternion(acc);
-      const want = _v.copy(look).sub(head.wp).normalize();
-      const turn = new THREE.Quaternion().setFromUnitVectors(face, want);
-      turn.slerp(new THREE.Quaternion(), 1 - Math.min(1, lookWeight));
-      headQ = turn.multiply(headQ);
+      const face = this.sFace.set(0, 0, 1).applyQuaternion(acc);
+      const want = this.sV.copy(head.restP).applyQuaternion(neck.wq).add(neck.wp).multiplyScalar(-1).add(look).normalize();
+      const turn = this.sTurn.setFromUnitVectors(face, want);
+      turn.slerp(IDQ, 1 - Math.min(1, lookWeight));
+      headQ.premultiply(turn);
     }
     this.setWorld(head, headQ);
     // the capsule from the neck to the middle of the head that gloves must stay out of
     this.neckA.copy(neck.wp);
-    this.headB.copy(head.wp).add(_v.set(0, 0.09 * k, 0.02 * k));
+    this.headB.copy(head.wp).add(this.sV.set(0, 0.09 * k, 0.02 * k));
 
     // arms
-    for (const s of ['l', 'r'] as const) {
-      const cl = B(`clavicle_${s}`);
-      const shrug = (s === 'l' ? p.shrugL : p.shrugR) * (s === 'l' ? 1 : -1);
-      const shrugQ = rotQ([0, 0, shrug], new THREE.Quaternion());
-      this.setWorld(cl, chestQ.clone().multiply(shrugQ).multiply(cl.restWQ));
-      const t = s === 'l' ? p.handL : p.handR;
-      this.ik(B(`upperarm_${s}`), B(`lowerarm_${s}`), t, true);
-      const hand = B(`hand_${s}`);
-      const fore = B(`lowerarm_${s}`);
+    for (let i = 0; i < 2; i++) {
+      const left = i === 0;
+      const cl = R.cl[i];
+      const shrugQ = rotQ3(0, 0, left ? p.shrugL : -p.shrugR, this.sStep);
+      this.setWorld(cl, this.sQ.copy(chestQ).multiply(shrugQ).multiply(cl.restWQ));
+      this.ik(R.ua[i], R.la[i], left ? p.handL : p.handR, true);
+      const fore = R.la[i];
       // the hand continues the forearm; roll sets the fist (horizontal / vertical)
-      const dir = new THREE.Vector3().copy(fore.axis).applyQuaternion(fore.wq);
-      const roll = (s === 'l' ? p.wristL : -p.wristR);
-      this.aim(hand, dir, roll);
-      this.curl(s, p.fist);
+      const dir = this.sDir.copy(fore.axis).applyQuaternion(fore.wq);
+      this.aim(R.hand[i], dir, left ? p.wristL : -p.wristR);
+      this.curl(i, p.fist);
     }
     // legs
-    for (const s of ['l', 'r'] as const) {
-      const t = s === 'l' ? p.footL : p.footR;
-      this.ik(B(`thigh_${s}`), B(`calf_${s}`), t);
-      const foot = B(`foot_${s}`);
-      const toe = s === 'l' ? p.toeL : p.toeR;
-      // foot points forward along z, pitched and yawed; flat on the floor at pitch 0
-      const fwd = new THREE.Vector3(0, -Math.sin(Math.max(-30, toe[0] + 25) * DEG), Math.cos(Math.max(-30, toe[0] + 25) * DEG));
-      fwd.applyAxisAngle(_v.set(0, 1, 0), toe[1] * DEG);
-      this.aim(foot, fwd);
-      this.rest(B(`ball_${s}`));
+    for (let i = 0; i < 2; i++) {
+      const left = i === 0;
+      this.ik(R.thigh[i], R.calf[i], left ? p.footL : p.footR);
+      const toe = left ? p.toeL : p.toeR;
+      // foot points forward along z, pitched and yawed; flat on the floor at pitch 0, toes straight up at -115
+      const pitch = Math.max(-115, toe[0] + 25) * DEG;
+      const fwd = this.sDir.set(0, -Math.sin(pitch), Math.cos(pitch)).applyAxisAngle(UP, toe[1] * DEG);
+      this.aim(R.foot[i], fwd);
+      this.rest(R.ball[i]);
     }
   }
 
@@ -324,9 +409,9 @@ export class FighterRig {
     // the start of the chain after the parents moved
     this.fk(upper, upper.restQ);
     const S = upper.wp;
-    const T = _v.set(t.p[0] * k, t.p[1] * k, t.p[2] * k);
+    const T = this.sT.set(t.p[0] * k, t.p[1] * k, t.p[2] * k);
     if (arm) this.clearHead(T);
-    const d0 = T.clone().sub(S);
+    const d0 = this.sD0.copy(T).sub(S);
     let d = d0.length();
     const max = (a + b) * 0.999;
     if (d > max) {
@@ -334,33 +419,26 @@ export class FighterRig {
       d = max;
     }
     d = Math.max(d, Math.abs(a - b) + 1e-3);
-    const u = d0.clone().normalize();
-    const pole = new THREE.Vector3(t.pole[0], t.pole[1], t.pole[2]);
-    const v = pole.sub(u.clone().multiplyScalar(pole.dot(u)));
+    const u = this.sU.copy(d0).normalize();
+    const v = this.sPole.set(t.pole[0], t.pole[1], t.pole[2]);
+    v.addScaledVector(u, -v.dot(u));
     if (v.lengthSq() < 1e-8) v.set(0, -1, 0);
     v.normalize();
     const cosA = Math.min(1, Math.max(-1, (a * a + d * d - b * b) / (2 * a * d)));
     const sinA = Math.sqrt(1 - cosA * cosA);
-    const E = S.clone().add(u.clone().multiplyScalar(a * cosA)).add(v.multiplyScalar(a * sinA));
-    this.aim(upper, E.clone().sub(S));
+    const E = this.sE.copy(S).addScaledVector(u, a * cosA).addScaledVector(v, a * sinA);
+    this.aim(upper, this.sAim.copy(E).sub(S));
     this.fk(lower, lower.restQ);
-    this.aim(lower, S.clone().add(d0).sub(E));
+    this.aim(lower, this.sAim.copy(S).add(d0).sub(E));
   }
 
-  private curl(s: 'l' | 'r', amount: number): void {
-    for (const f of FINGERS) {
-      for (const i of [1, 2, 3]) {
-        const b = this.bones.get(`${f}_0${i}_${s}`);
-        if (!b) continue;
-        const axis = this.fingerAxis.get(b.bone);
-        const ang = amount * (i === 1 ? 80 : i === 2 ? 95 : 70) * DEG;
-        b.bone.quaternion.copy(b.restQ);
-        if (axis) b.bone.quaternion.multiply(_q.setFromAxisAngle(axis, ang));
-      }
+  private curl(i: number, amount: number): void {
+    // the fingers only move when the fist changes
+    if (!this.refs || Math.abs(amount - this.lastFist[i]) < 1e-3) return;
+    this.lastFist[i] = amount;
+    for (const f of this.refs.fingers[i]) {
+      f.b.bone.quaternion.copy(f.b.restQ).multiply(this.sRoll.setFromAxisAngle(f.axis, amount * f.deg * DEG));
     }
-    for (const i of [1, 2, 3]) {
-      const b = this.bones.get(`thumb_0${i}_${s}`);
-      if (b) b.bone.quaternion.copy(b.restQ);
-    }
+    for (const b of this.refs.thumbs[i]) b.bone.quaternion.copy(b.restQ);
   }
 }
