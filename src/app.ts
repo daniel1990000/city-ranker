@@ -27,6 +27,7 @@ import { PracticeRoom, PRACTICE_RULES, practicePartner, type PracticeOptions } f
 import { DUMMY_LABEL } from './app/dummy';
 import { effectiveDifficulty } from './meta/difficulty';
 import { sound } from './audio/sound';
+import { track } from './platform/telemetry';
 import { AutoQuality } from './render/autoQuality';
 import { Post } from './render/post/post';
 import { setEnvRenderer } from './render/env';
@@ -153,7 +154,7 @@ export class App {
   /** Once, on the phone: "remind me when tomorrow's free pack is ready?" (opt-in; Android asks for permission). */
   private offerReminders(): void {
     const f = this.game.save.flags;
-    if (!isNative || f.remindAsked || this.game.save.settings.reminders) return;
+    if (!isNative || f.remindAsked || this.game.save.settings.reminders || this.ui.querySelector('.modal-back')) return;
     f.remindAsked = true;
     this.game.persist();
     const p = document.createElement('div');
@@ -178,6 +179,12 @@ export class App {
       const p = document.createElement('div');
       p.className = 'modal-back';
       p.dataset.sticky = '1';
+      // one card at a time: an open daily reward card steps aside and comes back later
+      const daily = this.ui.querySelector('.daily-card');
+      if (daily) {
+        daily.remove();
+        this.dailyShown = false;
+      }
       const line = (d: SaveData) => `${d.fights.toLocaleString('en-US')} fights · ${d.wins.toLocaleString('en-US')} wins · ${Object.keys(d.progress.fighters.owned).length} fighters`;
       p.innerHTML = `<div class="modal panel"><h2>Saved progress found</h2><p class="muted">Your Google Play Games account has progress from another phone.</p>
         <p><b>Cloud:</b> ${line(cloud)}<br><b>This phone:</b> ${line(local)}</p>
@@ -233,8 +240,18 @@ export class App {
     await this.startAttract();
     progress(1);
     this.render();
+    this.maybeDaily();
+  }
+
+  /** This session's daily reward card: not before the first fight's lesson, never on top of another card. */
+  private dailyShown = false;
+  private maybeDaily(): void {
+    if (this.dailyShown || this.session || this.route.s !== 'hub' || !this.game.save.flags.tutorialDone || this.ui.querySelector('.modal-back, .reveal')) return;
     const daily = dailyModal(this.ctx, () => this.render());
-    if (daily) this.ui.appendChild(daily);
+    if (!daily) return;
+    this.dailyShown = true;
+    daily.classList.add('daily-card');
+    this.ui.appendChild(daily);
   }
 
   // ---- menus --------------------------------------------------------------------------------------------------------
@@ -245,11 +262,13 @@ export class App {
     this.route = r;
     sound.setMusic(true);
     this.render();
+    if (r.s === 'hub') this.maybeDaily();
   }
 
   private back(): void {
     this.route = this.history.pop() ?? { s: 'hub' };
     this.render();
+    this.maybeDaily();
     this.maybeOffer();
   }
 
@@ -436,7 +455,9 @@ export class App {
       },
       this.ui,
     );
-    session.onTutorialDone = () => {
+    if (tutorial && !practice) track('lesson_start', {});
+    session.onTutorialDone = (skipped, at) => {
+      track(skipped ? 'lesson_skip' : 'lesson_done', { step: at });
       this.game.save.flags.tutorialDone = true;
       this.game.persist();
     };
@@ -580,6 +601,7 @@ export class App {
 
   /** The Starter Pack offer card (once a day at most, never in a fight). */
   private showStarterOffer(): void {
+    track('offer_view', { id: PRODUCTS.starter, fights: this.game.save.fights });
     const p = document.createElement('div');
     p.className = 'modal-back';
     const price = priceOf(PRODUCTS.starter) ?? '';

@@ -22,6 +22,7 @@ import type { CardResult } from '../meta/fighters';
 import type { PackResult } from '../meta/packs';
 import type { PracticeOptions } from '../app/practice';
 import { sound } from '../audio/sound';
+import { track } from '../platform/telemetry';
 import { championPanel } from './champion';
 import { ACHIEVEMENTS } from '../meta/achievements';
 import { weekDaysLeft } from '../meta/weekly';
@@ -519,6 +520,7 @@ export function shopScreen(ctx: MenuCtx): HTMLElement {
   const g = ctx.game;
   const m = menu(ctx, 'solid shop');
   m.appendChild(topbar(ctx, 'Shop'));
+  track('shop_view', { fights: g.save.fights, payer: g.save.iap.tokens.length > 0 });
   const shelf = h('div', 'shelf');
   const price = (id: string) => priceOf(id) ?? FALLBACK_PRICE[id] ?? '';
   const buy = (id: string) =>

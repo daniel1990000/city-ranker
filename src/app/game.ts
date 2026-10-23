@@ -613,6 +613,8 @@ export class Game {
     const seed = (Date.now() ^ (this.save.progress.packs.opened[id] * 7919) ^ (this.save.fights * 31)) >>> 0;
     const result = rollPack(this.save.progress.packs, id, seed);
     const cards = result.cards.map(c => giveCard(this.save.progress.fighters, c.id));
+    const opened = Object.values(this.save.progress.packs.opened).reduce((a, n) => a + n, 0);
+    track('pack_open', { pack: id, opened, fights: this.save.fights });
     return { result, cards };
   }
 

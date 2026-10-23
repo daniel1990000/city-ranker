@@ -76,7 +76,11 @@ export class Tutorial implements Controller {
     this.partner.jabs = !this.finished && !!STEPS[this.step]?.partnerJabs;
   }
 
+  /** The player pressed Skip (the lesson ends the same way, but the funnel counts it apart). */
+  skipped = false;
+
   skip(): void {
+    this.skipped = !this.finished;
     this.step = STEPS.length;
     this.onStep?.(null, this.step);
   }

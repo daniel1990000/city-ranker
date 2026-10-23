@@ -107,7 +107,8 @@ export class FightSession {
   onEnd: ((o: FightOutcome) => void) | null = null;
   onPause: (() => void) | null = null;
   /** The lesson finished or was skipped. */
-  onTutorialDone: (() => void) | null = null;
+  /** The lesson ended: `skipped` when the player pressed Skip, `step` how far they got. */
+  onTutorialDone: ((skipped: boolean, step: number) => void) | null = null;
   private tutorial: Tutorial | null = null;
 
   // ---- the broadcast layer (null for the menu backdrop)
@@ -164,7 +165,7 @@ export class FightSession {
         s.coachOn = !!step;
         if (step) s.bc?.hideCaption();
         s.hud.coach(sides(step), i, STEPS.length, () => t.skip());
-        if (!step) s.onTutorialDone?.();
+        if (!step) s.onTutorialDone?.(t.skipped, i);
       };
       s.coachOn = true;
       // the lesson card waits for the walkout plates (both sit at the bottom of the screen)

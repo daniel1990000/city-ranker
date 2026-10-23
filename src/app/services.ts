@@ -47,7 +47,9 @@ export async function startServices(game: Game, hooks: ServiceHooks): Promise<vo
   setHaptics(game.save.settings.haptics);
   onSaveWriteFail(() => hooks.toast("Your phone's storage is full: progress can't be saved until you free some space."));
   initTelemetry({ version: __APP_VERSION__, allowed: game.save.settings.analytics });
-  track('app_open', { fights: game.save.fights });
+  // day N after install (day 1 / 7 / 30 retention is a query on this), and the very first open (the install baseline)
+  const first = game.save.firstAt || Date.now();
+  track('app_open', { fights: game.save.fights, first: game.save.fights === 0 && !game.save.flags.tutorialDone, day: Math.max(0, Math.floor((Date.now() - first) / 86400000)) });
   void refreshPaidPacks();
   initLifecycle({
     onPause: () => {
