@@ -156,7 +156,7 @@ the ladder, attacker fresh; `received` = head strikes already taken this round):
 (`demo/calibrate.js` and the numbers above are reproducible: see `19` for the whole-fight results these produce.)
 
 **Lessons from calibration** (so the next person does not repeat them):
-* `Init` must be **well below** `Pbase` (we use Init ≈ ⅛–⅓ of the base-rate midpoint). With Init ≫ Pbase the first strikes of
+* `Init` must be **well below** `Pbase` (we use Init ≈ ⅙–⅓ of the midpoint of `Pmin`/`Pmax`). With Init ≫ Pbase the first strikes of
   a round are the *most* dangerous and a KO lands 15 % of the time on a clean hit; the "ramp up under sustained pressure"
   design intent only holds when `Init < Pbase`.
 * The head pool had to be enlarged (`pools.headBase 640 + 4.6/chin`) so that the *damage ratio* term stays in its
@@ -164,7 +164,7 @@ the ladder, attacker fresh; `received` = head strikes already taken this round):
 * KO/knockdown `Pmax` are one to two orders of magnitude below the stun-class events: the ladder is evaluated KO-first, so
   every hit pays the KO and knockdown dice before the cheaper events get their turn. They are also the knobs that set the
   finish rate: `head.knockout` `Pmax` went from 0.0075 to 0.0034 when the AI learned to pounce on knockdowns (the pounce alone
-  moved ≈ 20 points of finishes from "decision" to "stoppage").
+  moved ≈ 9 points of fights from "decision" to "stoppage": 51.5 % → 42.5 % decisions before any retuning).
 * **The dice must not double-count a finish.** A strike on a fighter who is already on the ground cannot roll `knockout`
   (`applyImpact` passes `exclude:['knockout']` for ground-mode strikes): a pounced-on fighter is stopped by the referee (TKO,
   rule 2 below), which is how real fights end and keeps the KO:TKO mix realistic. With the exclusion removed, 40 % of all
