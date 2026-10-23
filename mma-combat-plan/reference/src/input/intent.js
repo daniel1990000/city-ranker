@@ -38,9 +38,24 @@ export function expandIntent(o = {}) {
   return { ...emptyIntent(), ...o, move: o.move ? { ...o.move } : { x: 0, y: 0 } };
 }
 
-/** Round the analogue parts of a frame to the precision the replay log keeps, so a recorded fight re-simulates bit-identically. */
+export const MOVE_DIRECTIONS = 16;
+export const MOVE_LEVELS = [0, 0.4, 0.75, 1];
+
+/**
+ * Snap a movement vector to 16 directions × 3 magnitudes (+ zero). This is what keeps replay logs small — a held stick
+ * produces the same frame for many ticks — and 22.5° / 3 speeds is plenty for footwork. Both humans and AI go through it.
+ */
+export function quantizeMove(v) {
+  const m = Math.hypot(v.x, v.y);
+  if (m < 0.12) return { x: 0, y: 0 };
+  const level = m > 0.88 ? 1 : m > 0.57 ? 0.75 : 0.4;
+  const step = (2 * Math.PI) / MOVE_DIRECTIONS, a = Math.round(Math.atan2(v.y, v.x) / step) * step;
+  return { x: round3(Math.cos(a) * level), y: round3(Math.sin(a) * level) };
+}
+
+/** Quantise the analogue parts of a frame so a recorded fight re-simulates bit-identically and compresses well. */
 export function quantizeIntent(i) {
-  return { ...i, move: { x: round3(i.move.x), y: round3(i.move.y) } };
+  return { ...i, move: quantizeMove(i.move) };
 }
 
 export const isIdle = (i) => {

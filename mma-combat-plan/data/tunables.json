@@ -172,8 +172,8 @@
           "growth": 8
         },
         "head.knockdown": {
-          "pMin": 0.0005,
-          "pMax": 0.009,
+          "pMin": 0.0007,
+          "pMax": 0.013,
           "low": 0.07,
           "high": 0.3,
           "dmgMod": 6,
@@ -184,8 +184,8 @@
           "growth": 10
         },
         "head.knockout": {
-          "pMin": 0.0002,
-          "pMax": 0.0035,
+          "pMin": 0.0004,
+          "pMax": 0.0075,
           "low": 0.08,
           "high": 0.4,
           "dmgMod": 8,
@@ -464,7 +464,7 @@
       "gnpIntervalTicks": 24
     },
     "submission": {
-      "startBase": 0.22,
+      "startBase": 0.25,
       "startPerRating": 0.004,
       "startMin": 0.1,
       "startMax": 0.9,
@@ -559,8 +559,8 @@
       "ten8Margin": 0.38,
       "ten8SoftMargin": 0.2,
       "ten7Margin": 0.55,
-      "drawMargin": 0.012,
-      "judgeWeightJitter": 0.12
+      "drawMargin": 0.004,
+      "judgeWeightJitter": 0.05
     },
     "ai": {
       "aggression": {
@@ -593,19 +593,19 @@
           "reactionJitter": 5,
           "defend": 0.55,
           "tau": 0.55,
-          "maxCombo": 3
+          "maxCombo": 2
         },
         "champion": {
           "reactionTicks": 8,
           "reactionJitter": 3,
           "defend": 0.78,
           "tau": 0.35,
-          "maxCombo": 4
+          "maxCombo": 3
         }
       },
       "gapTicks": {
-        "slow": 560,
-        "fast": 200
+        "slow": 640,
+        "fast": 230
       },
       "rePlanTicks": [
         12,

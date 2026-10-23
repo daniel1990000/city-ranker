@@ -46,8 +46,8 @@ export const DEFAULT_TUNABLES = {
       'head.wobbled_shot':  { pMin: 0.030,  pMax: 0.22,  low: 0.03, high: 0.15, dmgMod: 3.0,  staminaMod: 0.6, spl: 0.2, sph: 0.8, init: 0.040,  growth: 5 },
       'head.stun':          { pMin: 0.015,  pMax: 0.18,  low: 0.05, high: 0.20, dmgMod: 3.5,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.020,  growth: 6 },
       'head.critical_stun': { pMin: 0.006,  pMax: 0.09,  low: 0.06, high: 0.25, dmgMod: 4.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.008,  growth: 8 },
-      'head.knockdown':     { pMin: 0.0006, pMax: 0.011, low: 0.07, high: 0.30, dmgMod: 6.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.002,  growth: 10 },
-      'head.knockout':      { pMin: 0.0003, pMax: 0.0060, low: 0.08, high: 0.40, dmgMod: 8.0,  staminaMod: 0.4, spl: 0.2, sph: 0.8, init: 0.0007, growth: 12 },
+      'head.knockdown':     { pMin: 0.0007, pMax: 0.013, low: 0.07, high: 0.30, dmgMod: 6.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.002,  growth: 10 },
+      'head.knockout':      { pMin: 0.0004, pMax: 0.0075, low: 0.08, high: 0.40, dmgMod: 8.0,  staminaMod: 0.4, spl: 0.2, sph: 0.8, init: 0.0007, growth: 12 },
       'body.liver_shot':    { pMin: 0.010,  pMax: 0.12,  low: 0.04, high: 0.20, dmgMod: 4.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.012,  growth: 6 },
       'body.stun':          { pMin: 0.010,  pMax: 0.10,  low: 0.05, high: 0.22, dmgMod: 3.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.010,  growth: 6 },
       'leg.limping':        { pMin: 0.020,  pMax: 0.20,  low: 0.03, high: 0.18, dmgMod: 3.0,  staminaMod: 0.6, spl: 0.2, sph: 0.8, init: 0.030,  growth: 4 },
@@ -128,7 +128,7 @@ export const DEFAULT_TUNABLES = {
     },
     eventValue: { wobbled_shot: 1, stun: 2, critical_stun: 3.5, knockdown: 8, liver_shot: 2, limping: 1.5, knockout: 20 },
     targetValue: { head: 1.0, body: 0.7, leg: 0.6 },
-    ten8Margin: 0.38, ten8SoftMargin: 0.20, ten7Margin: 0.55, drawMargin: 0.008, judgeWeightJitter: 0.08,
+    ten8Margin: 0.38, ten8SoftMargin: 0.20, ten7Margin: 0.55, drawMargin: 0.004, judgeWeightJitter: 0.05,
   },
   ai: {
     aggression: {

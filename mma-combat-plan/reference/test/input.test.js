@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { TouchRecognizer, gestureToIntent, TOUCH } from '../src/input/recognizer.js';
 import { GamepadMapper, keyboardToPadState } from '../src/input/mapping.js';
 import { InputBuffer, STRIKE_BUFFER_TICKS } from '../src/input/buffer.js';
-import { emptyIntent, compactIntent, expandIntent, quantizeIntent, isIdle } from '../src/input/intent.js';
+import { emptyIntent, compactIntent, expandIntent, quantizeIntent, quantizeMove, isIdle, MOVE_DIRECTIONS, MOVE_LEVELS } from '../src/input/intent.js';
 import { Slot } from '../src/core/taxonomy.js';
 import { FightSim } from '../src/sim/fight-sim.js';
 import { spec } from '../src/testing/helpers.js';
@@ -119,7 +119,6 @@ test('intent frames: compact ↔ expand round trip, quantisation, idle detection
   assert.deepEqual(Object.keys(c).sort(), ['guard', 'move', 'parry', 'strike']);
   const back = expandIntent(c);
   assert.equal(back.guard, 'high'); assert.equal(back.parry, true); assert.equal(back.catch, false); assert.equal(back.move.x, 0.123);
-  assert.deepEqual(quantizeIntent(i).move, { x: 0.123, y: -0.5 });
   assert.ok(!isIdle(i));
 });
 
@@ -264,4 +263,18 @@ test('gamepad in clinch / ground: face buttons pick from the legal actions; keyb
   assert.equal(m.update(pad({ buttons: { LB: true } }), ctx).grapple.kind, 'break');
   const k = keyboardToPadState({ w: true, d: true, j: true, space: true });
   assert.deepEqual([k.lx, k.ly, k.rt, k.buttons.X], [1, -1, 1, true]);
+});
+
+test('movement quantiser: 16 directions × 3 speeds, dead zone, idempotent, and a held stick yields one repeated frame', () => {
+  assert.deepEqual(quantizeMove({ x: 0.05, y: -0.05 }), { x: 0, y: 0 });
+  const seen = new Set();
+  for (let k = 0; k < 720; k++) for (const m of [0.3, 0.7, 1]) {
+    const a = (k / 720) * 2 * Math.PI, q = quantizeMove({ x: Math.cos(a) * m, y: Math.sin(a) * m });
+    seen.add(`${q.x},${q.y}`);
+    assert.deepEqual(quantizeMove(q), q, 'idempotent');
+    assert.ok(MOVE_LEVELS.includes(Math.round(Math.hypot(q.x, q.y) * 100) / 100) || Math.abs(Math.hypot(q.x, q.y) - 0.4) < 0.01 || Math.abs(Math.hypot(q.x, q.y) - 0.75) < 0.01 || Math.abs(Math.hypot(q.x, q.y) - 1) < 0.01);
+  }
+  assert.equal(seen.size, MOVE_DIRECTIONS * 3);
+  const a = quantizeIntent({ ...emptyIntent(), move: { x: 0.9, y: 0.1 } }), b = quantizeIntent({ ...emptyIntent(), move: { x: 0.93, y: 0.05 } });
+  assert.deepEqual(a.move, b.move, 'small stick wobble produces the same frame');
 });

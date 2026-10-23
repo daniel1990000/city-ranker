@@ -4,12 +4,15 @@
   "description": "Original, dependency-free reference implementation of the combat systems specified in ../docs. Engine-agnostic JS (ES modules).",
   "type": "module",
   "private": true,
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "main": "src/index.js",
   "scripts": {
     "test": "node --test",
     "demo": "node demo/headless-fight.js",
     "calibrate": "node demo/calibrate.js",
-    "build-data": "node demo/build-data.js"
+    "build-data": "node demo/build-data.js",
+    "golden": "node demo/record-golden.js"
   }
 }

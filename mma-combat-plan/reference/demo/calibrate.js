@@ -30,12 +30,9 @@ function parseArgs(argv) {
 const flat = (obj, prefix = '') => Object.entries(obj).flatMap(([k, v]) => (v && typeof v === 'object' ? flat(v, `${prefix}${k}.`) : [[`${prefix}${k}`, v]]));
 
 function report(summary, o) {
-  const targets = Object.fromEntries(flat(TARGETS));
   console.log(`\nCalibration — ${summary.fights} fights, ${o.rounds} rounds, seed ${o.seed}${Object.keys(o.set).length ? `, overrides ${JSON.stringify(o.set)}` : ''}`);
   const rows = flat({ finish: summary.finish, perFighterRound: summary.perFighterRound, perFighterFight: summary.perFighterFight, timeShare: summary.timeShare });
   for (const [k, v] of rows) {
-    const t = targets[`${k}.0`] !== undefined ? null : null;
-    void t;
     const range = (() => { const path = k.split('.'); let cur = TARGETS; for (const p of path) cur = cur?.[p]; return Array.isArray(cur) ? cur : null; })();
     const flag = range ? (v >= range[0] && v <= range[1] ? '  ok' : '  <-- outside') : '';
     console.log(`  ${k.padEnd(34)} ${String(v).padStart(8)}${range ? `   target ${range[0]}–${range[1]}` : ''}${flag}`);

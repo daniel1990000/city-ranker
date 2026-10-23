@@ -15,6 +15,7 @@ test('knockout health event ends the fight; winner is the other fighter; describ
   const s = ref.update();
   assert.deepEqual([s.type, s.winner, s.loser, s.how], ['ko', 'a', 'b', 'punch_head']);
   assert.equal(eventsOf(w, 'stoppage').length, 1);
+  assert.equal(eventsOf(w, 'stoppage')[0].kind, 'ko'); assert.equal(eventsOf(w, 'stoppage')[0].type, 'stoppage', 'the envelope type is not shadowed');
   assert.equal(ref.update(), s, 'idempotent');
   assert.equal(eventsOf(w, 'stoppage').length, 1);
 });

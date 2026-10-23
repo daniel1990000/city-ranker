@@ -25,7 +25,7 @@ export const EventType = Object.freeze({
   REFEREE: 'referee',               // {kind: low_action|break|stand_up|warn|stop}
   ROUND_START: 'round_start',       // {}
   ROUND_END: 'round_end',           // {}
-  STOPPAGE: 'stoppage',             // {type: ko|tko|submission|doctor, winner, loser, how}
+  STOPPAGE: 'stoppage',             // {kind: ko|tko|submission|doctor, winner, loser, how}
   DECISION: 'decision',             // {result, cards}
   ABILITY: 'ability',               // {fighter, ability, result}
 });

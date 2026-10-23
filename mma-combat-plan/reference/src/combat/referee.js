@@ -20,7 +20,8 @@ export class Referee {
   stop(type, how, winner, loser) {
     if (this.stoppage) return this.stoppage;
     this.stoppage = { type, how, winner: winner?.id ?? null, loser: loser?.id ?? null };
-    this.world.emit(EventType.STOPPAGE, { ...this.stoppage });
+    const { type: kind, ...rest } = this.stoppage;                    // `type` is reserved for the event envelope, so the payload says `kind`
+    this.world.emit(EventType.STOPPAGE, { kind, ...rest });
     return this.stoppage;
   }
 
