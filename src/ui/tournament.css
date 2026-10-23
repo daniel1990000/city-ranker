@@ -1,0 +1,147 @@
+/* Weekly tournament screen (src/ui/tournament.ts) and the champion panel on the career screen (src/ui/champion.ts).
+   Builds on menus.css: .menu, .topbar, .panel, .vs, .btn, .rw. */
+.tour-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 2px 12px 6px;
+  font-size: 13px;
+}
+.tour-info b {
+  color: var(--gold-2);
+}
+.tour-info .btn {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 12px;
+  min-height: 30px;
+}
+.tour-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 10px;
+  padding: 0 12px 10px;
+}
+.tb {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  overflow-y: auto;
+}
+.tb-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  gap: 6px;
+  min-width: 82px;
+}
+.tb-col > b {
+  font-family: var(--display);
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+.tb-m {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.tb-f {
+  font-size: 12px;
+  padding: 3px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+.tb-f + .tb-f {
+  border-top: 1px solid var(--line);
+}
+.tb-f.me {
+  color: var(--gold-2);
+  font-weight: 700;
+}
+.tb-f.w {
+  background: rgba(212, 166, 74, 0.14);
+}
+.tb-f.l {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+.tour-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tour-main .vs {
+  min-height: 0;
+}
+.tour-entry {
+  flex: 1;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.tour-entry p {
+  margin: 0 0 8px;
+}
+.tour-tiers {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+}
+.tour-tiers .rw {
+  flex: 1 0 92px;
+  font-size: 12px;
+}
+.tour-tiers .rw.ready {
+  border-color: rgba(212, 166, 74, 0.7);
+  background: rgba(212, 166, 74, 0.1);
+}
+.tour-tiers .rw.done {
+  opacity: 0.45;
+}
+.champ {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 0 12px 6px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
+.champ b {
+  color: var(--gold-2);
+}
+.champ .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  min-height: 30px;
+}
+.champ .row {
+  margin-left: auto;
+  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+}
+@media (max-height: 420px) {
+  .tb-col {
+    min-width: 70px;
+  }
+  .tb-f {
+    font-size: 11px;
+    padding: 2px 5px;
+  }
+}
+@media (max-width: 700px) {
+  .tb {
+    display: none;
+  }
+}

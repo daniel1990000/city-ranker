@@ -19,6 +19,7 @@ import type { CardResult } from '../meta/fighters';
 import type { PackResult } from '../meta/packs';
 import type { PracticeOptions } from '../app/practice';
 import { sound } from '../audio/sound';
+import { championPanel } from './champion';
 import './menus.css';
 
 export type Route =
@@ -31,7 +32,8 @@ export type Route =
   | { s: 'season' }
   | { s: 'settings' }
   | { s: 'achievements' }
-  | { s: 'practice' };
+  | { s: 'practice' }
+  | { s: 'tournament' };
 
 export interface MenuCtx {
   game: Game;
@@ -42,6 +44,8 @@ export interface MenuCtx {
   startQuick(div: DivisionId): void;
   /** Training Room: a practice fight (ui/practice.ts). */
   startPractice(o: PracticeOptions): void;
+  /** Fight the weekly tournament run's next round. */
+  startTournament(): void;
   settings(): HTMLElement;
   /** Open the Play Games leaderboards (signs in if needed). */
   boards(): void;
@@ -215,7 +219,9 @@ export function careerScreen(ctx: MenuCtx, div: DivisionId): HTMLElement {
   title.innerHTML = `<b>${c.belt ? `Champion · ${c.defenses} def.` : 'Title'}</b><div class="dots"><i class="${c.belt ? 'w' : c.tier >= TIERS ? 'n' : ''}"></i></div>`;
   lad.appendChild(title);
   m.appendChild(lad);
-  const me = g.pickedFor(div);
+  const champ = championPanel(ctx, div);
+  if (champ) m.appendChild(champ);
+  const me = g.careerFighter(div);
   if (!me) {
     const empty = h('div', 'vs');
     empty.innerHTML = `<div class="panel" style="padding:18px;text-align:center;max-width:420px"><h2 style="font-family:var(--display);text-transform:uppercase;margin:0 0 6px">No ${esc(division(div).name)} yet</h2><p class="muted">Get a fighter in this division from a pack to start this career.</p><button class="btn" data-a="packs">Get packs</button></div>`;
@@ -225,7 +231,7 @@ export function careerScreen(ctx: MenuCtx, div: DivisionId): HTMLElement {
   }
   const step = g.careerStep(div);
   if (!step) return m;
-  const spec = g.spec(me.id);
+  const spec = g.careerSpec(div);
   const vs = h('div', 'vs');
   const opp = step.opponent;
   vs.innerHTML = `<div class="side"><div class="por p1"></div><div class="nm">${esc(me.name)}</div><div class="muted">OVR ${spec ? overall(spec.stats) : '?'} · ${me.archetype}</div><button class="btn ghost" data-a="change" style="margin-top:6px;padding:6px 12px;font-size:13px">Change</button></div>

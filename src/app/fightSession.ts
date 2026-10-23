@@ -61,7 +61,8 @@ export interface FightOutcome {
   result: FightResult;
   replay: Replay;
   /** Per-fighter totals over the fight (for the result screen). */
-  totals: { landed: [number, number]; thrown: [number, number]; knockdowns: [number, number]; takedowns: [number, number] };
+  /** `damage`: damage each fighter dealt (head + body + legs), so damage[1] is what the player took. */
+  totals: { landed: [number, number]; thrown: [number, number]; knockdowns: [number, number]; takedowns: [number, number]; damage: [number, number] };
   /** Per-round stats [player, opponent], a copy (for missions and achievements). */
   rounds: [RoundStats, RoundStats][];
 }
@@ -465,13 +466,14 @@ export class FightSession {
 
   outcome(): FightOutcome {
     const s = this.fight.state;
-    const t = { landed: [0, 0] as [number, number], thrown: [0, 0] as [number, number], knockdowns: [0, 0] as [number, number], takedowns: [0, 0] as [number, number] };
+    const t = { landed: [0, 0] as [number, number], thrown: [0, 0] as [number, number], knockdowns: [0, 0] as [number, number], takedowns: [0, 0] as [number, number], damage: [0, 0] as [number, number] };
     for (const r of s.stats) {
       for (const i of [0, 1] as const) {
         t.landed[i] += r[i].landed;
         t.thrown[i] += r[i].thrown;
         t.knockdowns[i] += r[i].knockdowns;
         t.takedowns[i] += r[i].takedowns;
+        t.damage[i] += r[i].headDmg + r[i].bodyDmg + r[i].legDmg;
       }
     }
     const rounds = s.stats.map(([a, b]): [RoundStats, RoundStats] => [{ ...a }, { ...b }]);

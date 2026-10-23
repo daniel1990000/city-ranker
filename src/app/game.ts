@@ -3,7 +3,7 @@
 // save directly. Every change is followed by persist().
 
 import type { DivisionId, FighterSpec, FightResult } from '../game/fight/types';
-import { applyCareerResult, careerReward, nextStep, type CareerReward, type CareerStep } from '../meta/career';
+import { applyCareerResult, canPrestige, careerReward, LEGACY, legacyRank, MAX_PRESTIGE, moveDivision, neighbourDivisions, nextStep, prestigeUp, weightClassStats, type CareerReward, type CareerStep } from '../meta/career';
 import { claimDaily, dailyStatus } from '../meta/daily';
 import { dayNumber } from '../meta/days';
 import { DIVISION_IDS } from '../meta/divisions';
@@ -20,7 +20,11 @@ import { startTimer, timerLeft, clearTimer } from '../meta/timers';
 import { TUNING } from '../meta/tuning';
 import { addCash, addGems, spendCash, spendGems } from '../meta/wallet';
 import { countFight, interstitialDue, adShown } from '../meta/adpacing';
-import { ensureWeek } from '../meta/weekly';
+import { ensureWeek, weekDaysLeft } from '../meta/weekly';
+import {
+  adEntryOffered, applyTourResult, bracket, claimTourTier, enterTournament, entriesLeft, grantAdEntry, loanerFor, markLive, nextTourStep, runActive, syncTournament, tierReached, tourTiers,
+  type Bracket, type TournamentState, type TourOutcome, type TourStep, type TourTier,
+} from '../meta/tournament';
 import { paidPacksStatus } from '../platform/country';
 import { buy, finish, queryPurchases } from '../platform/iap';
 import { interstitialReady, rewardedAvailable, showInterstitial, showRewarded } from '../platform/ads';
@@ -57,6 +61,55 @@ export interface FightRewards {
   best: boolean;
   /** achievements and missions this fight completed (already paid; also sent to `onEarned` listeners) */
   earned: Earned;
+  /** Legacy ranks reached in this fight (names), for the result screen. */
+  legacy: string[];
+  /** A weekly tournament fight's points and where the run stands (null for other fights). */
+  tournament: TourOutcome | null;
+}
+
+/** A finished weekly tournament fight, for Game.finishFight. */
+export interface TourFightDone {
+  step: TourStep;
+  /** fight length and its longest possible length, in simulation ticks */
+  ticks: number;
+  maxTicks: number;
+  /** damage the player took */
+  damageTaken: number;
+}
+
+/** What the tournament screen shows. */
+export interface TournamentView {
+  t: TournamentState;
+  bracket: Bracket;
+  /** the next fight of the run under way, or null */
+  step: TourStep | null;
+  /** who fights: the run's fighter, else the player's fighter for the week's division, else the loaner */
+  fighter: FighterSpec;
+  loaner: boolean;
+  entriesLeft: number;
+  adEntry: boolean;
+  active: boolean;
+  best: number;
+  daysLeft: number;
+  tiers: (TourTier & { reached: boolean; claimed: boolean })[];
+}
+
+/** The champion's options after a title (career screen). */
+export interface ChampionOptions {
+  prestige: number;
+  canPrestige: boolean;
+  maxPrestige: number;
+  /** neighbouring weight classes the champion can move to */
+  moves: DivisionId[];
+  legacyRank: number;
+  legacyName: string;
+  /** next Legacy rank: name and defences needed (null at the top) */
+  legacyNext: { name: string; at: number } | null;
+  defenses: number;
+  reign: number;
+  supers: number;
+  /** a fighter from another division fights this career (moved up or down) */
+  guest: string;
 }
 
 /** Achievements awarded and missions finished by one action (already paid), for toasts. */
@@ -227,6 +280,8 @@ export class Game {
     const f = rosterFighter(id);
     if (!f || !this.owned(id)) return;
     this.save.progress.fighters.picked[f.division] = id;
+    // picking one of the division's own fighters ends a moved-in champion's stay
+    this.save.progress.career.div[f.division].guest = '';
     this.persist();
   }
 
@@ -304,18 +359,150 @@ export class Game {
 
   // ---- career ----------------------------------------------------------------------------------------------------
 
+  /** Who fights this division's career: a champion who moved in from a neighbouring class, else the pick. */
+  careerFighter(div: DivisionId): RosterFighter | null {
+    const guest = this.save.progress.career.div[div].guest;
+    if (guest && this.owned(guest)) return rosterFighter(guest) ?? null;
+    return this.pickedFor(div);
+  }
+
+  /** The career fighter's spec for this division (a moved-in champion's stats change with the weight class). */
+  careerSpec(div: DivisionId): FighterSpec | null {
+    const me = this.careerFighter(div);
+    const spec = me ? this.spec(me.id) : null;
+    if (!spec) return null;
+    return spec.division === div ? spec : { ...spec, stats: weightClassStats(spec.stats, spec.division, div) };
+  }
+
   careerStep(div: DivisionId): CareerStep | null {
-    const me = this.pickedFor(div);
-    return me ? nextStep(this.save.progress.career, div, me.id) : null;
+    const me = this.careerFighter(div);
+    return me ? nextStep(this.save.progress.career, div, me.id, dayNumber(rewardTime())) : null;
+  }
+
+  /** The champion's options and Legacy (null before the first title in this division). */
+  championOptions(div: DivisionId): ChampionOptions | null {
+    const c = this.save.progress.career.div[div];
+    if (!c.belt && c.titles === 0) return null;
+    const me = this.careerFighter(div);
+    const rank = legacyRank(c.defenses);
+    const next = LEGACY[rank];
+    return {
+      prestige: c.prestige,
+      canPrestige: canPrestige(c),
+      maxPrestige: MAX_PRESTIGE,
+      moves: c.belt && me && me.division === div ? neighbourDivisions(div) : [],
+      legacyRank: rank,
+      legacyName: rank > 0 ? LEGACY[rank - 1].name : '',
+      legacyNext: next ? { name: next.name, at: next.at } : null,
+      defenses: c.defenses,
+      reign: c.reign,
+      supers: c.supers,
+      guest: c.guest,
+    };
+  }
+
+  /** Vacate the belt and run the ladder again at the next Prestige. */
+  prestige(div: DivisionId): boolean {
+    if (!prestigeUp(this.save.progress.career, div)) return false;
+    track('career_prestige', { div, prestige: this.save.progress.career.div[div].prestige });
+    this.persist(true);
+    return true;
+  }
+
+  /** The champion of `from` moves up or down to `to` (keeps the belt in `from`). */
+  moveDivision(from: DivisionId, to: DivisionId): boolean {
+    const me = this.careerFighter(from);
+    if (!me || !moveDivision(this.save.progress.career, from, to, me.id)) return false;
+    track('career_move', { from, to });
+    this.persist(true);
+    return true;
+  }
+
+  // ---- weekly tournament -----------------------------------------------------------------------------------------
+
+  private tourDay(): number {
+    return dayNumber(rewardTime());
+  }
+
+  /** The week's tournament for the screen (brings the week, the day's entries and an abandoned fight up to date). */
+  tournament(): TournamentView {
+    const t = syncTournament(this.save, this.tourDay());
+    this.persist();
+    const who = this.tourFighter(t);
+    return {
+      t,
+      bracket: bracket(t.week),
+      step: nextTourStep(t),
+      fighter: who.spec,
+      loaner: who.loaner,
+      entriesLeft: entriesLeft(t),
+      adEntry: adEntryOffered(t),
+      active: runActive(t),
+      best: this.save.weekly.best,
+      daysLeft: weekDaysLeft(),
+      tiers: tourTiers().map(x => ({ ...x, reached: tierReached(this.save, x), claimed: this.save.weekly.claimed.includes(x.tier) })),
+    };
+  }
+
+  /** The run's fighter; with no run, the player's fighter for the week's division, else the week's loaner. */
+  private tourFighter(t: TournamentState): { spec: FighterSpec; loaner: boolean } {
+    const div = bracket(t.week).div;
+    const id = t.run ? (t.run.loaner ? null : t.run.fighter) : (this.pickedFor(div)?.id ?? null);
+    const s = id ? this.spec(id) : null;
+    if (s && s.division === div) return { spec: s, loaner: false };
+    return { spec: loanerFor(t.week), loaner: true };
+  }
+
+  /** Use one of today's entries (free, or the extra one from the video). */
+  enterTournament(): boolean {
+    const t = syncTournament(this.save, this.tourDay());
+    const who = this.tourFighter({ ...t, run: null });
+    if (!enterTournament(this.save, who.spec.id, who.loaner)) return false;
+    track('tournament_enter', { week: t.week, loaner: who.loaner });
+    this.persist(true);
+    return true;
+  }
+
+  /** "Watch ad: extra entry": one more entry today (the browser version has no ads: it is simply given there). */
+  async tournamentAdEntry(): Promise<boolean> {
+    if (!adEntryOffered(syncTournament(this.save, this.tourDay()))) return false;
+    if (isNative && !(await this.rewarded('tourentry'))) return false;
+    grantAdEntry(syncTournament(this.save, this.tourDay()));
+    this.persist(true);
+    return true;
+  }
+
+  /** The run's next fight is starting: the fighter and the step. From now until its result, closing the app loses it. */
+  startTournamentFight(): { me: FighterSpec; step: TourStep } | null {
+    const t = syncTournament(this.save, this.tourDay());
+    const step = nextTourStep(t);
+    if (!step) return null;
+    const me = this.tourFighter(t).spec;
+    markLive(t);
+    this.persist(true);
+    return { me, step };
+  }
+
+  /** Claim a weekly prize tier (once a week each). */
+  claimTournamentTier(tier: number): TourTier | null {
+    syncTournament(this.save, this.tourDay());
+    const r = claimTourTier(this.save, tier);
+    if (!r) return null;
+    addCash(this.save, r.cash);
+    addGems(this.save, r.gems);
+    if (r.pack) this.save.progress.packs.unopened[r.pack]++;
+    this.persist(true);
+    return r;
   }
 
   // ---- after a fight -----------------------------------------------------------------------------------------------
 
   /**
-   * Pay out a finished fight. `step` for career fights; null for quick fights (smaller rewards, no ladder move).
-   * `rounds` is the fight's per-round stats (FightState.stats, [player, opponent]) for missions and achievements.
+   * Pay out a finished fight. `step` for career fights; null for quick fights and weekly tournament fights (`tour`):
+   * smaller rewards, no ladder move. `rounds` is the fight's per-round stats (FightState.stats, [player, opponent])
+   * for missions and achievements.
    */
-  finishFight(fighterId: string, result: FightResult, seconds: number, step: CareerStep | null, opp: FighterSpec, difficulty: number, rounds?: readonly (readonly [RoundStats, RoundStats])[]): FightRewards {
+  finishFight(fighterId: string, result: FightResult, seconds: number, step: CareerStep | null, opp: FighterSpec, difficulty: number, rounds?: readonly (readonly [RoundStats, RoundStats])[], tour: TourFightDone | null = null): FightRewards {
     const won = result.winner === 0;
     const draw = result.winner === null;
     const method = result.method;
@@ -325,10 +512,12 @@ export class Game {
       applyCareerResult(this.save.progress.career, step, won, draw, method);
     } else {
       const cash = won ? (method === 'DEC' ? 250 : 375) : 100;
-      r = { cash, xp: won ? 60 : 30, gems: 0, pack: null, belt: false };
+      r = { cash, xp: won ? 60 : 30, gems: 0, pack: null, belt: false, legacy: [] };
     }
     // the difficulty setting: harder pays more per win, Easy less (meta/difficulty.ts)
     if (won) r = { ...r, cash: winCash(r.cash, this.save.settings.difficulty), xp: winXp(r.xp, this.save.settings.difficulty) };
+    const tournament = !step && tour ? applyTourResult(this.save, tour.step, { won, method, ticks: tour.ticks, maxTicks: tour.maxTicks, damageTaken: tour.damageTaken }, draw) : null;
+    const mode = step ? 'career' : tour ? 'tournament' : 'quick';
     addCash(this.save, r.cash);
     addGems(this.save, r.gems);
     const o = this.save.progress.fighters.owned[fighterId];
@@ -337,7 +526,7 @@ export class Game {
     const seasonXp = addSeasonXp(this.save, fightXp(won ? 120 : 60), Date.now(), 'fight');
     this.save.fights++;
     if (won) this.save.wins++;
-    this.save.fightLog.push({ t: Date.now(), k: step ? 'career' : 'quick', o: step?.opponent.id ?? 'quick', r: won ? 'W' : draw ? 'D' : 'L', m: method, s: Math.round(seconds) });
+    this.save.fightLog.push({ t: Date.now(), k: mode, o: step?.opponent.id ?? (tour ? tour.step.opponent.id.slice(0, 40) : 'quick'), r: won ? 'W' : draw ? 'D' : 'L', m: method, s: Math.round(seconds) });
     if (this.save.fightLog.length > 50) this.save.fightLog.splice(0, this.save.fightLog.length - 50);
     countFight(this.save.ads, seconds);
     const rec = this.save.progress.record;
@@ -351,8 +540,9 @@ export class Game {
     submitScore('wins', boards.wins);
     submitScore('knockouts', boards.knockouts);
     if (score > 0) submitScore('weekly', score);
-    track('fight_end', { mode: step ? 'career' : 'quick', tier: step?.tier ?? -1, result: won ? 'W' : draw ? 'D' : 'L', method, secs: Math.round(seconds), fights: this.save.fights });
-    return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before, earned };
+    if (tournament && tournament.total > 0) submitScore('tournament', tournament.total);
+    track('fight_end', { mode, tier: step?.tier ?? -1, result: won ? 'W' : draw ? 'D' : 'L', method, secs: Math.round(seconds), fights: this.save.fights });
+    return { cash: r.cash, xp: r.xp, gems: r.gems, levels, seasonXp, pack: r.pack, belt: r.belt, doubleOffer: Math.min(TUNING.doubleCashCap, r.cash), score, best: score > before, legacy: r.legacy.map(i => LEGACY[i]?.name ?? '').filter(Boolean), tournament, earned };
   }
 
   /**
