@@ -16,6 +16,8 @@ import { HitFx } from './fx';
 
 const _v = new THREE.Vector3();
 const _w = new THREE.Vector3();
+const _a = new THREE.Vector3();
+const _b = new THREE.Vector3();
 
 export interface FightSceneSetup {
   venue: VenueId;
@@ -46,6 +48,8 @@ export class FightScene {
   private slowUntil = 0;
   private clock = 0;
   private lastTick = -1;
+  /** Drawing a finish replay (a separate re-run of the fight): the cinematic replay camera. */
+  private replay = false;
 
   private constructor(
     arena: Arena,
@@ -86,6 +90,21 @@ export class FightScene {
     if (!b) return out.copy(f.root.position).setY(1.2);
     out.copy(b.wp);
     return f.root.localToWorld(out);
+  }
+
+  /** Cut to the replay camera: the next frame draws the replay's state, snapped (no blend from the live fight). */
+  startReplay(): void {
+    this.replay = true;
+    this.director.startReplay();
+    this.lastTick = -1;
+    this.slowUntil = 0;
+  }
+
+  /** Cut back to the live (finished) fight. */
+  endReplay(): void {
+    this.replay = false;
+    this.lastTick = -1;
+    this.slowUntil = 0;
   }
 
   /** React to what happened this tick. */
@@ -200,9 +219,12 @@ export class FightScene {
       view.setSweat(Math.min(1, state.tick / 9000 + work * 0.5 + 0.15));
     }
     // camera
-    this.director.mode = state.phase === 'intro' ? 'intro' : state.phase === 'ended' ? 'result' : g ? 'ground' : 'fight';
-    const a = this.fighters[0].root.position.clone().setY(1);
-    const b = this.fighters[1].root.position.clone().setY(1);
+    if (this.replay) {
+      this.director.mode = 'replay';
+      this.director.replayGround = !!g;
+    } else this.director.mode = state.phase === 'intro' ? 'intro' : state.phase === 'ended' ? 'result' : g ? 'ground' : 'fight';
+    const a = _a.copy(this.fighters[0].root.position).setY(1);
+    const b = _b.copy(this.fighters[1].root.position).setY(1);
     if (first) this.director.snap(a, b);
     this.director.update(a, b, dt);
     // the key light follows the action a little

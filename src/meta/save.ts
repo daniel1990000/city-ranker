@@ -61,6 +61,8 @@ export interface Settings {
   controlScale: number;
   /** size of all text and menus: 1, 1.1 or 1.2 */
   textScale: number;
+  /** commentary captions on key moments in a fight */
+  commentary: boolean;
   /** send anonymous play stats and error reports (only when the build has an analytics key, and only if asked) */
   analytics: boolean;
   /** how good career and quick-fight opponents are, and what a win pays (meta/difficulty.ts) */
@@ -222,7 +224,7 @@ export function ensureProgress(save: SaveData): void {
 export function freshSettings(): Settings {
   return {
     music: 0.7, sfx: 0.9, haptics: true, quality: 'auto', autoTier: { q: '', res: 1 }, leftHanded: false, reducedMotion: false,
-    autoFullscreen: true, reminders: false, controlScale: 1, textScale: 1, analytics: false, difficulty: 'normal',
+    autoFullscreen: true, reminders: false, controlScale: 1, textScale: 1, commentary: true, analytics: false, difficulty: 'normal',
   };
 }
 
@@ -353,6 +355,7 @@ export function sanitize(input: unknown): SaveData {
   s.textScale = oneOf(st.textScale, [1, 1.1, 1.2], 1);
   // added after 0.3.0: no migration step, saves without it start on Normal (what every earlier version played)
   s.difficulty = oneOf(st.difficulty, DIFFICULTY_LEVELS, 'normal');
+  s.commentary = bool(st.commentary, true);
 
   const fl = obj(raw.flags);
   for (const k of Object.keys(out.flags) as (keyof Flags)[]) out.flags[k] = bool(fl[k], false);

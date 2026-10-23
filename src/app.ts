@@ -384,6 +384,7 @@ export class App {
         practice: practice ?? undefined,
         leftHanded: this.game.save.settings.leftHanded,
         reducedMotion: this.game.save.settings.reducedMotion,
+        commentary: this.game.save.settings.commentary,
       },
       this.ui,
     );
