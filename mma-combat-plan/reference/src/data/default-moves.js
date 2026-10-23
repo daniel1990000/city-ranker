@@ -25,7 +25,8 @@ function mv(o) {
     reach: o.reach, ...(o.minReach ? { minReach: o.minReach } : {}), wedgeDeg: o.wedge ?? 24, advance: o.adv ?? 0,
     damage: { base: o.dmg[0], range: o.dmg[1] }, stamina: o.st, eventMult: o.ev ?? 1, critChance: o.crit ?? 0.03,
     blockHeight: o.target === 'leg' ? 'low' : 'high', tags: o.tags,
-    cancel: { out: o.cancel ?? [[Math.max(1, o.f[0] - 1), Math.min(total, o.f[0] + o.f[1] + Math.floor(o.f[2] * 0.55))]], into: into[tag] ?? [] },
+    // a move may be cancelled into the next one only once it has had its active frames (so it can still land), early in recovery
+    cancel: { out: o.cancel ?? [[o.f[0] + o.f[1], Math.min(total, o.f[0] + o.f[1] + Math.floor(o.f[2] * 0.55))]], into: into[tag] ?? [] },
   };
 }
 

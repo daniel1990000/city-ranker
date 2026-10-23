@@ -97,7 +97,7 @@ export class StatsTracker {
       case EventType.GET_UP: this.inc(ev.actor, ev.success ? 'getups.success' : 'getups.failed'); return;
       case EventType.SUBMISSION:
         if (ev.result === 'start') this.inc(ev.attacker, 'subs.attempted');
-        if (ev.result === 'stage') { this.inc(ev.attacker, 'subs.depth'); if (ev.stage === 2) this.inc(ev.attacker, 'subs.locked'); }
+        if (ev.result === 'stage') { this.inc(ev.attacker, 'subs.depth'); if (ev.stage === 2) this.inc(ev.attacker, 'subs.locked'); if (ev.stage === 4) this.inc(ev.attacker, 'subs.deep'); }
         if (ev.result === 'escape') { this.inc(ev.defender, 'subs.escaped'); }
         if (ev.result === 'tap' || ev.result === 'ko') this.inc(ev.attacker, 'subs.finished');
         return;

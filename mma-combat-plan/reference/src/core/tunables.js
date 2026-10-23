@@ -46,8 +46,8 @@ export const DEFAULT_TUNABLES = {
       'head.wobbled_shot':  { pMin: 0.030,  pMax: 0.22,  low: 0.03, high: 0.15, dmgMod: 3.0,  staminaMod: 0.6, spl: 0.2, sph: 0.8, init: 0.040,  growth: 5 },
       'head.stun':          { pMin: 0.015,  pMax: 0.18,  low: 0.05, high: 0.20, dmgMod: 3.5,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.020,  growth: 6 },
       'head.critical_stun': { pMin: 0.006,  pMax: 0.09,  low: 0.06, high: 0.25, dmgMod: 4.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.008,  growth: 8 },
-      'head.knockdown':     { pMin: 0.0005, pMax: 0.009, low: 0.07, high: 0.30, dmgMod: 6.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.002,  growth: 10 },
-      'head.knockout':      { pMin: 0.0002, pMax: 0.0035, low: 0.08, high: 0.40, dmgMod: 8.0,  staminaMod: 0.4, spl: 0.2, sph: 0.8, init: 0.0007, growth: 12 },
+      'head.knockdown':     { pMin: 0.0006, pMax: 0.011, low: 0.07, high: 0.30, dmgMod: 6.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.002,  growth: 10 },
+      'head.knockout':      { pMin: 0.0003, pMax: 0.0060, low: 0.08, high: 0.40, dmgMod: 8.0,  staminaMod: 0.4, spl: 0.2, sph: 0.8, init: 0.0007, growth: 12 },
       'body.liver_shot':    { pMin: 0.010,  pMax: 0.12,  low: 0.04, high: 0.20, dmgMod: 4.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.012,  growth: 6 },
       'body.stun':          { pMin: 0.010,  pMax: 0.10,  low: 0.05, high: 0.22, dmgMod: 3.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.010,  growth: 6 },
       'leg.limping':        { pMin: 0.020,  pMax: 0.20,  low: 0.03, high: 0.18, dmgMod: 3.0,  staminaMod: 0.6, spl: 0.2, sph: 0.8, init: 0.030,  growth: 4 },
@@ -103,7 +103,7 @@ export const DEFAULT_TUNABLES = {
     gnpIntervalTicks: 24,
   },
   submission: {
-    startBase: 0.22, startPerRating: 0.004, startMin: 0.10, startMax: 0.90, attemptCooldownTicks: 300,
+    startBase: 0.25, startPerRating: 0.004, startMin: 0.10, startMax: 0.90, attemptCooldownTicks: 300,
     stageBase: 0.46, stagePerRating: 0.003, stagePenaltyPerStage: 0.03, stageMin: 0.10, stageMax: 0.90,
     stageTicks: 75, stages: 5, stageDamage: { choke: 0.20, lock: 0.20 }, startDepth: 2, staminaDiffWeight: 0.10,
     staminaPerSecAttacker: 1.3, staminaPerSecDefender: 1.7, abortStamina: 0.08,
@@ -128,7 +128,7 @@ export const DEFAULT_TUNABLES = {
     },
     eventValue: { wobbled_shot: 1, stun: 2, critical_stun: 3.5, knockdown: 8, liver_shot: 2, limping: 1.5, knockout: 20 },
     targetValue: { head: 1.0, body: 0.7, leg: 0.6 },
-    ten8Margin: 0.38, ten8SoftMargin: 0.20, ten7Margin: 0.55, drawMargin: 0.012, judgeWeightJitter: 0.12,
+    ten8Margin: 0.38, ten8SoftMargin: 0.20, ten7Margin: 0.55, drawMargin: 0.008, judgeWeightJitter: 0.08,
   },
   ai: {
     aggression: {
@@ -137,10 +137,10 @@ export const DEFAULT_TUNABLES = {
     },
     difficulty: {
       beginner: { reactionTicks: 26, reactionJitter: 8, defend: 0.30, tau: 0.80, maxCombo: 2 },
-      pro:      { reactionTicks: 16, reactionJitter: 5, defend: 0.55, tau: 0.55, maxCombo: 3 },
-      champion: { reactionTicks: 8,  reactionJitter: 3, defend: 0.78, tau: 0.35, maxCombo: 4 },
+      pro:      { reactionTicks: 16, reactionJitter: 5, defend: 0.55, tau: 0.55, maxCombo: 2 },
+      champion: { reactionTicks: 8,  reactionJitter: 3, defend: 0.78, tau: 0.35, maxCombo: 3 },
     },
-    gapTicks: { slow: 560, fast: 200 },   // pause after an attack plan: lerp(slow, fast, aggression)
+    gapTicks: { slow: 640, fast: 230 },   // pause after an attack plan: lerp(slow, fast, aggression)
     rePlanTicks: [12, 24],             // re-decide this often while only moving
   },
 };

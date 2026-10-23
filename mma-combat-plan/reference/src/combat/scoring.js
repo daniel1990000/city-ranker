@@ -34,9 +34,9 @@ export function rawComponents(stats, f, o, round, tun) {
 
 /** Judges: jittered weights plus one style bias each. */
 const BIASES = {
-  damage: { damage: 1.3, health_events: 1.3 },
-  grappling: { takedowns_performed: 1.4, takedowns_denied: 1.4, ground_dominance: 1.4, passes_performed: 1.4, passes_denied: 1.4, submissions: 1.4, submissions_escaped: 1.4, clinch_dominance: 1.2 },
-  activity: { effective_striking: 1.3, blocks_and_parries: 1.2 },
+  damage: { damage: 1.18, health_events: 1.18 },
+  grappling: { takedowns_performed: 1.25, takedowns_denied: 1.25, ground_dominance: 1.25, passes_performed: 1.25, passes_denied: 1.25, submissions: 1.25, submissions_escaped: 1.25, clinch_dominance: 1.12 },
+  activity: { effective_striking: 1.18, blocks_and_parries: 1.12 },
 };
 export const JUDGE_BIASES = Object.freeze(Object.keys(BIASES));
 

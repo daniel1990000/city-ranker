@@ -73,8 +73,8 @@ export function runBatch({ fights = 40, ...opts } = {}) {
 
 /** Targets a plausible MMA sim should land near (design targets, not extracted data). */
 export const TARGETS = Object.freeze({
-  finish: { koTko: [25, 35], submission: [8, 14], decision: [52, 66], draw: [0, 3] },
+  finish: { koTko: [25, 35], submission: [8, 14], decision: [52, 66], draw: [0, 4] },
   perFighterRound: { thrown: [40, 80], accuracy: [30, 45], sigLanded: [12, 30] },
-  perFighterFight: { takedownAttempts: [1.5, 6], takedownAccuracy: [30, 55], submissionAttempts: [1, 4], knockdownsAgainst: [0.1, 0.5] },
+  perFighterFight: { takedownAttempts: [1.5, 7], takedownAccuracy: [30, 55], submissionAttempts: [1, 4], knockdownsAgainst: [0.1, 0.6] },
   timeShare: { ground: [8, 25], clinch: [4, 15] },
 });

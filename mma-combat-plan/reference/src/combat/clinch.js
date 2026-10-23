@@ -278,7 +278,6 @@ export class ClinchBout {
     // stamina: the dom works, the sub resists (plum costs more)
     const domCost = this.position === P.THAI ? c.staminaPerSecPlum : c.staminaPerSecDom;
     this.dom.spendStamina(domCost * DT); this.sub.spendStamina(c.staminaPerSecSub * DT);
-    world.stats.tickTime(this.dom.id, 'time.clinch.dom'); world.stats.tickTime(this.sub.id, 'time.clinch.sub');
 
     // pair locomotion: dom drives, sub may resist when it is nearly as good a clincher
     const mv = (x) => this.moveIntent.get(x.id) ?? { x: 0, y: 0 };
@@ -350,6 +349,9 @@ export class ClinchBout {
     this.release(opts);
     this.world.emit(EventType.CLINCH_BREAK, { dom: this.dom.id, sub: this.sub.id, reason });
   }
+
+  /** stat buckets this fighter's time is booked to (the FightSim books exactly one bucket set per tick) */
+  timeKeys(f) { return [f === this.dom ? 'time.clinch.dom' : 'time.clinch.sub']; }
 
   hashNumbers() {
     return [1, Object.values(P).indexOf(this.position), this.ticks, this.idleTicks, this.dom.index, this.centre.x, this.centre.y, this.axis, this.whizzer];

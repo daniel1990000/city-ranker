@@ -287,8 +287,6 @@ export class GroundBout {
     if (this.brokenTicks > 0 && --this.brokenTicks === 0) this.topPosture = 'upright';
     if (this.turtled > 0 && --this.turtled === 0 && this.bottom.floorPosture === 'turtle') this.bottom.floorPosture = 'back';
     this.top.spendStamina(g.staminaPerSecTop * DT); this.bottom.spendStamina(g.staminaPerSecBottom * DT);
-    world.stats.tickTime(this.top.id, 'time.ground.top'); world.stats.tickTime(this.bottom.id, 'time.ground.bottom');
-    if (this.dominant) world.stats.tickTime(this.top.id, 'time.ground.dominant');
     if (!this.warned && this.idleTicks >= toTicks(r.lowActionWarnSeconds)) {
       this.warned = true;
       world.emit(EventType.REFEREE, { kind: 'low_action', mode: 'ground' });
@@ -321,6 +319,8 @@ export class GroundBout {
     this.release(opts);
     this.world.emit(EventType.GROUND_POSITION, { top: this.top.id, bottom: this.bottom.id, from: this.position, to: G.NONE, reason });
   }
+
+  timeKeys(f) { return f === this.top ? (this.dominant ? ['time.ground.top', 'time.ground.dominant'] : ['time.ground.top']) : ['time.ground.bottom']; }
 
   hashNumbers() {
     return [3, Object.values(G).indexOf(this.position), this.ticks, this.positionTicks, this.top.index, this.brokenTicks, this.turtled, this.idleTicks];

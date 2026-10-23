@@ -123,7 +123,6 @@ export class SubmissionBout {
     if (this.finished) return { ended: true };
     const { world } = this, s = world.tun.submission;
     this.ticks += 1;
-    world.stats.tickTime(this.attacker.id, 'time.submission.attacker'); world.stats.tickTime(this.defender.id, 'time.submission.defender');
     this.attacker.spendStamina(s.staminaPerSecAttacker * DT); this.defender.spendStamina(s.staminaPerSecDefender * DT);
     if (this.phase === 'tap') return this.#tickTapDecision();
     if (this.attacker.staminaFraction() < s.abortStamina && !this.attacker.human) { this.#abort('fatigue'); return { ended: true }; }
@@ -273,6 +272,8 @@ export class SubmissionBout {
     if (this.stage >= 3 && reason === 'bell') this.world.stats.inc(this.defender.id, 'subs.saved_by_bell');
     this.#abort(reason ?? 'end');
   }
+
+  timeKeys(f) { return [f === this.attacker ? 'time.submission.attacker' : 'time.submission.defender']; }
 
   hashNumbers() {
     return [4, this.stage, this.depth, this.damage, this.ticks, this.attacker.index, this.phase === 'tap' ? 1 : 0];

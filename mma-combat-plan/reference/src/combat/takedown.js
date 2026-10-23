@@ -164,7 +164,6 @@ export class TakedownBout {
     if (this.finished) return { ended: true };
     const { world, attacker: a, defender: d } = this, t = world.tun.takedown;
     this.ticks += 1;
-    world.stats.tickTime(a.id, 'time.takedown'); world.stats.tickTime(d.id, 'time.takedown');
     if (this.phase === 1) {
       const step = Math.min(this.closing, world.gap(a, d));          // the shooter closes at a fixed speed; a retreating defender can out-run it
       const n = vNorm(vSub(d.pos, a.pos));
@@ -265,6 +264,8 @@ export class TakedownBout {
     this.world.emit(EventType.TAKEDOWN, { attacker: this.attacker.id, defender: this.defender.id, phase: 'result', move: this.type, size: this.size, direction: this.dir, result: 'denied', denial: TakedownDenial.UNKNOWN, position: null });
     this.#backToStandup();
   }
+
+  timeKeys() { return ['time.takedown']; }
 
   hashNumbers() { return [2, this.phase, this.ticks, this.attacker.index, this.sprawling ? 1 : 0]; }
 }

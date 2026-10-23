@@ -70,7 +70,9 @@ export class World {
   stateHash() {
     const nums = [this.tick, this.round];
     for (const f of this.fighters) nums.push(...f.hashNumbers());
-    for (const s of Object.values(this.streams.snapshot())) nums.push(s);
+    // sim-owned RNG streams only: controllers (AI brains, `ai.*`) keep private streams that a replay never consumes
+    const snap = this.streams.snapshot();
+    for (const k of Object.keys(snap).sort()) if (!k.startsWith('ai.')) nums.push(snap[k]);
     return hashNumbers(nums);
   }
 }

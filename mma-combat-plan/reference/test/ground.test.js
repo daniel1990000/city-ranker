@@ -205,14 +205,13 @@ test('a strike or a transition attempt resets the idle clock', () => {
 test('ground dominance: time on top in a held position (hold >= 0.15) accrues; guard does not', () => {
   const w = makeWorld();
   const bout = ground(w, G.SIDE_CONTROL);
-  for (let i = 0; i < 100; i++) stepBout(w, bout);
-  assert.equal(w.stats.get('a', 'time.ground.dominant'), 100);
-  assert.equal(w.stats.get('a', 'time.ground.top'), 100);
-  assert.equal(w.stats.get('b', 'time.ground.bottom'), 100);
-  const w2 = makeWorld();
-  const g2 = ground(w2, G.GUARD);
-  for (let i = 0; i < 100; i++) stepBout(w2, g2);
-  assert.equal(w2.stats.get('a', 'time.ground.dominant'), 0);
+  const [a, b] = w.fighters;
+  assert.deepEqual(bout.timeKeys(a), ['time.ground.top', 'time.ground.dominant']);
+  assert.deepEqual(bout.timeKeys(b), ['time.ground.bottom']);
+  assert.ok(bout.dominant);
+  const g2 = ground(makeWorld(), G.GUARD);
+  assert.deepEqual(g2.timeKeys(g2.top), ['time.ground.top'], 'guard (hold 0) is not a dominant status');
+  assert.ok(!g2.dominant);
 });
 
 test('legalActions are consistent with the graph; submissions respect position and role', () => {

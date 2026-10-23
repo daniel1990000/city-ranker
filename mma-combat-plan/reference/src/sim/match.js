@@ -55,7 +55,7 @@ export class Match {
   /** Our MatchState vocabulary for the HUD / camera. */
   get state() {
     const c = this.chart;
-    if (c.matches('preFight')) return MatchState.PRE_FIGHT;
+    if (!c.started || c.matches('preFight')) return MatchState.PRE_FIGHT;
     if (c.matches('postFight')) return MatchState.POST_FIGHT;
     if (c.matches('fight.betweenRounds')) return MatchState.BETWEEN_ROUNDS;
     if (c.matches('fight.round.stopped')) return MatchState.STOPPED;

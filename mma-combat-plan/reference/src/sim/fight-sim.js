@@ -374,9 +374,10 @@ export class FightSim {
   // ---- 11 · bookkeeping --------------------------------------------------------------------------------------------
   #bookkeeping() {
     const w = this.world;
-    for (const f of w.fighters) {
+    for (const f of w.fighters) {                                    // every fighter-tick is booked to exactly one mode bucket
       if (f.mode === Mode.STANDUP) w.stats.tickTime(f.id, 'time.standup');
       else if (f.mode === Mode.DOWN) w.stats.tickTime(f.id, 'time.down');
+      else if (f.bout && f.bout.timeKeys) for (const k of f.bout.timeKeys(f)) w.stats.tickTime(f.id, k);
     }
     const down = w.fighters.some((f) => f.mode === Mode.DOWN);
     if (down) this.match.stop('knockdown'); else if (this.match.reason === 'knockdown') this.match.resume();
