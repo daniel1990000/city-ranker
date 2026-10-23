@@ -1,5 +1,12 @@
 # Releases
 
+## 0.4.2 (23 October 2026): controls fixed
+
+- **Fix**: in 0.4.0 and 0.4.1 no touch reached the fight controls (no strikes, no pause): the new TV layer (name
+  plates, captions, corner screen) and the practice bar sat over the whole screen and caught every touch. They let
+  touches through again; only their own buttons (skip, watch replay, moves) take taps. Checked with real touch taps
+  in a fight and in the training room; a test pins the rule (tests/overlays.test.ts).
+
 ## 0.4.1 (23 October 2026): the clinch and the new animation
 
 The two pieces 0.4.0 left out, finished.

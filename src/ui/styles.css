@@ -79,6 +79,12 @@ canvas#game {
 #ui > * {
   pointer-events: auto;
 }
+/* full-screen fight overlays let touches through to the controls underneath (only their own buttons take taps) */
+#ui > .bc,
+#ui > .practice-hud,
+#ui > .hud {
+  pointer-events: none;
+}
 
 /* ---- boot ---- */
 #boot {

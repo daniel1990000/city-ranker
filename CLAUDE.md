@@ -85,7 +85,7 @@ node scripts/store.mjs      # Play Store screenshots (docs/store) and feature gr
    a debug-signed test APK (not for Play). Set the `UPLOAD_CERT_SHA256` variable to lock the upload key.
 - There is no Android SDK in the cloud session: CI builds the APK.
 
-## Status (23 October 2026, version 0.4.1)
+## Status (23 October 2026, version 0.4.2)
 - Built: fight engine + AI + replays (tested, balanced, spam-proof) with the clinch, realistic generated fighters with
   IK animation (load / follow-through strikes, sliding-free footwork, ground poses that fit any body size), six
   venues with post-processing, reflection lighting and a Blender-rendered crowd (`tools/crowd/`), broadcast camera
