@@ -124,6 +124,17 @@ export const DRILLS: readonly Drill[] = [
     ],
   },
   {
+    id: 'clinch',
+    title: 'Clinch',
+    blurb: 'Grab, knees, break free, trip',
+    steps: [
+      { goal: 'Grab them', how: 'Get close, then hold a finger still on the attack side', count: 1, mode: 'stand', match: e => e.type === 'clinchStart' && e.side === 0 },
+      { goal: 'Land 3 knees', how: 'In the clinch: tap (or swipe up from KICK for the head)', count: 3, mode: 'stand', match: e => landed(e, m => m === 'clinchKnee' || m === 'clinchKneeHead') },
+      { goal: 'Break free', how: 'When they grab you: flick on the defence side, then flick the arrow', count: 1, mode: 'clinch', match: e => e.type === 'clinchContestEnd' && e.side === 0 && e.success },
+      { goal: 'Trip them', how: 'Grab them on the cage, wait a moment, then tap TAKEDOWN', count: 1, mode: 'stand', match: e => e.type === 'clinchTripEnd' && e.side === 0 && e.success },
+    ],
+  },
+  {
     id: 'bottom',
     title: 'Ground escapes',
     blurb: 'Escape mount, get back up',

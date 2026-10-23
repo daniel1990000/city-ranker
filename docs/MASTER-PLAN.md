@@ -220,7 +220,7 @@ PvP is an added feature, not a rewrite:
 Where we are: milestones 1–6 are built and milestone 7 (polish and audits) is nearly done. Version 0.4.0 shipped
 the second audit (`docs/AUDIT-2.md`): fight exploits fixed, the weekly tournament, training room, difficulty,
 achievements, daily missions, the champion's career, a TV-style fight presentation, the graphics and menu overhaul,
-arena sound and a money bug hunt. The clinch moved to the 90-day list (started: `docs/wip/clinch.patch`).
+arena sound and a money bug hunt; 0.4.1 added the clinch and the animation rewrite.
 
 ### Before launch (owner + Claude, about 3–4 weeks)
 1. **Real-phone pass** (owner installs the APK from the GitHub Release on a mid-range and, if possible, a cheap
@@ -247,7 +247,6 @@ arena sound and a money bug hunt. The clinch moved to the 90-day list (started: 
 - **Motion-captured animation** upgrade (a licensed MMA mocap pack): the biggest visual gain still open.
 
 ### 90 days
-- **Clinch game** (against the cage: knees, dirty boxing, trips), a new layer in the fight.
 - **Rival "ghost" fights**: fight a replay-driven copy of a friend's or a top player's fighter (the input-log
   replays already exist), the first step towards PvP.
 - **Gyms / clubs** with a weekly club score, if day-30 retention is good enough to justify it.

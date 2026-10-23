@@ -13,15 +13,16 @@
 import type { Controller, FightInput, FightView, Side, Strike } from '../game/fight/types';
 import { NO_INPUT } from '../game/fight/types';
 
-export type DummyMode = 'stand' | 'block' | 'light' | 'shoot' | 'ground';
+export type DummyMode = 'stand' | 'block' | 'light' | 'shoot' | 'clinch' | 'ground';
 
-export const DUMMY_MODES: readonly DummyMode[] = ['stand', 'block', 'light', 'shoot', 'ground'];
+export const DUMMY_MODES: readonly DummyMode[] = ['stand', 'block', 'light', 'shoot', 'clinch', 'ground'];
 
 export const DUMMY_LABEL: Record<DummyMode, string> = {
   stand: 'Stands still',
   block: 'Blocks',
   light: 'Attacks lightly',
   shoot: 'Shoots takedowns',
+  clinch: 'Grabs you',
   ground: 'Ground practice',
 };
 
@@ -83,8 +84,9 @@ export class DummyController implements Controller {
       else if (!g.meTop && !g.scramble && !g.sub) out.block = this._mode === 'block';
       return out;
     }
-    // their takedown: no sprawl (practise your shots)
-    if (view.takedown) return out;
+    // their takedown: no sprawl (practise your shots); in the clinch it just holds on (practise your knees, trips
+    // and break-aways): no contests won, no trips fought
+    if (view.takedown || view.clinch) return out;
     if (this.nextAttack < 0) this.nextAttack = view.tick + 40;
     switch (this._mode) {
       case 'stand':
@@ -102,6 +104,14 @@ export class DummyController implements Controller {
           out.move = 0;
           out.strike = this.pattern[this.n++ % this.pattern.length];
           this.nextAttack = view.tick + DUMMY_STRIKE_EVERY;
+        }
+        return out;
+      case 'clinch':
+        if (view.dist > 900) out.move = 1;
+        if (view.tick >= this.nextAttack && view.dist <= 1100 && FREE.has(me.action) && !me.stunned) {
+          out.move = 0;
+          out.clinch = true;
+          this.nextAttack = view.tick + DUMMY_SHOOT_EVERY;
         }
         return out;
       case 'shoot':

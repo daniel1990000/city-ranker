@@ -45,13 +45,15 @@ node scripts/store.mjs      # Play Store screenshots (docs/store) and feature gr
   `--use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader`). Software rendering is slow: use the QA hooks
   `window.cageKings.qaSpeed(30)` and `qaAutoplay(true)` to finish fights, `qaNav({s:'packs'})`, `qaGround('mount')`.
   The fighter lab (`lab.html?single&nopole`) has `labSet(action, u)`, `labCam(pos, target)`, `labBones(names)` and
-  `labClip(action)` for checking poses from any angle.
+  `labClip(action)` for checking poses from any angle; `lab.html?pair&sex=f` poses two fighters (`labPair(a, b, u,
+  gap)`, `labPlay(steps)`) and `labCheck()` measures bodies passing through each other and the mat.
   Throwaway scripts go in `scripts/qa/_tmp_*` and are deleted before finishing. Kill processes by PID.
 
 ## Code map
 - `src/game/fight/` the deterministic simulation: `types.ts` (contract), `moves.ts` frame data, `sim.ts` standing
-  exchanges, `ground.ts` takedowns / ground / submissions, `judges.ts`, `ai.ts` (5 archetypes, difficulty 0..1000),
-  `replay.ts`. Design and balance numbers: `docs/FIGHT-DESIGN.md`. Tests: `tests/fight-sim.test.ts`.
+  exchanges, `clinch.ts` the clinch, `ground.ts` takedowns / ground / submissions, `judges.ts`, `ai.ts` (5 archetypes,
+  difficulty 0..1000), `replay.ts`. Design and balance numbers: `docs/FIGHT-DESIGN.md`. Tests: `tests/fight-sim.test.ts`,
+  `tests/clinch.test.ts`.
 - `src/game/touch/` gesture recogniser (touch + keyboard -> FightInput per tick).
 - `src/render/fighter/` realistic fighters: `look.ts` (look from seed + hints), `fighterView.ts` (load, dress),
   `materials.ts` (skin: tone, stubble, buzz cut, bruising, sweat, tattoos; hair; garments), `rig.ts` (IK pose solver),
@@ -83,16 +85,17 @@ node scripts/store.mjs      # Play Store screenshots (docs/store) and feature gr
    a debug-signed test APK (not for Play). Set the `UPLOAD_CERT_SHA256` variable to lock the upload key.
 - There is no Android SDK in the cloud session: CI builds the APK.
 
-## Status (23 October 2026, version 0.4.0)
-- Built: fight engine + AI + replays (tested, balanced, spam-proof), realistic generated fighters with IK animation,
-  six venues with post-processing, reflection lighting and a Blender-rendered crowd (`tools/crowd/`), broadcast
-  camera and TV layer (plates, corner screen, captions, finish replay: `src/ui/fight/broadcast*.ts`), HUD + touch
-  controls, menus (hub, career with champion options, fighters, training, packs, shop, season, weekly tournament
+## Status (23 October 2026, version 0.4.1)
+- Built: fight engine + AI + replays (tested, balanced, spam-proof) with the clinch, realistic generated fighters with
+  IK animation (load / follow-through strikes, sliding-free footwork, ground poses that fit any body size), six
+  venues with post-processing, reflection lighting and a Blender-rendered crowd (`tools/crowd/`), broadcast camera
+  and TV layer (plates, corner screen, captions, finish replay: `src/ui/fight/broadcast*.ts`), HUD + touch controls,
+  menus (hub, career with champion options, fighters, training, packs, shop, season, weekly tournament
   `src/ui/tournament.ts`, training room `src/ui/practice.ts`, achievements, daily missions), first-fight lesson,
   leaderboards, cloud save that reads before it writes, auto graphics quality, simulated economy, synthesised sound
   (start-up bank in `src/audio/sound.ts`, full bank built in a worker: `sfx.ts`, `crowd.ts`, `music.ts`), platform
   services, Android project, CI.
-- 0.4.0 = the second audit (`docs/AUDIT-2.md`, F1-F13 and B1-B13 all fixed). Unfinished: the clinch and an animation
-  rewrite, kept as patches in `docs/wip/` (not in the game).
+- 0.4.0 = the second audit (`docs/AUDIT-2.md`, F1-F13 and B1-B13 all fixed); 0.4.1 finished the animation rewrite and
+  the clinch that 0.4.0 had left out.
 - Next (see `docs/MASTER-PLAN.md` section 14 and `docs/RELEASE.md` "Known gaps"): real-phone pass, owner accounts
-  (Play Console, AdMob, Play Games items), closed test; then motion-captured animation, the clinch, cosmetics.
+  (Play Console, AdMob, Play Games items), closed test; then motion-captured animation, cosmetics.

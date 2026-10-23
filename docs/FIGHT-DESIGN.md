@@ -68,15 +68,43 @@ attacker, grappling for the defender), scaled by stamina; 10 s limit, then they 
 to 7.5 (champion) times a second; a person on a phone manages 6..8. The referee stands the fighters up after 8 s
 without progress, and after 20 s on the ground in any case.
 
+## The clinch (src/game/fight/clinch.ts, since 0.4.1)
+**Grab**: hold a finger still on the attack side for 0.3 s (key G), at most 1.25 m apart; 14 ticks of startup, then
+a contest of wrestling + grappling against wrestling + defence (60 % at even stats; easier on a fighter who is
+covering up, wobbled or exhausted, harder on one who just slipped). Reaching in is walking into it: a head shot
+landing during the grab counts as a counter. Out of range the grab does nothing.
+**In the clinch** (chest to chest, 0.56 m in the simulation, 0.66 m on screen) the same gestures throw clinch
+strikes: tap / swipe down = knee to the body (820), swipe up from KICK = knee to the head (1150, slow), straight or
+hook swipes = short elbow (720), swipe up = uppercut (500, fastest). The held fighter's strikes land at 80 %. The
+fighter in control walks the other back 12 mm a tick; pinned on the cage, control time counts for the judges and
+the held fighter loses 5 stamina a tick.
+**Break / reverse**: the held fighter flicks on the defence side (or presses grab / steps back) to break away, or
+presses TAKEDOWN to turn it around; an arrow (up, down or back) appears for both, 48 ticks to answer it first
+(wrestlers and grapplers get a few ticks' head start, tired fighters lose some). A flick pressed while a knee is
+still finishing is remembered for 18 ticks. Losing a contest costs 400 stamina and an 80-tick cooldown.
+**Trip**: the fighter in control presses TAKEDOWN after at least 36 ticks in control; 34 ticks later it resolves:
+36 % base, + wrestling / grappling / stamina edges, +22 % with the other on the cage, +15 % if they are wobbled;
+fought with a swipe down (like a sprawl) it loses 42 % + 0.6 % per tick of warning. A successful trip lands in
+guard (a takedown for the judges); a failed one separates them with the tripper off balance.
+**The referee** separates a clinch after 3.5 s without work, and any clinch after 12 s. A shot stuffed with the
+defender's back within 0.7 m of the cage can turn into a clinch there (34 % base, wrestling and stamina edges).
+**AI**: grabs by style (wrestler 5 %, grappler / brawler 3-4.5 %, kicker / boxer rarely per decision, more against
+a cornered or covering opponent); sharp AIs punch into a grab (8 % + 0.7 % per difficulty point / 10); in control
+they knee, elbow and trip (wrestlers and grapplers most); held, they break away (kickers and boxers hardest) or
+reverse (wrestlers and grapplers). Clinch spam (grab and knee, grab and trip, grab and elbow) wins at most 2 of 12
+fights against a champion (tests/clinch.test.ts).
+
 ## Judging
 Three judges, 10-point must, each with a seeded lean toward striking or grappling: power strikes 30, other
 landed 12, damage, knockdowns 420, takedowns 100, control time (1 point per 10 ticks), submission attempts. Close rounds follow the
 judge's lean. Unanimous / split / majority / draw.
 
-## Balance (scripts/qa/fight-balance.test.ts, AI difficulty 600, equal stats, 20 October 2026)
-Archetypes vs the field: brawler 47 %, boxer 37 %, kicker 42 %, wrestler 59 %, grappler 53 %. Finishes: decision
-~39 %, KO ~24 %, TKO ~17 %, submission ~20 %; average fight ~3 min 15 s. Human-like bot vs AI difficulty 0 / 250 /
-500 / 750 / 1000: 71 / 62 / 47 / 41 / 22 %. +10 on every stat wins ~80 %, +20 ~97 %.
+## Balance (scripts/qa/fight-balance.test.ts, AI difficulty 600, equal stats, RUNS=60, 23 October 2026)
+Archetypes vs the field: brawler 57 %, boxer 46 %, kicker 46 %, wrestler 58 %, grappler 41 %. Finishes: decision
+~49 %, KO ~25 %, TKO ~19 %, submission ~8 %; average fight ~3 min 35 s. Human-like bot vs AI difficulty 0 / 250 /
+500 / 750 / 1000: 78 / 69 / 48 / 32 / 17 %. +10 on every stat wins ~84 %, +20 ~98 %. (The clinch made a cornered AI
+stand its ground instead of walking forward into takedowns; brawlers are a little calmer: aggression 5600, combos
+of 3.)
 
 AI rules from the owner's first phone playtest (0.2.0): it covers up under a barrage (once per incoming punch,
 beginner 12 % .. champion 50 %, then holds the guard ~0.5 s) and hits back after blocking; it rests 9-14 s between

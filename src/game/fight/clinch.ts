@@ -222,6 +222,12 @@ function clinchIntent(f: Fight, side: Side, input: FightInput, startMove: StartM
     me.bufEvade = null;
     me.bufTicks = 8;
   }
+  // a flick pressed while a knee or an elbow is still finishing is remembered for a moment, like a dodge standing
+  if (input.evade) {
+    me.bufEvade = input.evade;
+    me.bufMove = null;
+    me.bufTicks = 18;
+  }
   // combos work in the clinch too (a landed or blocked strike cancels into the next)
   if (me.move && me.bufMove && (me.moveResult === 1 || (me.moveResult === 2 && me.moveChain < 1))) {
     if (me.actionTick >= me.moveStartup + me.moveActive + CANCEL_AFTER && me.moveChain < CHAIN_MAX + 2) {
@@ -248,7 +254,8 @@ function clinchIntent(f: Fight, side: Side, input: FightInput, startMove: StartM
       return;
     }
   } else if (me.clinchCooldown === 0) {
-    if (input.evade || input.move === -1 || input.clinch) {
+    if (input.evade || me.bufEvade || input.move === -1 || input.clinch) {
+      me.bufEvade = null;
       startContest(f, side, 'break');
       return;
     }

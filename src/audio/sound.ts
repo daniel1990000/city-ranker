@@ -11,7 +11,7 @@ const FALLBACK: Record<string, string> = {
   bellFinal: 'bell', clapper: 'clap', applause: 'clap', cheer: 'roar', claim: 'buy', starUp: 'reveal2', levelUp: 'reveal1',
   achievement: 'reveal2', mission: 'reveal1', trophy: 'reveal3', win: 'reveal2', cardFlip: 'whoosh',
 };
-const KICKS: Partial<Record<MoveId | 'pound', string>> = { lowKick: 'legKick', bodyKick: 'bodyKick', headKick: 'headKick', flyingKnee: 'power' };
+const KICKS: Partial<Record<MoveId | 'pound', string>> = { lowKick: 'legKick', bodyKick: 'bodyKick', headKick: 'headKick', flyingKnee: 'power', clinchKnee: 'body', clinchKneeHead: 'power', clinchElbow: 'jab', clinchUpper: 'power' };
 
 import type { FightEvent, MoveId } from '../game/fight/types';
 import type { BankMessage } from './bankWorker';
@@ -522,6 +522,23 @@ export class Sound {
           break;
         case 'standUp':
           if (e.reason === 'ref') this.play('clapper', { gain: 0.5 });
+          break;
+        case 'clinchStart':
+          this.play('thud', { gain: 0.35, rate: 1.3 });
+          if (e.wall) this.play('cage', { gain: 0.6 });
+          break;
+        case 'clinchWall':
+          this.play('cage', { gain: 0.55 });
+          break;
+        case 'clinchTripEnd':
+          if (e.success) this.play('slam', { gain: 0.9 });
+          else this.play('applause', { bus: 'crowd', gain: 0.35 });
+          break;
+        case 'clinchContestEnd':
+          if (e.success) this.play('ooh', { bus: 'crowd', gain: 0.4, rate: 1.1 });
+          break;
+        case 'clinchBreak':
+          if (e.reason === 'ref') this.play('clapper', { gain: 0.45 });
           break;
         case 'roundStart':
           this.play('bell', { gain: 0.8 });

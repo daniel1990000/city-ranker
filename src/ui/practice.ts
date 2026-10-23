@@ -15,6 +15,7 @@ const DUMMY_HINT: Record<DummyMode, string> = {
   block: 'Keeps a high guard. Find the leg kicks and body shots.',
   light: 'Throws one light shot at a time. Block, slip and counter.',
   shoot: 'Shoots for your legs every few seconds. Sprawl!',
+  clinch: 'Walks in and ties you up. Break free, or turn it around.',
   ground: 'Starts on the mat. Practise the ground game.',
 };
 

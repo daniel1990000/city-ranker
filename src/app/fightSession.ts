@@ -220,7 +220,9 @@ export class FightSession {
     else if (me.action === 'knockdown') mode = 'locked';
     // sprawl as soon as their shot starts coming (the simulation counts an early sprawl), not only at contact
     const theirShot = s.fighters[1].action === 'shoot' && !s.takedown;
-    return { mode, forward: 1, sprawl: (!!s.takedown && s.takedown.atk !== 0) || theirShot, specialReady: me.special >= METER_MAX };
+    // fighting a trip from the clinch is the same swipe down
+    const theirTrip = !!s.clinch?.trip && s.clinch.ctl !== 0;
+    return { mode, forward: 1, sprawl: (!!s.takedown && s.takedown.atk !== 0) || theirShot || theirTrip, specialReady: me.special >= METER_MAX };
   }
 
   // ---- broadcast: plates, corner screen, captions -------------------------------------------------------------

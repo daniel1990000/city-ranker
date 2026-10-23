@@ -375,6 +375,19 @@ export class Commentary {
         return e.reason === 'ref' ? { kind: 'ref', priority: 1, text: pick(['The referee wants more action. Back on the feet.', 'Not enough work down there. The referee stands them up.'], k) } : null;
       case 'guardBreak':
         return { kind: 'guard', priority: 1, text: `${N[other(e.side)]}'s guard is broken open.` };
+      case 'clinchStart':
+        return e.wall
+          ? { kind: 'clinch', priority: 1, text: pick([`${N[e.side]} has ${N[other(e.side)]} pinned on the cage.`, `${N[e.side]} ties it up against the fence.`], k) }
+          : { kind: 'clinch', priority: 1, text: pick([`${N[e.side]} grabs hold. We're in the clinch.`, `${N[e.side]} ties ${N[other(e.side)]} up.`, `Into the clinch they go.`], k) };
+      case 'clinchTripEnd':
+        return e.success ? { kind: 'clinchTrip', priority: 2, text: pick([`${N[e.side]} trips ${N[other(e.side)]} to the canvas!`, `Lovely trip from ${N[e.side]}.`], k) } : null;
+      case 'clinchContestEnd':
+        if (!e.success) return null;
+        return e.purpose === 'reverse'
+          ? { kind: 'clinchTurn', priority: 1, text: pick([`${N[e.side]} turns it around. Now ${N[e.side]} has the control.`, `Reversal in the clinch from ${N[e.side]}.`], k) }
+          : { kind: 'clinchOut', priority: 1, text: pick([`${N[e.side]} breaks free.`, `${N[e.side]} gets out of there.`], k) };
+      case 'clinchBreak':
+        return e.reason === 'ref' ? { kind: 'ref', priority: 1, text: pick(['The referee breaks them up.', 'Nothing happening in there. The referee separates them.'], k) } : null;
       case 'gassed':
         return { kind: 'gassed', priority: 1, text: pick([`${N[e.side]} is running on empty.`, `${N[e.side]} is breathing hard now.`], k) };
       case 'roundEnd':

@@ -6,6 +6,10 @@ import { METER_MAX } from '../../game/fight/types';
 import './hud.css';
 
 const ARROW: Record<GroundDir, string> = { up: '↑', down: '↓', left: '←', right: '→' };
+/** The prompt arrow as a drawn shape (an arrow character may be missing from the phone's fonts). */
+const ARROW_DEG: Record<GroundDir, number> = { right: 0, down: 90, left: 180, up: -90 };
+const arrowSvg = (d: GroundDir) =>
+  `<svg viewBox="0 0 24 24" aria-label="${ARROW[d]}" style="width:62%;height:62%;transform:rotate(${ARROW_DEG[d]}deg)"><path d="M3.5 12h15M12.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const MOVE_NAME: Record<string, string> = {
   jab: 'Jab',
   cross: 'Cross',
@@ -210,6 +214,24 @@ export class FightHud {
         case 'sprawl':
           if (e.success) this.pop('Sprawl!', e.side);
           break;
+        case 'clinchStart':
+          this.pop(e.wall ? 'On the cage' : 'Clinch!', e.side);
+          break;
+        case 'clinchMiss':
+          this.pop('Shrugged off', e.side);
+          break;
+        case 'clinchContestEnd':
+          if (e.success) this.pop(e.purpose === 'reverse' ? 'Reversed!' : 'Broke free', e.side);
+          break;
+        case 'clinchTrip':
+          if (e.side !== this.player) this.pop('Swipe down to fight the trip!', this.player);
+          break;
+        case 'clinchTripEnd':
+          if (!e.success) this.pop('Trip stuffed', e.side === 0 ? 1 : 0);
+          break;
+        case 'clinchBreak':
+          if (e.reason === 'ref') this.pop('Referee breaks them', this.player);
+          break;
         case 'guardBreak':
           this.pop('Guard broken', e.side === 0 ? 1 : 0);
           break;
@@ -274,6 +296,14 @@ export class FightHud {
           ? 'Swipe up to escape the mount · Hold to cover up'
           : 'Swipe up to get back up · Swipe down for an armbar · Hold to cover up';
     }
+    // in the clinch: what the gestures do in here
+    const c = s.clinch;
+    if (c && !c.contest && !c.trip && !s.result) {
+      gh =
+        c.ctl === this.player
+          ? 'Tap: knees · Swipe: elbows, uppercuts · TAKEDOWN: trip · Step back: let go'
+          : 'Flick on the defence side to break free · TAKEDOWN to turn it · Hold to cover up';
+    }
     this.set('ghint', gh, () => {
       this.ghint.textContent = gh;
       this.ghint.classList.toggle('on', gh !== '');
@@ -287,18 +317,26 @@ export class FightHud {
     this.set('prompt', key, () => {
       this.prompt.classList.toggle('on', !!pr);
       if (!pr) return;
-      this.promptArrow.style.display = pr.kind === 'scramble' ? 'flex' : 'none';
-      this.promptArrow.textContent = pr.dir ? ARROW[pr.dir] : '';
+      this.promptArrow.style.display = pr.kind === 'scramble' || pr.kind === 'clinch' ? 'flex' : 'none';
+      this.promptArrow.innerHTML = pr.dir ? arrowSvg(pr.dir) : '';
       this.tug.style.display = pr.kind === 'mash' ? 'block' : 'none';
       // gold when the player is the one applying the hold, red when they are caught in it
       this.tug.classList.toggle('attack', pr.kind === 'mash' && pr.attacking);
       this.promptLabel.textContent =
         pr.kind === 'sprawl'
           ? pr.attacking
-            ? 'Drive!'
-            : 'Sprawl! Swipe down'
+            ? s.clinch
+              ? 'Trip!'
+              : 'Drive!'
+            : s.clinch
+              ? 'Fight the trip! Swipe down'
+              : 'Sprawl! Swipe down'
           : pr.kind === 'scramble'
             ? 'Swipe!'
+            : pr.kind === 'clinch'
+              ? pr.attacking
+                ? 'Flick the arrow first!'
+                : 'Flick to keep hold!'
             : pr.kind === 'mash'
               ? pr.attacking
                 ? 'Tap to finish it!'

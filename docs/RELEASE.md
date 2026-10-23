@@ -1,5 +1,23 @@
 # Releases
 
+## 0.4.1 (23 October 2026): the clinch and the new animation
+
+The two pieces 0.4.0 left out, finished.
+- **The clinch**: get close and hold a finger still (key G) to grab. In the clinch the same gestures throw knees to
+  the body and head, short elbows and uppercuts; the fighter in control walks the other onto the cage (it counts for
+  the judges and drains their stamina) and can trip them to the mat once the hold is set (much easier on the cage).
+  Held, flick on the defence side to break free, or press TAKEDOWN to turn it around: an arrow appears and the first
+  to flick it wins. A punch beats a grab; the referee breaks up a clinch where nobody works. On-screen hints, the
+  move list, commentary, sounds and a new Training-room drill ("Clinch") and sparring mode ("Grabs you") cover it.
+  Each style uses it its own way (wrestlers trip, kickers fight their way out, brawlers throw uppercuts in close);
+  spamming it loses to a good opponent (tests/clinch.test.ts).
+- **Animation**: strikes with a load, follow-through and return (hips, shoulders and the rear heel turn); footwork
+  that doesn't slide; a breathing, bouncing stance; hit reactions that scale with the hit; ground, submission and
+  takedown poses rebuilt so bodies of any size meet properly (women's fighters included); smoother blends.
+- **Fixes**: a cornered computer fighter no longer walks forward into takedowns; brawlers are a little calmer
+  (styles now 41-58 % against the field); the prompt arrows are drawn shapes (they were a font character some phones
+  lack).
+
 ## 0.4.0 (23 October 2026): the big overhaul
 
 A second full audit (`docs/AUDIT-2.md`), then fixes, a new look, new modes and a money bug hunt.
@@ -32,7 +50,6 @@ A second full audit (`docs/AUDIT-2.md`), then fixes, a new look, new modes and a
 - **First session**: the daily reward card waits until after the first fight; cards never stack; opt-in funnel events
   (lesson start / done / skip, day after install, pack opens, shop and offer views) for the targets in
   `docs/MASTER-PLAN.md` section 14.
-- Not in this release (kept in `docs/wip/`): the clinch, and a rewrite of the animation. Both need more work.
 - Owner: set up the new Play Games items: a 4th leaderboard ("Weekly tournament") and 21 achievements; their ids go in
   the `PGS_LEADERBOARDS` (key `tournament`) and `PGS_ACHIEVEMENTS` secrets (the achievement keys and names are in `src/meta/achievements.ts`).
 

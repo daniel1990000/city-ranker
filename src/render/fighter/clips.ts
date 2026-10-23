@@ -664,6 +664,83 @@ const tdTip = edit(tdCaught, { hip: [0, -0.18, -0.1], hipRot: [-38, 0, 0], chest
 const tdBack = edit(GUARD_BOTTOM, { hip: [0, -0.79, -0.04], hipRot: [-82, 0, 0], head: [36, 0, 0], handL: L([0.46, 0.1, -0.3], [1, 0.2, 0]), handR: L([-0.46, 0.1, -0.32], [-1, 0.2, 0]), footL: L([0.24, 0.5, 0.5], [1, 0.6, 0]), footR: L([-0.24, 0.5, 0.5], [-1, 0.6, 0]) });
 const takedownBottom = once([[0, tdCaught], [0.3, tdTip, 's'], [0.62, tdBack, 'i'], [0.74, edit(tdBack, { chest: [-6, 0, 0], head: [40, 0, 0] }), 'o'], [1, GUARD_BOTTOM]], undefined, 0.06);
 
+
+// ---- the clinch ---------------------------------------------------------------------------------------------------
+// Chest to chest, about half a metre apart (fightScene pulls the pair together): squared up, foreheads close. The
+// fighter in control has both hands behind the other's neck (a collar tie), elbows in on their chest; the one held is
+// bent over with forearms framing on the other's arms and hips, looking for a way out.
+
+const CL_FEET = { footL: L([0.15, 0.075, 0.16], [0.2, 0, 1]), footR: L([-0.17, 0.075, -0.3], [-0.1, 0, 1]), toeL: [4, -8] as [number, number], toeR: [10, 20] as [number, number] };
+const CLINCH_CTL = st({
+  ...CL_FEET,
+  hip: [0.03, -0.1, -0.04],
+  hipRot: [10, -12, 0],
+  chest: [16, 6, 0],
+  head: [6, 16, 6],
+  handL: L([0.08, 1.31, 0.45], [0.4, -1, 0.1]),
+  handR: L([-0.08, 1.32, 0.45], [-0.4, -1, 0.1]),
+  wristL: 80,
+  wristR: 80,
+  fist: 0.3,
+  shrugL: 10,
+  shrugR: 10,
+});
+const CLINCH_HELD = st({
+  ...CL_FEET,
+  hip: [-0.03, -0.14, -0.07],
+  hipRot: [16, -8, 0],
+  chest: [22, -4, 0],
+  head: [14, -14, -6],
+  handL: L([0.22, 1.0, 0.28], [1, -0.4, -0.2]),
+  handR: L([-0.2, 0.98, 0.28], [-1, -0.4, -0.2]),
+  wristL: 60,
+  wristR: 60,
+  fist: 0.4,
+  shrugL: 12,
+  shrugR: 12,
+});
+const sway = (p: Pose, k: number): Clip =>
+  cycle(1.4, 12, ph => edit(p, { hip: add(p.hip, [0.012 * Math.sin(TAU * ph) * k, 0.006 * Math.sin(TAU * 2 * ph), 0]), chest: rot(p.chest, [1.5 * Math.sin(TAU * 2 * ph), 3 * Math.sin(TAU * ph) * k, 0]) }), 0.12);
+const clinchHold = sway(CLINCH_CTL, 1);
+const clinchHeld = sway(CLINCH_HELD, -1);
+
+// the grab: a step in with both hands reaching for the back of the neck
+const grabReach = st({ hip: add(S.hip, [0, -0.05, 0.12]), hipRot: [8, -16, 0], chest: [18, 4, 0], head: [6, 6, 0], handL: L([0.11, 1.46, 0.62], [0.6, -0.6, 0]), handR: L([-0.11, 1.47, 0.6], [-0.6, -0.6, 0]), footL: L(add(S.footL.p, [0, 0, 0.12]), S.footL.pole), wristL: 70, wristR: 70, fist: 0.2 });
+const clinchEnter = once([[0, S], [0.44, grabReach, 'i'], [0.6, grabReach], [1, S, 'o']], 0.44, 0.05);
+
+// swimming for position: the arms fight for the inside, one under and one over, then the other way round
+const pummelA = edit(CLINCH_HELD, { handL: L([0.14, 1.12, 0.4], [1, -0.6, 0]), handR: L([-0.1, 1.42, 0.36], [-0.8, -1, 0.2]), chest: [20, 8, 0] });
+const pummelB = edit(CLINCH_HELD, { handR: L([-0.14, 1.12, 0.4], [-1, -0.6, 0]), handL: L([0.1, 1.42, 0.36], [0.8, -1, 0.2]), chest: [20, -8, 0] });
+const clinchPummel = loop(0.5, [[0, pummelA], [0.5, pummelB], [1, pummelA]], 0.08);
+
+// pushing off and stepping back to range
+const pushOff = st({ hip: add(S.hip, [0, -0.04, -0.08]), hipRot: [6, -20, 0], chest: [8, 6, 0], handL: L([0.14, 1.36, 0.56], [0.6, -1, 0]), handR: L([-0.12, 1.36, 0.54], [-0.6, -1, 0]), wristL: 85, wristR: 85, fist: 0.2, footR: L(add(S.footR.p, [0, 0, -0.08]), S.footR.pole) });
+const clinchBreak = once([[0, CLINCH_CTL], [0.3, pushOff, 'o'], [1, S]], undefined, 0.06);
+
+// knee to the body: pull the head down, drive the hips through and the rear knee up into the stomach
+const kneeCock = edit(CLINCH_CTL, { hip: add(CLINCH_CTL.hip, [0, 0.01, -0.04]), footR: L([-0.1, 0.42, -0.18], [-0.1, 0.4, 1]), toeR: [40, 10], handL: L([0.07, 1.3, 0.42], [0.3, -1, 0.2]), handR: L([-0.07, 1.3, 0.42], [-0.3, -1, 0.2]) });
+const kneeIn = edit(CLINCH_CTL, { hip: add(CLINCH_CTL.hip, [0, 0.05, 0.08]), hipRot: [-6, -6, 0], chest: [14, 2, 0], footR: L([-0.04, 0.58, 0.3], [0, 0.3, 1]), toeR: [50, 0], handL: L([0.07, 1.24, 0.42], [0.3, -1, 0.2]), handR: L([-0.07, 1.24, 0.42], [-0.3, -1, 0.2]) });
+const clinchKnee = once([[0, CLINCH_CTL], [0.2, kneeCock, 'o'], [0.36, kneeIn, 'i'], [0.5, kneeIn], [1, CLINCH_CTL, 's']], 0.36, 0.05);
+
+// knee to the head: both hands drag the head down hard, the knee comes up to meet it
+const kneeHeadIn = edit(CLINCH_CTL, { hip: add(CLINCH_CTL.hip, [0, 0.08, 0.06]), hipRot: [-10, -4, 0], chest: [8, 0, 0], head: [20, 0, 0], footR: L([-0.03, 0.82, 0.26], [0, 0.6, 1]), toeR: [60, 0], handL: L([0.07, 1.12, 0.38], [0.3, -1, 0.3]), handR: L([-0.07, 1.12, 0.38], [-0.3, -1, 0.3]) });
+const clinchKneeHead = once([[0, CLINCH_CTL], [0.24, edit(kneeCock, { footR: L([-0.12, 0.5, -0.22], [-0.1, 0.4, 1]) }), 'o'], [0.38, kneeHeadIn, 'i'], [0.52, kneeHeadIn], [1, CLINCH_CTL, 's']], 0.38, 0.05);
+
+// short elbow: the rear arm folds tight and the shoulders turn, the point of the elbow across the brow
+const elbowCock = edit(CLINCH_CTL, { chest: [20, -10, 0], hipRot: [10, -20, 0], handR: L([-0.24, 1.46, 0.08], [-1, 0.2, -0.2]) });
+const elbowIn = edit(CLINCH_CTL, { chest: [18, 30, 6], hipRot: [8, 10, 0], head: [10, -14, 0], handR: L([0.12, 1.52, 0.1], [-0.2, 0.2, 1]), wristR: 0, fist: 0.9 });
+const clinchElbow = once([[0, CLINCH_CTL], [0.2, elbowCock, 'o'], [0.36, elbowIn, 'i'], [0.5, elbowIn], [1, CLINCH_CTL, 's']], 0.36, 0.05);
+
+// uppercut in close: dip, then the rear fist comes straight up between the arms
+const upDip = edit(CLINCH_CTL, { hip: add(CLINCH_CTL.hip, [0, -0.05, 0]), chest: [26, -10, -6], handR: L([-0.1, 1.12, 0.2], [-0.3, -1, -0.2]), fist: 0.9 });
+const upIn = edit(CLINCH_CTL, { hip: add(CLINCH_CTL.hip, [0, 0.02, 0.03]), chest: [14, 18, 4], hipRot: [8, 4, 0], handR: L([-0.02, 1.47, 0.32], [-0.3, -1, 0]), wristR: 90, fist: 0.9 });
+const clinchUpper = once([[0, CLINCH_CTL], [0.18, upDip, 'o'], [0.35, upIn, 'i'], [0.48, upIn], [1, CLINCH_CTL, 's']], 0.35, 0.05);
+
+// the trip: the lead foot steps deep behind their lead leg, then the upper body turns and pulls them over it
+const tripStep = edit(CLINCH_CTL, { hip: add(CLINCH_CTL.hip, [0.04, -0.04, 0.12]), hipRot: [12, -30, 0], chest: [24, -20, 0], footL: L([0.26, 0.08, 0.52], [0.4, 0, 1]), toeL: [0, -30] });
+const tripTurn = edit(tripStep, { hip: add(tripStep.hip, [0, -0.12, 0]), hipRot: [16, -50, 0], chest: [26, -55, -10], head: [16, -30, 0], handL: L([-0.04, 1.2, 0.32], [0.6, -1, 0]), handR: L([-0.26, 1.24, 0.24], [-0.6, -1, 0]) });
+const clinchTrip = once([[0, CLINCH_CTL], [0.45, tripStep, 's'], [0.9, tripTurn, 'i'], [1, tripTurn]], 0.94, 0.06);
+
 /** Clips by action id. */
 export const CLIPS: Record<ActionId, Clip> = {
   idle,
@@ -719,17 +796,16 @@ export const CLIPS: Record<ActionId, Clip> = {
   subArmbarAtk,
   subArmbarDef,
   tapOut,
-  // the clinch: placeholders built from the standing clips (to be replaced by real clinch poses)
-  clinchEnter: shoot,
-  clinchHold: block,
-  clinchHeld: block,
-  clinchPummel: block,
-  clinchBreak: walkBack,
-  clinchTrip: shoot,
-  clinchKnee: bodyKick,
-  clinchKneeHead: flyingKnee,
-  clinchElbow: hookR,
-  clinchUpper: uppercut,
+  clinchEnter,
+  clinchHold,
+  clinchHeld,
+  clinchPummel,
+  clinchBreak,
+  clinchTrip,
+  clinchKnee,
+  clinchKneeHead,
+  clinchElbow,
+  clinchUpper,
 };
 
 /** Where a fighter is on the ground (remembered by the animator to pick the right variant of a clip). */

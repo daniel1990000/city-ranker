@@ -31,6 +31,7 @@ export interface FightSceneSetup {
 
 /** Closest the two fighters' centres come on screen while standing (metres). */
 const VISUAL_GAP = 1.0;
+const CLINCH_VISUAL_GAP = 0.66;
 
 export class FightScene {
   private spread = 0;
@@ -191,7 +192,10 @@ export class FightScene {
     const x1 = simToWorldX(state.fighters[1].x);
     // takedowns and the ground need the bodies together: ease the extra room away (and back) rather than jump
     // (either fighter can be on the left: they switch sides after a scramble or a spinning attack)
-    const want = g || state.takedown ? 0 : Math.max(0, VISUAL_GAP - Math.abs(x1 - x0)) / 2;
+    // the clinch holds them chest to chest, a little closer than VISUAL_GAP (the hands reach the back of the neck)
+    const gap = state.clinch ? CLINCH_VISUAL_GAP : VISUAL_GAP;
+    const room = (gap - Math.abs(x1 - x0)) / 2;
+    const want = g || state.takedown ? 0 : state.clinch ? room : Math.max(0, room);
     this.spread += (want - this.spread) * Math.min(1, dt * 8);
     const dir = x1 >= x0 ? 1 : -1;
     const xs = [x0 - dir * this.spread, x1 + dir * this.spread];
