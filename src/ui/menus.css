@@ -493,13 +493,15 @@
 .tile .short {
   display: none;
 }
-@media (max-width: 720px) {
+@media (max-width: 1100px) {
   .tile .long {
     display: none;
   }
   .tile .short {
     display: inline;
   }
+}
+@media (max-width: 720px) {
   .tile small {
     display: none;
   }
@@ -805,6 +807,9 @@
   background: center 20% / cover no-repeat;
   opacity: 0;
   transition: opacity 0.35s;
+}
+.fcard .por.ready {
+  opacity: 1;
 }
 .fcard .ovr {
   position: absolute;

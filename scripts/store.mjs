@@ -27,6 +27,7 @@ await p.evaluate(() => {
   s.fights = 6;
   s.wins = 5;
   for (let i = 0; i < 4; i++) k.qaReveal();
+  k.game.claimDaily(); // no daily reward card over the shots
   k.game.persist(true);
 });
 await clearModals();
@@ -45,7 +46,7 @@ await p.evaluate(() => {
   window.cageKings.game.save.progress.packs.unopened.standard++;
   window.cageKings.qaReveal();
 });
-await wait(4000);
+await wait(9000); // the card portraits render one by one (slow in software rendering)
 await shot('5-pack');
 await p.evaluate(() => document.querySelectorAll('.reveal, .modal-back').forEach(m => m.remove()));
 
@@ -53,21 +54,24 @@ await p.evaluate(() => document.querySelectorAll('.reveal, .modal-back').forEach
 await p.evaluate(() => window.cageKings.qaNav({ s: 'career', div: 'mLight' }));
 await wait(1000);
 await p.evaluate(() => window.cageKings.qaAutoplay(true));
-await p.click('[data-a=fight]');
+// clicked from the page: starting a fight keeps the page busy longer than a Playwright click waits
+await p.evaluate(() => setTimeout(() => document.querySelector('[data-a=fight]').click(), 10));
 await p.waitForFunction(() => window.cageKings.debugState().fight?.phase === 'fight', null, { timeout: 120000 });
 await p.evaluate(() => window.cageKings.qaSpeed(3));
 let n = 0;
-for (let i = 0; i < 40 && n < 2; i++) {
+for (let i = 0; i < 80 && n < 2; i++) {
   await wait(1200);
   const busy = await p.evaluate(() => {
     const f = window.cageKings.debugState().fight;
-    return f.fighters.some(x => /jab|cross|hook|upper|Kick|body|superman|knee/i.test(x.action));
+    // a little into the round (past the opening caption)
+    return f.phase === "fight" && f.tick > 500 && f.fighters.some(x => /jab|cross|hook|upper|Kick|body|superman|knee/i.test(x.action));
   });
   if (busy) {
     await p.evaluate(() => window.cageKings.qaSpeed(0.0001));
     await wait(400);
     await shot(`1-fight-${++n}`);
     await p.evaluate(() => window.cageKings.qaSpeed(3));
+    await wait(5000); // a different moment for the next one
   }
 }
 // the Play Store feature graphic (1024x500): a clean fight frame with the name over it
@@ -75,7 +79,7 @@ await p.setViewportSize({ width: 1024, height: 500 });
 await p.evaluate(() => {
   const st = document.createElement('style');
   st.id = 'feature-css';
-  st.textContent = '.hud,.touch,.coach{display:none!important}';
+  st.textContent = '.hud,.touch,.coach,.bc,.toasts{display:none!important}';
   document.head.appendChild(st);
   const t = document.createElement('div');
   t.id = 'feature-title';
