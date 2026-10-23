@@ -18,7 +18,6 @@
       ],
       "turnRateDegPerTick": 9,
       "limpMult": 0.65,
-      "wobbleMult": 0.5,
       "gassedSpeedMult": 0.9,
       "reachRefCm": 180
     },
@@ -61,23 +60,27 @@
         "light": 0.01,
         "medium": 0.022
       },
-      "skillCap": 1.35,
-      "cutChancePerHit": {
-        "elbow": 0.1,
-        "foot_shin": 0.05,
-        "fist": 0.03,
-        "knee": 0.04,
-        "shoulder": 0.02,
+      "skillCap": 1.35
+    },
+    "injury": {
+      "stageThresholds": [
+        0.15,
+        0.35,
+        0.65,
+        1
+      ],
+      "contactMult": {
+        "elbow": 1.6,
+        "foot_shin": 1.2,
+        "fist": 0.8,
+        "knee": 1.1,
+        "shoulder": 0.7,
         "none": 0
       },
-      "injuryStageThresholds": [
-        0.35,
-        0.7,
-        1
-      ]
+      "scoreScale": 3,
+      "cutsBase": 0.5
     },
     "defense": {
-      "guardRaiseTicks": 4,
       "strongMinTimeUp": 3,
       "strongBase": 0.7,
       "strongPerBlocking": 0.25,
@@ -95,7 +98,6 @@
       "slipBase": 0.25,
       "slipPerMovement": 0.5,
       "slipStaminaCost": 1,
-      "stepBackStaminaCost": 1.5,
       "counterWindowTicks": 18,
       "slipCounterWindowTicks": 14,
       "catchEarly": 6,
@@ -184,15 +186,15 @@
           "growth": 10
         },
         "head.knockout": {
-          "pMin": 0.0004,
-          "pMax": 0.0075,
+          "pMin": 0.00018,
+          "pMax": 0.0034,
           "low": 0.08,
           "high": 0.4,
           "dmgMod": 8,
           "staminaMod": 0.4,
           "spl": 0.2,
           "sph": 0.8,
-          "init": 0.0007,
+          "init": 0.00032,
           "growth": 12
         },
         "body.liver_shot": {
@@ -290,7 +292,6 @@
           "helpless": false
         }
       },
-      "stunnedDamageMult": 1.25,
       "recoveryMashMaxReduction": 0.3
     },
     "clinch": {
@@ -402,7 +403,6 @@
     "ground": {
       "transitionCooldownTicks": 90,
       "staminaPerAttempt": 3,
-      "failedAttemptFreeTicks": 10,
       "topBase": 0.45,
       "topPerRating": 0.004,
       "bottomBase": 0.3,
@@ -460,8 +460,7 @@
       "sprawlGetUpBonus": 0.35,
       "gnpStamina": 2.5,
       "staminaPerSecTop": 0.5,
-      "staminaPerSecBottom": 0.7,
-      "gnpIntervalTicks": 24
+      "staminaPerSecBottom": 0.7
     },
     "submission": {
       "startBase": 0.25,
@@ -485,13 +484,10 @@
       "staminaPerSecAttacker": 1.3,
       "staminaPerSecDefender": 1.7,
       "abortStamina": 0.08,
-      "tapDamageThreshold": 1,
       "tapBase": 0.92,
       "tapToughnessWeight": 0.004,
       "tapMin": 0.4,
       "tapMax": 0.98,
-      "chokeKoRestTicks": 240,
-      "lockInjuryFraction": 1,
       "mode": "auto",
       "meter": {
         "startDelay": 0.4,
@@ -513,18 +509,17 @@
       "standupBreakSeconds": 10,
       "groundIdleSeconds": 10,
       "tkoUnansweredHeavy": 3,
-      "tkoUnansweredAny": 7,
+      "tkoUnansweredAny": 5,
       "tkoWindowSeconds": 3,
       "tkoHeadFraction": 0.05,
       "tkoStunnedChance": 0.35,
       "doctorChanceFactor": 0.5,
       "roundSeconds": 300,
-      "restSeconds": 60,
-      "secondsOut": 10
+      "restSeconds": 60
     },
     "recovery": {
-      "bodyLegFraction": 0.04,
-      "headFraction": 0.03,
+      "bodyLegFraction": 0.1,
+      "headFraction": 0.14,
       "cutmanSuccess": 0.7
     },
     "scoring": {
@@ -610,7 +605,8 @@
       "rePlanTicks": [
         12,
         24
-      ]
+      ],
+      "cardProcChance": 0.6
     }
   }
 }

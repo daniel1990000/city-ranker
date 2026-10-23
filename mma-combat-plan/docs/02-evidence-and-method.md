@@ -92,16 +92,20 @@ reproduce them**; they are replaced with neutral archetype labels.
   the inputs; `ApproachFilter` divides speed by 60, suggesting 60 Hz ticks **[ARCH]**.
 * Strings alone prove existence, not behaviour. Every behavioural statement that is not **[CODE]** is tagged.
 
-## 7. Reproducing / extending (see `tools/apk-analysis/README.md`)
+## 7. Reproducing / extending (see `tools/apk-analysis/README.md` for the full walk-through)
 
 ```
-x86tool.py  <lib> strx <string>      # who references this name?
-x86tool.py  <lib> dis  <va>          # annotated disassembly of the function containing <va>
-x86_sig.py  <scripts> <lib> <Name>   # exact parameter/result/state signature of an expression
-x86_tu.py   <scripts> <lib> lo hi    # summarise a translation unit's functions
-x86_floats.py <scripts> <lib> disp…  # read float constants at GOT-relative offsets
+x86tool.py  <lib> funcs               # function-table stats (121,348 boundaries from .eh_frame_hdr)
+x86tool.py  <lib> strx <string>       # who references this name?
+x86tool.py  <lib> dis  <va>           # annotated disassembly of the function containing <va>
+x86_sig.py  <scripts> <lib> <Name>    # exact parameter/result/state signature of an expression
+x86_tu.py   <scripts> <lib> lo hi     # summarise a translation unit's functions
+x86_floats.py <scripts> <lib> disp…   # read float constants at GOT-relative offsets
+string_families.py / enum_families.py # the vocabulary miners behind §5
+dump_manifest.py <apk>                # decode the binary manifest
 ```
-Python 3.13 + `pyelftools`, `capstone`. Run with `python -I` and keep the unpacked APK in its own directory.
+Python 3.13 + `pyelftools`, `capstone`, `androguard`. Run with `python -I` and keep the unpacked APK in its own directory (the README there
+lists the safety rules and the step-by-step method used for `HealthEventProbability`).
 
 ### Next-most-valuable targets if more decoding is wanted
 1. `UFCOctagonProximitySceneOp` evaluator (cage-awareness math).

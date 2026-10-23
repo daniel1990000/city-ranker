@@ -4,8 +4,6 @@ import { clamp } from '../core/math.js';
 
 export const FACE_REGIONS = Object.freeze(['brow', 'cheek', 'eye', 'nose', 'lip', 'jaw']);
 export const STAGES = Object.freeze(['none', 'swollen', 'cut', 'worse', 'critical']);
-const THRESHOLDS = [0.15, 0.35, 0.65, 1.0]; // cumulative score for stages 1..4
-const CONTACT_MULT = { elbow: 1.6, foot_shin: 1.2, fist: 0.8, knee: 1.1, shoulder: 0.7, none: 0 };
 
 function pickRegion(contact, rng) {
   // elbows favour the brow; fists the nose/lip/cheek; shins the cheek/jaw
@@ -17,14 +15,15 @@ function pickRegion(contact, rng) {
 
 /** Register an impact on the head. Returns {region, stage} when a region advanced to a worse stage, else null. */
 export function addHeadImpact(defender, move, taken, rng, tun) {
-  const mult = CONTACT_MULT[move.contact] ?? 0.8;
+  const inj = tun.injury;
+  const mult = inj.contactMult[move.contact] ?? 0.8;
   if (mult <= 0 || taken <= 0) return null;
-  const cutsFactor = 0.5 + defender.rating('cuts') / 100; // higher "cuts" rating = more susceptible (see docs/03 §2)
+  const cutsFactor = inj.cutsBase + defender.rating('cuts') / 100; // higher "cuts" rating = more susceptible (see docs/03 §2)
   const region = pickRegion(move.contact, rng);
   const entry = (defender.injuries[region] ??= { score: 0, stage: 0 });
-  entry.score += (taken / defender.pools.head.max) * mult * cutsFactor * 3;
+  entry.score += (taken / defender.pools.head.max) * mult * cutsFactor * inj.scoreScale;
   let stage = 0;
-  for (let i = 0; i < THRESHOLDS.length; i++) if (entry.score >= THRESHOLDS[i]) stage = i + 1;
+  for (let i = 0; i < inj.stageThresholds.length; i++) if (entry.score >= inj.stageThresholds[i]) stage = i + 1;
   if (stage > entry.stage) { entry.stage = stage; return { region, stage: STAGES[stage] }; }
   return null;
 }
@@ -39,7 +38,7 @@ export function injurySeverity(f) {
 /** Between-round cutman: reduce a cut region by one stage (critical cuts need a doctor). */
 export function cutmanTreat(f, rng, tun) {
   for (const e of Object.values(f.injuries)) {
-    if (e.stage >= 2 && e.stage < 4 && rng.chance(tun.recovery.cutmanSuccess)) { e.stage -= 1; e.score = Math.min(e.score, THRESHOLDS[e.stage - 1] ?? 0); }
+    if (e.stage >= 2 && e.stage < 4 && rng.chance(tun.recovery.cutmanSuccess)) { e.stage -= 1; e.score = Math.min(e.score, tun.injury.stageThresholds[e.stage - 1] ?? 0); }
   }
 }
 

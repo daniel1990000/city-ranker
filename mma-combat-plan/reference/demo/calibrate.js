@@ -1,11 +1,12 @@
 // Calibration CLI: run N bot-vs-bot fights and compare the result mix with design targets (docs/17 §6, docs/19).
-//   node demo/calibrate.js [--fights 60] [--seed 1] [--rounds 3] [--set path=value ...] [--threads 4] [--json]
+//   node demo/calibrate.js [--fights 60] [--seed 1] [--rounds 3] [--set path=value ...] [--tunables '<json>'] [--threads 4] [--json]
 // Tunable overrides use dotted paths into DEFAULT_TUNABLES, e.g.  --set pools.headBase=260 --set ai.gapTicks.slow=300
 
 import os from 'node:os';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import { runOne, summarize, TARGETS } from '../src/sim/batch.js';
+import { deepMerge } from '../src/core/tunables.js';
 
 function parseArgs(argv) {
   const o = { fights: 60, seed: 1, rounds: 3, threads: Math.min(4, os.cpus().length), json: false, set: {} };
@@ -16,6 +17,7 @@ function parseArgs(argv) {
     else if (a === '--rounds') o.rounds = +argv[++i];
     else if (a === '--threads') o.threads = +argv[++i];
     else if (a === '--json') o.json = true;
+    else if (a === '--tunables') o.set = deepMerge(o.set, JSON.parse(argv[++i]));        // JSON, for keys that contain dots: '{"healthEvents":{"profiles":{"head.knockout":{"pMax":0.003}}}}'
     else if (a === '--set') {
       const [path, val] = argv[++i].split('=');
       let cur = o.set;

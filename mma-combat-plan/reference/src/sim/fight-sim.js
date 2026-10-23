@@ -7,7 +7,8 @@
 //  5 hit detection → contacts (symmetric)           11 stats, clock, state hash every 30 ticks
 //  6 defence resolution (guard/parry/slip/catch)
 //
-// Everything random comes from named streams of the World; nothing reads wall-clock time; fighters are processed in id order.
+// Everything random comes from named streams of the World; nothing reads wall-clock time. Per-fighter loops run in id order, except
+// intent application, which alternates the order every tick so simultaneous attempts (clinch, shot) are not biased toward fighter 0.
 
 import { World } from './world.js';
 import { Match } from './match.js';
@@ -207,7 +208,7 @@ export class FightSim {
     if (e.takedownBonus) f.mods.takedown = e.takedownBonus;
     if (e.submissionBonus) f.mods.submission = e.submissionBonus;
     const c = this.controllers.get(f.id);
-    if (c instanceof Brain && r.aiGoal && forceGoal({ consumed: true, procChance: w.tun.ai.cardProcChance ?? 0.6, random: w.rng('ai.cards').next() })) c.forcedGoal = r.aiGoal;
+    if (c instanceof Brain && r.aiGoal && forceGoal({ consumed: true, procChance: w.tun.ai.cardProcChance, random: w.rng('ai.cards').next() })) c.forcedGoal = r.aiGoal;
   }
 
   #followUp(f) {

@@ -36,7 +36,11 @@ export function checkIntent(world, f, intent) {
     const c = canStartShot(world, f, o);
     if (!c.ok) bad.push(`takedown not allowed: ${c.reason}`);
   }
-  if (intent.grapple) {
+  if (intent.grapple?.kind === 'followUp') {          // the one grapple intent that starts a bout from stand-up: pounce on a downed opponent
+    if (f.mode !== Mode.STANDUP || o.mode !== Mode.DOWN || helpless || f.bout) bad.push('follow-up: wrong state');
+    else if (world.tick - o.downTick > world.tun.ground.downedFollowUpTicks) bad.push('follow-up: too late');
+    else if (world.gap(f, o) > 1.0) bad.push('follow-up: out of range');
+  } else if (intent.grapple) {
     const bout = f.bout;
     const kind = intent.grapple.kind;
     if (!bout) bad.push(`grapple ${kind} without a bout`);

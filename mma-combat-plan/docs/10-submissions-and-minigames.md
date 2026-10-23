@@ -7,7 +7,7 @@ Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `referenc
 
 | Aspect | Evidence |
 |---|---|
-| **28 named submissions** | americana, anaconda, armbar, arm-triangle, D'Arce, gogoplata, guillotine, heel hook, inverted triangle, Japanese necktie, kimura, kneebar, omoplata, Peruvian necktie, rear-naked choke, rolling kneebar, triangle, triangle-armbar, twister, windshield choke (+ `none`, `minigamedamage`, mobile-only `ground_and_pound` finisher, and `escape` as a pseudo-submission) **[DATA]** |
+| **20 techniques, 31 position/role entries** | americana, anaconda, armbar, arm-triangle, D'Arce, gogoplata, guillotine, heel hook, inverted triangle, Japanese necktie, kimura, kneebar, omoplata, Peruvian necktie, rear-naked choke, rolling kneebar, triangle, triangle-armbar, twister, windshield choke (the `SUBMISSION_*` enum, plus `INVALID`) **[DATA]**. The role/position table `submission_type_submission_{dom,sub}_<pos>_<name>` has 29 entries (+ `none`, `sub_escape` as a pseudo-submission and a mobile-only `f2p_dom_fm_groundandpound` finisher); the fighter-move list `basetypes_fighter_move_subm_*` additionally has D'Arce from half guard and an armbar from rubber guard, so our table (`data/taxonomy.json → submissions`) is the union: **31** entries. An earlier draft of this document said "28 named submissions"; that number was a miscount |
 | **Category** | `submission_category ∈ {choke, lock, none}` **[DATA]** |
 | **Stages** | `not_in_submission, stage_1 … stage_5, submission_completed`; stat `SUBMISSION_STAGE_CURRENTLY_IN`; stage listeners (`Register/UnRegisterSubmissionStage/StatusListener`) **[DATA]** |
 | **Dominance of the move** | each submission is keyed by *who applies it* (`dom`/`sub`) and *from which position*: `submission_type_{dom,sub}_<pos>_<name>` **[DATA]** (full table below) |
@@ -85,6 +85,8 @@ scores, `Finished`, `DomWon`, `IsRunning`.
 **[REC] changes**: make the perfect test symmetric; take `perfectZoneSize` as a real parameter (default 0.06 of track)
 so it is independent of frame rate; keep the 0.99 cap so "1.0" is reserved for perfect; use `d` from rating delta
 (`d = clamp(0.5 + (defRating − atkRating)/200, 0.1, 0.9)`). Typical: `Min 0.12, Max 0.35, D 1.6 s, N 2, delay 0.4 s`.
+`new SnakeMeter({..., faithful: true})` reproduces the two original quirks (asymmetric perfect test, frame-dependent perfect
+size) for anyone who wants to compare against the reference; the default is the symmetric, frame-rate independent version.
 
 ### 3.2 `ButtonSnipe` — reaction minigame (`0x11c6c10`)
 Inputs: `StartTrigger`, `SnipeTime`, `SnipeButton ∈ {0..3}`, per side `IsPlaying` and `Button1..4`, `DeltaTicks`.
@@ -123,26 +125,41 @@ Reading **[ARCH]**: count-up = up to 3 tries for the attacker to "set the hold" 
 3 tries ⇒ the attempt fails); countdown = the defender's fight to escape: every failed snipe by the attacker removes one
 depth point, hitting 0 = escape, with ever-shorter gaps between prompts (pressure). Maps nicely onto the 5 stage model.
 
-## 4. Recommended unified design **[REC]**
+## 4. Recommended unified design **[REC]** (as implemented in `reference/src/combat/submission.js`; `submission.*` tunables)
 ```
-SubmissionSession { type, category(choke|lock), attacker, defender, position, stage 0..5, depth, damage, mode }
-start(attacker, submission)   requires position ∈ table §1 AND attacker rating gate: roll p = clamp(0.35 + 0.004·(atk.sub − def.defence) − 0.1·stageFatigue, 0.1, 0.9)
-stage loop (per stage 1..5): run one micro-duel chosen by `mode`
-     'auto'   : rating roll p_stage = clamp(0.5 + 0.004·(atk − def) − 0.04·stage , 0.1, 0.9)
-     'meter'  : SnakeMeter(Dom=attacker, Sub=defender; d from ratings)
-     'snipe'  : ButtonSnipe / UTSubmission (fast mobile mode)
-     'gate'   : swipe/stick gate contest (console style)
-   attacker wins → stage++ , damage += stageDamage(category) ; defender wins → depth−− ; depth<0 → ESCAPE (position → defender's best)
-at stage 5 completed: human defender chooses tap / no_tap ; AI taps if damage ≥ toughness-threshold
-   tap → SUBMISSION win ; no_tap → choke: KO (unconscious) · lock: injury (limb pool=0 → TKO "doctor/injury")
-referee/clock : stalling and round end: `saved_by_bell` story event if the bell rings during stage ≥ 3
-stamina       : attacker 2.0/s, defender 2.5/s while in session; AI aborts if stamina < 15 %
-stats         : attempts++ on start ; locked++ when stage ≥ 2 ; escaped++ on escape
+beginSubmission(attacker, defender, name, position, role)
+   requires name ∈ table §1 for (position, role) and the attacker's 300-tick (5 s) submission cooldown elapsed
+   gate roll p = clamp(0.25 + 0.004·(atk.sub − def.defence) − 0.1·(1 − atk.stamina%) + ability bonus, 0.10, 0.90)
+        denied → SUBMISSION{result:'denied'} and the fighters stay in the ground bout
+        locked → the ground bout is released (restore:false) and a SubmissionBout takes over (modes: submission)
+SubmissionBout { name, category(choke|lock), attacker, defender, position, role, stage 0..5, depth = 2, damage, mode }
+stage loop (stages 1..5): one micro-duel per stage, chosen by `submission.mode` (honoured only when a human is in the pair;
+                          AI-vs-AI is always 'auto')
+     'auto'   : after 75 ticks, p_stage = clamp(0.46 + 0.003·(atk − def) − 0.03·stage + 0.10·(atk.stamina% − def.stamina%), 0.10, 0.90)
+     'meter'  : SnakeMeter(Dom=attacker, Sub=defender; difficulty from the ratings; 1.6 s, 2 passes, delay 0.4 s)
+     'gate'   : ButtonSnipe, 36-tick prompt; the defender must press the prompted button (console / swipe style)
+     'snipe'  : SnipeChain — 3 count-up tries (40-tick prompts) set the hold (0 successes ⇒ denied), then the countdown with
+                34-tick prompts whose gaps shrink as max(60 − 6·n, 18) ticks (the fast mobile mode)
+   attacker wins → stage++, damage += 0.2 (choke or lock) ; defender wins → depth−− ; depth < 0 (three lost duels) → ESCAPE
+        escape: a TOP attacker loses the position (defender goes to the first plain bottom edge of the graph, `09`);
+        a BOTTOM attacker (guard subs) keeps the position — the submission just failed
+   stage 5 completed → tap decision (≥ 20 ticks): AI taps with p = clamp(0.92 − 0.004·(toughness − 50), 0.40, 0.98);
+        a human defender sends `tap` / `no_tap` (auto-tap after 120 ticks)
+        tap → SUBMISSION win ('tap') ; no tap → choke: the knockout health event (result 'ko', the referee records
+        `<name>_choke_out`, still a submission win) · lock: 'injury' (the referee records a `<name>_injury` TKO)
+referee/clock : the bell during stage ≥ 3 counts `subs.saved_by_bell` for the defender; the bout ends ('abort') back on the ground
+stamina       : attacker 1.3/s, defender 1.7/s while in session; an AI attacker aborts below 8 % stamina (a human never)
+stats         : attempted++ on 'start' ; locked++ when stage 2 is reached ; deep++ at stage 4 ; escaped++ (defender) on escape ;
+                finished++ on tap / ko ; depth++ per stage won
 ```
 AI chooser (inputs from the reference: own stamina, opponent stamina, current stage) and gate factors → see `13`.
 
-## 5. Acceptance tests
-1. `SnakeMeter`: deterministic for fixed `ρ`; difficulty 0.9 gives smaller Dom zone than 0.1; tie ⇒ Sub; locking exactly 0 ends the game at once; AI-attacker: human wins iff final > 0.
-2. `ButtonSnipe`: the 6 branches of §3.2 incl. Sub-first tie-break and timeout rule.
-3. `UTSubmission`: 3 failed count-up tries stop the session; countdown gaps follow `max(delay − inc·n, min)`; `initiator` flip.
-4. Session: attempts ≥ locked ≥ finishes+escapes; choke no-tap ⇒ KO event; lock no-tap ⇒ injury.
+## 5. Acceptance tests (`reference/test/minigames.test.js`, `reference/test/submission.test.js`, all passing)
+1. `SnakeMeter`: deterministic for fixed `ρ`; difficulty 0.9 gives smaller Dom zone than 0.1; tie ⇒ Sub; locking exactly 0 ends the game at once; AI-attacker: human wins iff final > 0; the start delay holds the needle; faithful mode reproduces the quirks.
+2. `ButtonSnipe`: the 6 branches of §3.2 incl. Sub-first tie-break and the timeout rule (a human who failed to react loses, an AI side is decided for the other side).
+3. `UTSubmission` (`SnipeChain`): 3 failed count-up tries stop the session; countdown gaps follow `max(delay − inc·n, min)`; `initiator` flips the outcome mapping; the stop trigger halts.
+4. `availableSubmissions` reproduces the position → submission table exactly; start and stage probabilities are bounded and monotone in the rating delta and fall with stage and fatigue.
+5. Full success path: five stages, 0.2 damage each, tap decision, SUBMISSION win events; no-tap choke ⇒ knockout event, no-tap lock ⇒ injury result; AI tap probability falls with toughness.
+6. Escape after three lost duels (top attacker loses position, bottom attacker keeps it); counters reconcile over many sessions (attempts ≥ locked, attempts ≥ finishes + escapes); better submission artists finish more and better defenders escape more.
+7. Meter, gate and snipe modes behave as described for human attackers / defenders (perfect lock wins stages, never locking loses, correct prompt press blocks every stage, no reaction fails the three tries).
+8. Stamina drains at the tunable per-second rates; an exhausted AI attacker releases the hold (abort, no escape recorded); the bell during stage ≥ 3 is "saved by the bell"; a fixed seed gives an identical session.

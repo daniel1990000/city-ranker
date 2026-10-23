@@ -1,4 +1,4 @@
-// Records the "golden replay": a short, varied fight (clinch, takedown, ground transitions, submission attempt, health events)
+// Records the "golden replay": a short, varied fight (clinch, takedown, ground transitions, submission attempt, health events, a knockdown and a stoppage)
 // that the test-suite re-simulates and compares hash-for-hash. Any change to the sim, tunables or AI changes the fight —
 // re-record deliberately with `npm run golden` and review the diff of the coverage report.
 //   node demo/record-golden.js [--out ../data/replays/golden-1.json]
@@ -11,7 +11,7 @@ import { FightSim, DEFAULT_FIGHTERS, playReplay } from '../src/index.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const out = process.argv.includes('--out') ? process.argv[process.argv.indexOf('--out') + 1] : resolve(here, '../../data/replays/golden-1.json');
 
-const WANT = ['clinch_start', 'takedown', 'ground_position', 'submission', 'health_event', 'injury', 'catch', 'ability', 'pass', 'get_up', 'referee'];
+const WANT = ['clinch_start', 'takedown', 'ground_position', 'submission', 'health_event', 'injury', 'catch', 'ability', 'pass', 'get_up', 'referee', 'knockdown', 'stoppage', 'combo'];
 const withAbilities = (f, k) => ({ ...f, abilities: k % 2 ? ['iron_fist', 'level_change'] : ['flurry', 'iron_grip'] });
 
 let best = null;

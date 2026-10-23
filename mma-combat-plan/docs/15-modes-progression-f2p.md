@@ -1,6 +1,7 @@
 # 15 · Game modes, progression, and the free-to-play layer
 
-Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/combat/abilities.js` (optional).
+Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/combat/abilities.js` (optional),
+`reference/src/meta/progression.js` (belts, rating points). Tests: `reference/test/abilities.test.js`.
 
 ## 1. Modes visible in the reference **[DATA]**
 
@@ -50,14 +51,27 @@ Ability { id, phase: standup|takedown|submission, cooldownSecs, minigame: none|g
 use(ability): if !ready → fail ; start minigame (if any) → result ∈ {fail, success, perfect} →
               effectScale = {fail:0, success:1, perfect:1.5}[result] ; cooldown starts ; emit HUD events
 ```
-Reference module implements cooldown state machine, result scaling, `ForceCardGoal` equivalent
-(`forceGoal = consumed ∧ rng() < procChance`), and stat counters per phase.
+Reference module (`abilities.js`) implements the cooldown state machine, result scaling (`fail 0 · success 1 · perfect 1.5`; `damageScale`
+scales around 1, everything else linearly), per-phase counters (`played / landed / damage`) and the `ForceCardGoal` equivalent
+(`forceGoal = consumed ∧ random < procChance`, `ai.cardProcChance = 0.6`). Five **original** example abilities ship:
+`iron_fist` (stand-up, golf meter, damage ×1.5, crit +0.10), `flurry` (stand-up, mash, ×1.25, stun +0.08), `second_wind` (stand-up, no
+minigame, +25 stamina), `level_change` (takedown, snake meter, +0.20 landing chance), `iron_grip` (submission, snipe, +0.20 lock/stage chance).
 
-**Progression (minimal)**: fighter XP from fights and challenges → rating points (cap per rating); belts (white→black) by
-`score/combos` thresholds; unlocks of moves per style; weight-class ladders; fight-card generation.
+**How the sim consumes them** (`FightSim.#useAbility`): the intent frame carries `ability:{slot, result}`; the slot's cooldown starts, an
+`ABILITY` event is emitted and the effect is *armed for the next relevant action*: damage / crit / stun effects ride on the fighter's next
+stand-up strike (`f.mods.strike`), the takedown bonus on the next shot, the submission bonus on the next lock attempt; a stamina restore is
+immediate. Each bonus is spent once. For an AI brain the press is a 1 %-per-tick roll while a ready ability matches the current phase,
+the quality following difficulty (champion 25 % perfect, pro 12 %, beginner 5 %; 10 % fail), and the AI side of the opponent may be
+forced toward the card's goal by the `ForceCardGoal` roll.
 
-## 4. Acceptance tests
-1. Ability cooldown never negative; `ready` flips exactly when timer hits 0; disabled mask blocks use.
-2. `perfect` > `success` > `fail` strictly scales effect.
-3. `ForceCardGoal`: forced flags only when consumed; empirical rate ≈ `procChance` (±3 %).
-4. Training belts: monotone thresholds; combo-mode vs score-mode both produce a tier.
+**Progression (minimal; `meta/progression.js`)**: training belts white → blue → purple → brown → black from either a *score* (strictly
+ascending thresholds) or a *combo* count (fractions of the combos landed, default 25/50/75/100 %); `spendRatingPoints(ratings,
+allocation, points, cap)` for fighter XP → rating points with a per-rating cap. Not implemented (product decisions): unlocking moves per
+style, weight-class ladders, fight-card generation, career tournament flow.
+
+## 4. Acceptance tests (`reference/test/abilities.test.js`, all passing)
+1. Ability cooldown never negative; `ready` flips exactly when the timer hits 0; a disabled phase blocks use.
+2. `perfect` > `success` > `fail` strictly scales the effect.
+3. Per-phase counters; `ForceCardGoal`: forced only after consumption, empirical rate ≈ `procChance`.
+4. Training belts: thresholds must be strictly ascending; score mode and combo mode both give a monotone tier; `spendRatingPoints` respects the cap and the budget.
+5. (Same file) `FighterSituation` — the read-only perception struct the AI consumes: geometry, cage flags, health, tempo and context pass-through.

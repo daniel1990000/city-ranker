@@ -7,6 +7,7 @@ import { evaluateLadder } from './health-events.js';
 import { addHeadImpact } from './injuries.js';
 
 const NO_DEFENSE = Object.freeze({ outcome: 'hit', mitigation: 0, strong: false });
+const GROUND_EXCLUDED = Object.freeze(['knockout']);
 
 /** Emit a STRIKE event for a strike that did no damage (parried, slipped, caught or whiffed). */
 export function emitAvoided(world, att, def, move, outcome, { mode = 'standup', strong = false } = {}) {
@@ -53,6 +54,7 @@ export function applyImpact(world, att, def, move, defense = NO_DEFENSE, { mode 
       attacker: att, defender: def, region, move, taken: dmg.taken, poolCurAfter: def.pools[region].cur,
       seed: world.rng('event').nextInt32(), tun, strikesReceivedRound: world.stats.strikesReceivedThisRound(def.id),
       counterHit: !!ctx.counterHit, bonusByEvent,
+      exclude: mode === 'ground' ? GROUND_EXCLUDED : null,        // a pounced-on fighter is stopped by the referee (TKO), not "knocked out" by the dice
     });
     if (r.event !== 'none') { event = r.event; world.healthEvent(def, att, r.event, region); }
   }

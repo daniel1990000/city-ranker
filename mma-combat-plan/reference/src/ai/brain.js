@@ -36,6 +36,7 @@ export class Brain {
     this.coverUntil = 0; this.groundSeen = null;
     this.nextGuardRoll = 0;
     this.boutSeen = null; this.boutStart = 0; this.boutBudget = 0;
+    this.pounceFor = -1; this.pounce = false;
   }
 
   /** each new clinch / ground bout gets a time budget; afterwards the AI works to end it (clinchers stay longer) */
@@ -112,6 +113,7 @@ export class Brain {
     const tick = world.tick, tun = world.tun;
     if (f.bout && f.bout.kind === 'takedown') this.#sprawlDecision(f.bout, i);
     if (f.isHelpless()) { this.plan = null; return; }
+    if (world.opp(f).mode === Mode.DOWN && !f.busy() && !f.bout && this.#pounce(i)) return;
     this.#perceive(sit);
     this.#applyResponse(i);
 
@@ -127,6 +129,17 @@ export class Brain {
     // keep the hands up between actions (p = read quality), unless attacking
     if (i.guard === 'none' && !f.busy() && !this.response && this.guardHold !== 'none') i.guard = this.guardHold;
     if (tick >= this.nextGuardRoll) this.#rollGuard();
+  }
+
+  /** An opponent on the floor: with a probability that grows with aggression, close in and follow up with ground-and-pound. */
+  #pounce(i) {
+    const { world, f } = this, o = world.opp(f);
+    if (this.pounceFor !== o.downTick) { this.pounceFor = o.downTick; this.pounce = this.rng.chance(clamp(0.3 + 0.7 * this.A, 0, 0.95)); }
+    if (!this.pounce || world.tick - o.downTick > world.tun.ground.downedFollowUpTicks) return false;
+    this.plan = null; this.response = null;
+    if (world.gap(f, o) > 0.9) i.move = vNorm(vSub(o.pos, f.pos));
+    else { i.grapple = { kind: 'followUp' }; this.nextDecision = world.tick; }      // start swinging the moment the ground bout opens
+    return true;
   }
 
   #rollGuard() {
@@ -373,17 +386,18 @@ export class Brain {
     if (!legal.length) return;
     const overstayed = this.#boutClock();
     const tp = this.tend, hold = bout.hold;
+    const finishing = isTop && o.isHelpless();                                // opponent cannot defend: pour it on
     const subBias = (tp.goals.submission * 5 + 0.25) * (isTop ? 1 : tp.bottomGame ?? 1);
     const choice = this.#weighted(legal, (a) => {
       switch (a.kind) {
-        case 'strike': return isTop ? (0.4 + this.A) * (0.7 + hold * 2) * (a.target === 'head' ? 1.2 : 0.7) : 0;
-        case 'transition': return a.edge === 'pass' ? 0.9 * (0.4 + tp.goals.transition * 4) : (0.7 + 0.6 * f.rating('movement') / 100) * (tp.bottomGame ?? 1);
+        case 'strike': return isTop ? (0.4 + this.A) * (0.7 + hold * 2) * (a.target === 'head' ? 1.2 : 0.7) * (finishing ? 8 : 1) : 0;
+        case 'transition': return (a.edge === 'pass' ? 0.9 * (0.4 + tp.goals.transition * 4) : (0.7 + 0.6 * f.rating('movement') / 100) * (tp.bottomGame ?? 1)) * (finishing ? 0.15 : 1);
         case 'getup': return (1.5 + f.rating('movement') / 50) * (tp.bottomGame ? 0.6 : 1);
-        case 'submission': return subBias * 0.5;
+        case 'submission': return subBias * 0.5 * (finishing ? 0.15 : 1);
         case 'posture': return tp.goals.submission * 2 + 0.2;
         case 'turtle': return 0.04;
         case 'cover': return 0;
-        case 'release': return overstayed ? 14 : 0;                        // lets go only after its time budget (long for real control, short for a stuffed shot)
+        case 'release': return overstayed && !finishing ? 14 : 0;                        // lets go only after its time budget (long for real control, short for a stuffed shot)
         default: return 0;
       }
     });
@@ -393,7 +407,7 @@ export class Brain {
     if (choice.kind === 'transition') g.to = choice.to;
     if (choice.kind === 'submission') g.name = choice.name;
     i.grapple = g;
-    this.nextDecision = tick + Math.round(gapTicks(this.A, world.tun) * 0.9 * (0.7 + 0.6 * this.rng.next()));
+    this.nextDecision = tick + (finishing ? 6 + this.rng.int(10) : Math.round(gapTicks(this.A, world.tun) * 0.9 * (0.7 + 0.6 * this.rng.next())));
   }
 }
 

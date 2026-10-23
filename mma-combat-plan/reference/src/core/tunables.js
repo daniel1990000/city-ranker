@@ -8,7 +8,7 @@ export const DEFAULT_TUNABLES = {
     movementRatingSpan: 0.30,     // speed *= 0.85 + span*rating/100
     loco: [1.0, 0.92, 0.80, 0.66, 0.55, 0.66, 0.80, 0.92], // D1..D8 (docs/11 §1.1)
     turnRateDegPerTick: 9,
-    limpMult: 0.65, wobbleMult: 0.5, gassedSpeedMult: 0.9,
+    limpMult: 0.65, gassedSpeedMult: 0.9,
     reachRefCm: 180,
   },
   stamina: {
@@ -22,15 +22,18 @@ export const DEFAULT_TUNABLES = {
     regionMult: { head: 0.8, body: 0.7, leg: 0.65 },
     tiers: { light: 0.010, medium: 0.022 }, // taken / pool max
     skillCap: 1.35,
-    cutChancePerHit: { elbow: 0.10, foot_shin: 0.05, fist: 0.03, knee: 0.04, shoulder: 0.02, none: 0 },
-    injuryStageThresholds: [0.35, 0.7, 1.0], // cumulative swelling/cut score → swollen, cut, worse, critical (see injuries.js)
+  },
+  injury: {
+    stageThresholds: [0.15, 0.35, 0.65, 1.0],   // cumulative score of one facial region → swollen, cut, worse, critical
+    contactMult: { elbow: 1.6, foot_shin: 1.2, fist: 0.8, knee: 1.1, shoulder: 0.7, none: 0 },
+    scoreScale: 3, cutsBase: 0.5,               // score += taken / headMax * contactMult * (cutsBase + cutsRating/100) * scoreScale
   },
   defense: {
-    guardRaiseTicks: 4, strongMinTimeUp: 3,
+    strongMinTimeUp: 3,
     strongBase: 0.70, strongPerBlocking: 0.25, weakBase: 0.30, weakPerBlocking: 0.20,
     heavyKickPierce: 0.15, chipFraction: 0.10, staminaPerBlockedDamage: 0.5,
     parryBaseWindow: 7, parryWindowPerBlocking: 25, parryAttackerExtraRecovery: 10, parryLockTicks: 20, parryStaminaCost: 0.5,
-    slipWindow: 3, slipBase: 0.25, slipPerMovement: 0.5, slipStaminaCost: 1.0, stepBackStaminaCost: 1.5,
+    slipWindow: 3, slipBase: 0.25, slipPerMovement: 0.5, slipStaminaCost: 1.0,
     counterWindowTicks: 18, slipCounterWindowTicks: 14,
     catchEarly: 6, catchMaxTicks: 180, catchFailCritBonus: 0.05,
     handsDownStartupBonus: 1, handsDownHeadCritBonus: 0.04,
@@ -47,7 +50,7 @@ export const DEFAULT_TUNABLES = {
       'head.stun':          { pMin: 0.015,  pMax: 0.18,  low: 0.05, high: 0.20, dmgMod: 3.5,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.020,  growth: 6 },
       'head.critical_stun': { pMin: 0.006,  pMax: 0.09,  low: 0.06, high: 0.25, dmgMod: 4.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.008,  growth: 8 },
       'head.knockdown':     { pMin: 0.0007, pMax: 0.013, low: 0.07, high: 0.30, dmgMod: 6.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.002,  growth: 10 },
-      'head.knockout':      { pMin: 0.0004, pMax: 0.0075, low: 0.08, high: 0.40, dmgMod: 8.0,  staminaMod: 0.4, spl: 0.2, sph: 0.8, init: 0.0007, growth: 12 },
+      'head.knockout':      { pMin: 0.00018, pMax: 0.0034, low: 0.08, high: 0.40, dmgMod: 8.0,  staminaMod: 0.4, spl: 0.2, sph: 0.8, init: 0.00032, growth: 12 },
       'body.liver_shot':    { pMin: 0.010,  pMax: 0.12,  low: 0.04, high: 0.20, dmgMod: 4.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.012,  growth: 6 },
       'body.stun':          { pMin: 0.010,  pMax: 0.10,  low: 0.05, high: 0.22, dmgMod: 3.0,  staminaMod: 0.5, spl: 0.2, sph: 0.8, init: 0.010,  growth: 6 },
       'leg.limping':        { pMin: 0.020,  pMax: 0.20,  low: 0.03, high: 0.18, dmgMod: 3.0,  staminaMod: 0.6, spl: 0.2, sph: 0.8, init: 0.030,  growth: 4 },
@@ -63,7 +66,6 @@ export const DEFAULT_TUNABLES = {
       liver_shot:    { seconds: 2.5, moveMult: 0.0, guardMult: 0.0, helpless: true, staminaLossFraction: 0.25 },
       limping:       { seconds: 10, moveMult: 0.65, kickMult: 0.7, helpless: false },
     },
-    stunnedDamageMult: 1.25,
     recoveryMashMaxReduction: 0.30,
   },
   clinch: {
@@ -90,7 +92,7 @@ export const DEFAULT_TUNABLES = {
     styleBonus: { freestyle_wrestler: 0.06, greco_roman_wrestler: 0.05, judo: 0.04, jiu_jutsu: 0.03, muay_thai: -0.02, boxer: -0.03, karate: -0.03, kickboxer: -0.03, tae_kwon_do: -0.03, jeet_kune_do: 0.0 },
   },
   ground: {
-    transitionCooldownTicks: 90, staminaPerAttempt: 3, failedAttemptFreeTicks: 10,
+    transitionCooldownTicks: 90, staminaPerAttempt: 3,
     topBase: 0.45, topPerRating: 0.004, bottomBase: 0.30, bottomPerRating: 0.004, movementWeight: 0.003,
     noHooksBonus: 0.20, activeDefencePenalty: 0.10, staminaDeficitWeight: 0.002, activeDefenceTicks: 40,
     pTopMin: 0.05, pTopMax: 0.92, pBottomMin: 0.05, pBottomMax: 0.85, sweepShare: 0.35,
@@ -100,26 +102,24 @@ export const DEFAULT_TUNABLES = {
     brokenPostureMult: 0.5, postureBreakTicks: 45, coverMitigation: 0.4,
     getUpBase: 0.40, getUpPerRating: 0.004, getUpBrokenBonus: 0.15, getUpCageBonus: 0.20, sprawlGetUpBonus: 0.35,
     gnpStamina: 2.5, staminaPerSecTop: 0.5, staminaPerSecBottom: 0.7,
-    gnpIntervalTicks: 24,
   },
   submission: {
     startBase: 0.25, startPerRating: 0.004, startMin: 0.10, startMax: 0.90, attemptCooldownTicks: 300,
     stageBase: 0.46, stagePerRating: 0.003, stagePenaltyPerStage: 0.03, stageMin: 0.10, stageMax: 0.90,
     stageTicks: 75, stages: 5, stageDamage: { choke: 0.20, lock: 0.20 }, startDepth: 2, staminaDiffWeight: 0.10,
     staminaPerSecAttacker: 1.3, staminaPerSecDefender: 1.7, abortStamina: 0.08,
-    tapDamageThreshold: 1.0, tapBase: 0.92, tapToughnessWeight: 0.004, tapMin: 0.40, tapMax: 0.98,
-    chokeKoRestTicks: 240, lockInjuryFraction: 1.0,
+    tapBase: 0.92, tapToughnessWeight: 0.004, tapMin: 0.40, tapMax: 0.98,
     mode: 'auto',                       // auto | meter | snipe | gate
     meter: { startDelay: 0.4, duration: 1.6, numPasses: 2, scoreSizeMin: 0.12, scoreSizeMax: 0.35, perfectZoneSize: 0.06 },
     gateTicks: 36, snipeCountUpTime: 40, snipeCountDownTime: 34, snipeDelayTicks: 60, snipeSpeedUp: 6, snipeMinDelay: 18,
   },
   referee: {
     lowActionWarnSeconds: 5, standupBreakSeconds: 10, groundIdleSeconds: 10,
-    tkoUnansweredHeavy: 3, tkoUnansweredAny: 7, tkoWindowSeconds: 3, tkoHeadFraction: 0.05, tkoStunnedChance: 0.35,
+    tkoUnansweredHeavy: 3, tkoUnansweredAny: 5, tkoWindowSeconds: 3, tkoHeadFraction: 0.05, tkoStunnedChance: 0.35,
     doctorChanceFactor: 0.5,
-    roundSeconds: 300, restSeconds: 60, secondsOut: 10,
+    roundSeconds: 300, restSeconds: 60,
   },
-  recovery: { bodyLegFraction: 0.04, headFraction: 0.03, cutmanSuccess: 0.7 },
+  recovery: { bodyLegFraction: 0.10, headFraction: 0.14, cutmanSuccess: 0.7 },   // share of the pool max restored between rounds; at 0.03 the per-round finish rate doubled by round 4
   scoring: {
     weights: {
       effective_striking: 0.26, damage: 0.26, health_events: 0.14, takedowns_performed: 0.05, takedowns_denied: 0.02,
@@ -142,6 +142,7 @@ export const DEFAULT_TUNABLES = {
     },
     gapTicks: { slow: 640, fast: 230 },   // pause after an attack plan: lerp(slow, fast, aggression)
     rePlanTicks: [12, 24],             // re-decide this often while only moving
+    cardProcChance: 0.6,               // after an ability card is consumed the AI is forced toward its goal with this probability (ForceCardGoal)
   },
 };
 

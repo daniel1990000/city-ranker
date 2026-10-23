@@ -54,47 +54,72 @@ takedown (ends in a dominant ground position) vs. partial (scramble / half guard
 (`standuptakedowntype{fwd,bwd}{major,minor}` → single-leg-high/low, double-leg-high/low) and the engine has an
 `OutputMinorTakedownAsset`.
 
-## 3. Recommended mechanics **[REC]**
+## 3. Recommended mechanics **[REC]** (as implemented in `reference/src/combat/clinch.js`; all numbers are `clinch.*` tunables)
 
 ### 3.1 Entry
 ```
-canAttempt(A,B)   = gap ≤ clinchRange(0.30 m) ∧ A not in strike recovery ∧ A.mode == standup ∧ B not already grappled
-type              = fighter-enabled and facing-dependent: plum (thai) if style=muay_thai ∧ B.head forward ;
-                    double_under if style ∈ wrestler ; else over_under ; single_collar after a collar tie input
-p_success         = clamp( 0.45 + 0.004·(A.clinchcontrol − B.clinchcontrol) − 0.15·[B is striking] − 0.10·[B guarding high] , 0.10, 0.90 )
-outcomes          = success | denied (B pushes off / counter-strikes A with a hit chance) | missed (out of range, A in recovery)
-roles             = spread = A.clinchcontrol − B.clinchcontrol ; p(A dom) = clamp(0.5 + spread/200, 0.15, 0.85)
+canAttempt(A,B)   = both standing ∧ A not busy (mid-action, holding a caught leg, trapped) ∧ A's clinch cooldown (30 ticks) elapsed
+                    → otherwise the call is ILLEGAL: nothing happens, no event, no stamina
+missed            : edge-to-edge gap > clinch.range (0.30 m)                          → CLINCH_ATTEMPT {outcome:'missed'}
+rating            : clinchRating(X) = clinchcontrol + skills (iron_clinch +8)
+p_success         = clamp( 0.45 + 0.004·(rating(A) − rating(B)) − 0.15·[B mid-strike] − 0.10·[B guard high] , 0.10, 0.90 )   (B helpless: 1)
+denied            : A takes +8 recovery, B gets a counter window (18 ticks)           → CLINCH_ATTEMPT {outcome:'denied'}
+roles             : p(A is dom) = clamp(0.5 + 0.005·(rating(A) − rating(B)), 0.15, 0.85)   # the spread decides, not who initiated
+type              : allowed per fighter — over_under and single_collar for everyone; double_under for wrestlers / judo /
+                    jiu-jitsu (or bjj_fighter, rounded_clincher tendency); thai (plum) for muay thai, kickboxers and
+                    thai_clincher. A requested type is honoured only if allowed; default = plum for Thai styles,
+                    double_under for grapplers, else over_under
+cost              : 2 stamina for the attempt, whatever the outcome
 ```
-### 3.2 State inside the clinch
-* The pair shares a centre; each fighter keeps a facing; the **dom stick drives pair translation** at `0.40 × walkSpeed`;
-  the sub may resist: effective pair velocity = `dom·(1 − k) + sub·k` with `k = 0.3` if `SubControlsLoco`
-  (sub clinchcontrol ≥ dom − 10), else 0.
-* Stamina: `StaminaCostPerSecond` dom 1.0, sub 1.4 (resisting), plum 1.3.
-* **Cage pin**: if pair centre is within 0.6 m of the wall and dom pushes into it, flags flip:
-  `dom.fenceDominance = true`, `sub.backAgainstCage = true`; cage-minor takedowns and cage strikes unlock; sub's escape
-  chance −25 %.
+Order matters for observers: `CLINCH_ATTEMPT` is emitted *before* the bout is constructed, so the log reads
+attempt → `CLINCH_START` (a bug in the first draft emitted them the other way round).
 
-### 3.3 Actions (each is a normal action with frames, cost, and stats)
+### 3.2 State inside the clinch
+* The pair shares a centre and an axis (dom → sub); each fighter's facing follows the axis. The **dom stick drives pair
+  translation** at `0.40 × baseSpeed × dom.moveSpeedMult`; the sub resists: effective pair velocity =
+  `dom·(1 − k) + sub·k` with `k = clinch.resistK (0.3)` if the sub's rating ≥ dom − 10, else `k = 0`. Lateral input rotates
+  the axis by ≤ 1.2°/tick (circling).
+* Stamina per second (charged directly, not through `stamina.costScale`): dom 0.6, sub 0.9 (resisting), plum dom 0.8.
+  Paired regen is also reduced (`stamina.pairedRegenMult`).
+* **Cage pin**: when the pair centre is within `cagePinDistance` (0.6 m) of the wall, the dom pushes into it for more
+  than 10 ticks, `dom.fenceDominance = true`, `sub.backAgainstCage = true` and the axis turns the sub's back to the fence;
+  it releases once the centre is farther than 1.4 × the pin distance. While pinned: cage-minor takedowns
+  (+`cageTakedownBonus 0.06`) and the sub's escape chance `−0.25` (`cageEscapePenalty`).
+* Positions where **only the dom** may strike or attempt takedowns: `thai` and `back_clinch` (the sub is controlled).
+
+### 3.3 Actions (each is a normal action with frames, cost, cooldown 30 ticks, and stats)
 | Action | Notes |
 |---|---|
-| Strikes: knee (body/head), elbow, uppercut, hook, shoulder, stomp | Damage scaled by position (plum: knees ×1.25; over-under: ×0.8); the sub can block only with `clinch_block` (strength 0.5) |
-| Pummel / whizzer (transition) | Contest `clinchcontrol`+movement; success swaps role or changes position (over-under ⇄ double-under ⇄ collar) |
-| Takedown | Table in §2; success `p = base[move] + 0.004·(takedown − takedowndefense) + 0.003·(clinchthrows − …)`; defender may counter (`08` §4) |
-| Break / escape | `p = 0.35 + 0.004·(B.clinchcontrol − A.clinchcontrol)`, dom may release voluntarily; on break both reset to `gap = 0.9 m` |
-| Plum knees | In `thai`: head knees ×1.3 damage, extra stun chance (+4 %) |
+| Strikes: knee (body/head), elbow, uppercut, hook, shoulder, stomp | 7 bundled clinch moves (`data/moves.json`, `mode:'clinch'`). Damage × position (`thai 1.25, over_under 0.8, double_under 0.8, single_collar 0.9, back_clinch 0.85`) × 0.85 for the sub; plum head knees × `plumHeadKneeMult 1.3` and a +0.04 stun chance. The target may block with strength `0.5 × (0.8 + 0.4·blocking/100)` (never strong) |
+| Pummel (transition) | Contest `p = clamp(0.40 + 0.004·(score(me) − score(them)), 0.1, 0.9)`, `score = clinchRating + 0.5·movement`. If the **sub** wins, **roles swap**; if the **dom** wins, the **position changes** along the graph `over_under → {double_under, single_collar}`, `double_under → {over_under, back_clinch}`, `single_collar → {over_under, thai}`, `thai → {single_collar}`, `back_clinch → {double_under}` |
+| Whizzer | Sub only (not in the plum): for 90 ticks the dom's clinch throws suffer `whizzerPenalty 0.12` |
+| Takedown | Table in §2 (`getAvailableTakedowns(position, role)`); hands the pair to a `TakedownBout` (`08`) with `origin:'clinch'`. A stuffed throw returns the pair to the same clinch |
+| Break / escape | dom: always succeeds (`released`); sub: `p = clamp(0.35 + 0.004·(sub − dom), 0.05, 0.95) − 0.25·[pinned]` (`escaped`). On a break both reset to `breakGap = 0.9 m` apart, standing, with a 30-tick cooldown |
+| Plum knees | In `thai`: head knees × 1.3 damage and +4 % stun chance (included above) |
 
 ### 3.4 Time limits and referee
-* No damaging action for 6 s → `low_action` warning; 12 s → referee break ("reset to middle").
-* Round-end with both clinched → break at bell.
-* All clinch time accumulates `clinchControlPct` per fighter (dom time / total) for stats and scoring.
+* **No *significant* action for 5 s → `low_action` warning; 8 s → referee break** ("reset to the clinch's break gap"), per
+  `clinch.lowActionWarnSeconds / breakSeconds`. Only significant strikes (`STRIKE.significant`), pummel attempts and
+  entering the clinch reset the timer. (First draft: 6 s / 12 s — too long; stalled clinches dominated the time-share.)
+* Round end with both clinched → break at the bell (`FightSim.#endAllBouts('bell')`).
+* All clinch time accumulates into `time.clinch.dom` / `time.clinch.sub` (one bucket per fighter-tick, booked by the sim
+  through `timeKeys`).
+* The AI releases a clinch only after it has overstayed its time budget (`13`); never merely because it is tired — an
+  early version released at 0 stamina and produced endless clinch/break loops.
 
 ### 3.5 Scoring hooks (`12`)
-`clinch_dominance` = (dom seconds − sub seconds)/clinch seconds, weighted by effective strikes/takedown attempts from clinch.
+`clinch_dominance` raw value = `dom seconds + 2 × clinch strikes landed`; the judge turns the two fighters' raw values into
+a share (`12` §4).
 
-## 4. Acceptance tests (`reference/test/clinch.test.js`)
-1. Entry probability rises with `clinchcontrol` spread; bounds hold.
-2. Roles are assigned by spread (statistically) not by who initiated.
-3. `getAvailableTakedowns('overunder','sub')` equals the table in §2; `thai`/`dom` returns only trips.
-4. Break resets distance and clears roles; stamina drains faster for sub.
-5. 12 s of no damaging action triggers a referee break event; cage pin unlocks cage-minor takedowns.
-6. Deterministic under a fixed seed.
+## 4. Acceptance tests (`reference/test/clinch.test.js`, all passing)
+1. Entry probability rises with `clinchcontrol` spread, falls with striking / high guard; bounds hold; the observed entry
+   rate follows the formula.
+2. Roles are assigned by spread (statistically), not by who initiated.
+3. `getAvailableTakedowns('over_under','sub')` equals the table in §2; `thai`/`dom` returns only trips; dom-only positions
+   have no sub options.
+4. Attempt outcomes: missed out of range; *illegal* (null) when busy or cooling down; denied gives the defender a counter window.
+5. Break resets distance, clears roles and flags, restores modes; stamina drains faster for the sub, plum costs the dom more.
+6. Warning then break after the tunable idle times; a significant strike resets the clock.
+7. Cage pin sets fence dominance and unlocks the cage bonus; a pinned sub escapes 25 points less often; a takedown hands off to a `TakedownBout`.
+8. Plum knees beat over-under knees; the plum sub cannot strike back; pummel swaps roles / moves along the graph.
+9. `legalActions` are all executable and deterministic under a fixed seed.

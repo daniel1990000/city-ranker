@@ -16,7 +16,12 @@ function parse(argv) {
   return o;
 }
 
-const clock = (e) => { const s = Math.floor((e.tick % 18000) / 60); return `R${e.round} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const roundStart = new Map();                         // tick at which each round began (the official clock also pauses for knockdowns; this one does not)
+const clock = (e) => {
+  if (e.type === 'round_start') roundStart.set(e.round, e.tick);
+  const s = Math.floor((e.tick - (roundStart.get(e.round) ?? 0)) / 60);
+  return `R${e.round} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
 
 export function describe(e, name) {
   const n = (id) => name(id);

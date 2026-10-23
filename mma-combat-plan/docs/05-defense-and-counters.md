@@ -33,24 +33,31 @@ Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `referenc
 ## 3. Recommended mechanics **[REC]** (values are starting points, all data-driven)
 
 ```
-guard.state      : none | high | low           (hold input; raising takes guardRaiseTicks = 4)
-guard.timeUp     : ticks since raised (resets when released)
-strong block     : guard matches strike height AND timeUp >= 3
+guard.state      : none | high | low           (held input; cannot be held while striking, stunned or on the floor)
+guard.timeUp     : ticks since raised (resets when the state changes)
+strong block     : guard matches strike height (legs need LOW, everything else HIGH) AND timeUp >= 3
 weak block       : otherwise (late or wrong height)
-mitigation(strong)=0.70 + 0.25*blocking/100 ; mitigation(weak)=0.30 + 0.20*blocking/100
-pierce           : if strike.power tier == heavy AND strike is kick: mitigation -= 0.15 (roundhouse-through-block)
-chip             : blocked damage * 0.10 goes to the pool anyway (health chip) ; stamina cost = 0.5 * blocked damage
-parry            : window = 7 + floor(blocking/25) ticks ending at impact, punches/teeps only,
-                   result: damage 0, attacker +10 recovery, defender gets counterWindow(18 ticks) and 0 stamina
-slip             : requires lateral/back movement input active during strike 'active' start ±3 ticks and
-                   movement rating roll p = 0.25 + 0.5*movement/100 → miss + counterWindow(14)
-step back        : target out of reach when strike becomes active → whiff (no roll); costs stamina 1.5
-catch (kick)     : guard high + catch input within 6 ticks before impact + style/skill allows → hold state
-                   (3 s max) with options release/sweep/takedown/strike; failed catch = full hit, crit +0.05
-hands down       : fighters flagged handsDown: auto-guard disabled, strike startup −1, headshots crit +0.04
-counter window   : next strike by the defender while window is open: damage ×1.20, crit +0.05, stat counters++
-counter hit      : any hit landed while the victim is in strike startup/active (not guarding): damage ×1.15,
-                   stun probability input +10 % (the "caught coming in" bonus)
+mitigation(strong)=0.70 + 0.25*blocking/100 ; mitigation(weak)=0.30 + 0.20*blocking/100   (clamped to 0..0.95)
+pierce           : heavy KICK → mitigation -= 0.15 (roundhouse-through-block)
+chip             : 10 % of the blocked damage reaches the pool anyway ; the defender loses 0.5 stamina per blocked point
+parry            : a timed press; the impact must land within 7 + floor(blocking/25) ticks after it. Punches and teeps only.
+                   Result: damage 0, attacker +10 recovery, defender gets counterWindow (18 ticks). Presses are locked out
+                   for 20 ticks (anti-spam) and cost 0.5 stamina
+slip             : a timed press (6 ticks); only head punches; roll p = 0.25 + 0.5*movement/100 → miss + counterWindow (14).
+                   Costs 1 stamina
+step back        : no special rule. Retreating out of reach before the active frames makes the strike whiff (the hit test
+                   fails) — the evade IS the movement; the whiff is reported as outcome:'whiff'
+catch (kick)     : needs a catching style (judo, muay thai, wrestlers, jiu-jitsu, jeet kune do) or the `catch_kick` skill;
+                   a press arms it for 6 ticks; only against body / head kicks; p = 0.5 + 0.2*blocking/100.
+                   Success: the defender holds the leg for up to 180 ticks (3 s) and the KICKER is trapped (cannot move or
+                   act) for as long; the holder may punch or let go (`grapple.release`); counterWindow >= 30. A sweep or
+                   takedown out of the catch is NOT implemented (roadmap item in `19`).
+                   Failure: a full hit with crit +0.05
+hands down       : fighters flagged handsDown: strike startup −1, head crits +0.04
+counter window   : next strike by the defender while the window is open: damage ×1.20, crit +0.05, `counter:true` in the event
+                   (a successful block opens a shorter one: 60 % of 18 ticks)
+counter hit      : any hit landed while the victim is in strike startup/active or committed to a shot (not guarding):
+                   damage ×1.15, `counterHit:true` — the "caught coming in" bonus
 ```
 
 ### Interaction with health events
@@ -63,11 +70,20 @@ Blocked damage never reaches the event-probability formula's `StrikeDamage` inpu
   beginner AI raises guard late; a champion AI parries on read.
 * AI tendency archetypes weigh defence differently (`chess_master`: counters; `brawler`: low guard).
 
-## 5. Acceptance tests (see `reference/test/defense.test.js`)
-1. Strong high block on a head punch blocks ≥ 70 %.
+## 5. Acceptance tests (see `reference/test/defense.test.js`, all passing)
+1. Strong high block on a head punch blocks ≥ 70 %; blocking skill adds up to 25 points.
 2. Wrong-height block is weak.
-3. Parry inside window: 0 damage, attacker recovery extended, defender counter window opened.
+3. Parry inside window: 0 damage, attacker recovery extended, defender counter window opened; the window grows with `blocking`.
 4. Late guard (timeUp < 3): weak block.
 5. Heavy kick vs strong block still produces damage taken > 0 and a higher event probability than a punch of equal raw damage.
 6. A strike landed during victim's startup grants the counter-hit multiplier exactly once.
-7. Catch states time out and release deterministically.
+7. Catch states time out and release deterministically; the kicker is freed when the hold ends or the holder goes down.
+8. Hands-down fighters start strikes a tick faster and take extra head crits; guard cannot be raised while helpless.
+9. Damage identity `taken = strike − blocked + chip` holds for every outcome.
+
+## 6. What this reference does *not* do (decisions for the product team) **[REC]**
+* **No stamina cost for movement**, so footwork evasion is free; if kiting becomes dominant add a per-second cost in
+  `locomotion.js` (the reference had an unused `stepBackStaminaCost` knob and we removed it rather than leave it dead).
+* **No feint-triggered reactions** beyond the cheap abort (`FEINT` event); the AI does not flinch to feints yet.
+* **Block height is binary** (high / low). The reference shows `StrongBlockHigh / StrongBlockLow / WeakBlock`, which maps to
+  exactly this; a body-only block would need a third height.

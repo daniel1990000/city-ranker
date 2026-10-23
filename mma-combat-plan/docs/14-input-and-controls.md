@@ -1,6 +1,6 @@
 # 14 · Input and controls
 
-Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/input/{buffer,recognizer,mapping}.js`.
+Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/input/{intent,buffer,recognizer,mapping}.js`.
 Tests: `reference/test/input.test.js`.
 
 ## 1. What the reference does
@@ -40,60 +40,73 @@ front-end/UI recogniser **[ARCH]**; gameplay input goes through `GameInput` + An
   **submit**. "Core" kicks: body roundhouse/side/teep, head front/roundhouse, leg roundhouse (`f2p_corekicks_*`).
 * Training: heavy-bag mode with **targeting** (`HeavyBagTargettingEnabled`, `HeavyBagPosition`), combo/timed training sub-steps.
 
-## 2. Recommended abstraction **[REC]**
+## 2. Recommended abstraction **[REC]** (implemented in `reference/src/input/`)
 
 ```
-RawEvent  → InputBuffer (ring, 30 ticks) → Recognizers → Intent
-Intent ::= Move{vec}  | Strike{limb,side?,target,power,mods}  | Guard{height}  | Parry | Catch
-         | Clinch{type?} | Takedown{dir,size} | Grapple{action} | GroundMove{dir} | SubmissionPrompt{button|dir}
-         | SwitchStance | Taunt | Card{slot}
-Fighter controller consumes Intents; AI produces the same Intents; replays store Intents per tick.
+RawEvent  → InputBuffer (30-tick ring) → Recognizers → Intent frame
+Intent frame ::= { move:{x,y} (world space, |v| ≤ 1), guard:none|high|low, strike:{limb,side,slot,target,power?,chargeTicks?}|null,
+                   parry, slip, catch, feint, switchStance, clinch:{type?}|null, takedown:{dir,size}|null,
+                   grapple:{kind,…}|null, prompt:{buttons?,end?,mash?,tap?,noTap?}|null, ability:{slot,result?}|null }
+Fighter controller = anything that returns a frame each tick: human devices, AI brains, ScriptedBrain, replay feeder.
 ```
-* **Determinism**: sample input at 60 Hz, quantise to ticks, store `(tick, intent)` — the replay/netcode currency.
-* **Buffering**: strikes pressed during recovery are buffered for ≤ 6 ticks and fire at the first cancel window; defensive
-  inputs get 4 ticks of early-press forgiveness (parry windows depend on this, `05`).
+The frame is **plain data** (`emptyIntent()`, `compactIntent()` / `expandIntent()` for storage) and it is the *only* thing that
+crosses from a controller into the sim, so there is exactly one code path for a human, a bot and a replay.
+* **Determinism**: sample input at 60 Hz, one frame per fighter per tick, and **quantise the analogue part before the sim sees
+  it** — `quantizeMove` snaps the move vector to 16 directions × 3 magnitudes (+ zero; dead zone 0.12) for humans and AI alike.
+  The replay log is then `(tick, fighter, frame)` run-length encoded: a held stick produces the same frame for many ticks.
+* **Buffering** (`InputBuffer`): strikes pressed during startup/recovery are remembered for ≤ **6 ticks** and fire at the first
+  cancel window that allows them (never earlier: see the cancel-window lesson in `04`); parry / slip / catch presses get **4 ticks**
+  of early-press forgiveness (`STRIKE_BUFFER_TICKS`, `DEFENSE_BUFFER_TICKS`). Repeated presses of one kind collapse into one.
 * **Hysteresis/leash** (`11`) on the move vector and on stick-based gestures to remove jitter.
 
-### 2.1 Gamepad / keyboard mapping (reference scheme)
+### 2.1 Gamepad / keyboard mapping (reference scheme — `GamepadMapper`)
 | Input | Action |
 |---|---|
-| Left stick / WASD | Move (relative to facing; `LocoSpeedByAngle` table) |
+| Left stick / WASD | Move **relative to the opponent** (stick up = toward them, left/right = strafe/circle); then the `LocoSpeedByAngle` table applies |
 | X / Y | Lead punch / back punch |
 | A / B | Lead kick / back kick |
-| Left trigger (hold) | **Body modifier** (strikes target body; with kick = leg kick if stick down) |
-| Right trigger (hold) | Guard (high; stick down = low) · tap with timing = parry |
-| Right bumper | Sig/tech modifier (hold: sig; double-tap: tech) |
-| Left bumper | Clinch / takedown (context: close ⇒ clinch; stick toward opponent + hold ⇒ shot) |
-| Right stick | Strike by flick (alternate scheme): up = head, down = body, left/right = hook/cross choice |
-| Stick click / R3 | Switch stance |
-| Ground: left stick | Transition direction; face buttons = ground strikes / submission start; triggers = posture / defence |
-| Submission prompts | Face buttons (snipe), stick directions (gates), mash for escape |
+| Left trigger (hold > 0.35) | **Body modifier** (strikes target the body). A kick with the stick pulled down and no modifier = **leg kick** |
+| Stick forward / back + strike | picks the `fwd` / `bwd` slot variants (lunging / step-back) |
+| Right trigger | Guard while held (on at 0.35, off at 0.25 — hysteresis; stick down = low guard) · a quick tap (≤ 11 ticks ≈ 180 ms) = **parry** |
+| Right bumper | Sig/tech modifier: hold = `sig`; double-tap (≤ 16 ticks) = `tech`; double-tap and hold = `tech_sig` |
+| Left bumper | Tap (< 8 ticks) = clinch; hold ≥ 8 ticks with the stick forward and the opponent out of clinch range = takedown shot |
+| R3 / Tab | Switch stance |
+| In a clinch or on the ground | Face buttons pick from what the bout says is legal (`bout.legalActions`): X = strikes (the left stick's horizontal position chooses which), Y = elbow/hammer, A = transition/pummel, B = submission/takedown, LB = get up/break; RT = guard |
+| Submission prompts | Face buttons (snipe), stick directions (gates), mash for escape — all through `intent.prompt` |
 
-### 2.2 Touch mapping (mobile scheme)
-Screen split into masks: **left 40 %** = virtual stick (floating origin, leash filter radius 14 px), **right 60 %** =
-action zone; fixed buttons: Guard (hold), Clinch/Takedown, card slots (≤ 4) at the bottom.
+Keyboard layout (`keyboardToPadState`): WASD move, J/K = X/Y, U/I = A/B, Shift = LT, Space = RT, E = LB, Q = RB, Tab = R3 —
+it produces the same state object, so the mapper has one code path.
+
+### 2.2 Touch mapping (mobile scheme — `TouchRecognizer`)
+Screen split into masks: **left 40 %** = floating virtual stick (origin where the thumb lands, radius 60 dp, leash filter 14 dp),
+**right 60 %** = action zone; a fixed Guard button (hold = block, release within 180 ms = parry) and card slots (≤ 4) at the bottom.
+All distances are in dp (`px = dp × density`), all times in ms.
 
 | Gesture in the action zone | Intent |
 |---|---|
-| Tap (≤ 180 ms, drift < 12 px) | **Light** jab/front-leg strike (limb alternates punch↔kick by zone: upper half = punch, lower half = kick) |
-| Swipe up / down | Head / body target (strike type by swipe length: ≥ 90 px = **medium**) |
-| Swipe left / right | Hook / cross (lead/back side) or roundhouse / teep by zone |
-| Press & hold ≥ 250 ms then release | **Heavy** (charge 250–800 ms scales damage ×1.0–1.6 and startup +4 ticks); "loaded swipe" = hold then swipe |
-| Two-finger tap | Takedown shot (with meter if in meter mode) |
-| Guard button tap timed to impact | **Parry**; hold = block (height from last swipe direction or auto) |
-| Double-tap | Switch stance or catch (context) |
-| Ground: swipe direction | Transition / escape / strike; meter taps for timing duels |
+| Tap (≤ 180 ms, drift ≤ 12 dp) | **Light** strike with the lead limb; the zone picks the limb: upper half = punch to the head, lower half = kick to the body. A press of 180–250 ms is still a tap but flagged `late` |
+| Swipe up / down | Head / body target for punches, head / leg for kicks (≥ 24 dp and ≥ 400 px/s; direction = dominant axis; length ≥ 90 dp = **medium** power) |
+| Swipe left / right | Lead (left; the `tech` hook slot for punches) / back (right) side |
+| Press & hold ≥ 250 ms, release | **Heavy** back-side strike (punch from the `tech` slot, or kick). Charge ramps over 250–800 ms into `chargeTicks` (hold: ×48, swipe: ×30); the sim ignores charge below `strike.minChargeTicks` (15) and reaches the full ×1.6 damage / +4 startup at `maxChargeTicks` (48) |
+| "Loaded swipe" (hold, then swipe) | Heavy strike in the swiped direction, keeps the charge |
+| Two-finger tap (second finger within 120 ms, both short) | Takedown shot (the meter starts if `takedown.resolver = 'meter'`) |
+| Double-tap (≤ 260 ms) | Switch stance — or **catch** when the context says a catch is possible (`ctx.catchReady`) |
+| Guard button tap timed to impact | **Parry**; hold = block |
+| Ground: swipe direction | Transition / escape / strike; meter taps for timing duels (`intent.prompt.end`) |
 
-Constants (starting values): `TAP_MS 180, TAP_SLOP_PX 12, SWIPE_MIN_PX 24, SWIPE_MIN_SPEED 400 px/s, HOLD_MS 250,
-CHARGE_MAX_MS 800, DOUBLE_TAP_MS 260`. Scale distances by device DPI (`px = dp × density`).
+Constants (`TOUCH`): `TAP_MS 180, TAP_SLOP_DP 12, SWIPE_MIN_DP 24, SWIPE_MIN_SPEED 400, SWIPE_MEDIUM_DP 90, HOLD_MS 250,
+CHARGE_MAX_MS 800, DOUBLE_TAP_MS 260, TWO_FINGER_MS 120, STICK_ZONE 0.4, STICK_RADIUS_DP 60, LEASH_DP 14`.
 
 ### 2.3 Feedback
-Haptics on landed heavy hit (short), on being hit (stronger), on parry (crisp); camera hit-stop; UI shows guard height and
-parry window flash. Provide **accessibility**: one-handed mode (auto-guard), toggle-hold, larger masks, reduced shake.
+Haptics on landed heavy hit (short), on being hit (stronger), on parry (crisp); camera hit-stop (presentation only, `04`); UI shows
+guard height and parry window flash. Provide **accessibility**: one-handed mode (auto-guard), toggle-hold, larger masks, reduced shake.
 
-## 3. Acceptance tests (`reference/test/input.test.js`)
-1. Tap vs swipe vs hold classification at boundary values, with DPI scaling.
-2. Buffer fires a buffered strike exactly at the cancel window; older than 6 ticks is dropped.
-3. Intent logs replay to identical fight outcomes with the same seed (end-to-end determinism test).
-4. Leash filter: virtual stick output within radius never exceeds it; idle returns zero.
-5. Gamepad mapping covers every strike slot (`04`) at least once.
+## 3. Acceptance tests (`reference/test/input.test.js`, all passing)
+1. Tap vs swipe vs hold classification at boundary values, with DPI scaling; swipe direction by dominant axis, min length and speed, medium at 90 dp; hold threshold 250 ms with charge ramping to 1 at 800 ms and clamping; a loaded swipe keeps its charge.
+2. Double-tap, two-finger tap and the parry button; gestures map to intents (zone picks punch/kick, swipe picks target / side / power).
+3. Virtual stick: floating origin, magnitude ≤ 1, jitter inside the leash ignored, release returns zero.
+4. Intent frames: compact ↔ expand round trip, quantisation, idle detection; the movement quantiser has 16 directions × 3 speeds, a dead zone, is idempotent and a held stick yields one repeated frame.
+5. Buffer: a strike pressed during recovery fires exactly when the cancel window opens; stale presses are dropped.
+6. Gamepad: every strike slot is reachable; targets follow LT / stick-down; fwd/bwd follow the stick; movement is relative to the opponent; guard has hysteresis and height; a quick RT tap = parry; LB tap = clinch / hold = shot.
+7. In a clinch or on the ground the face buttons pick from the legal actions; the keyboard layout produces the same state shape.
+8. Intent logs replay to identical fight outcomes with the same seed (end-to-end, in `replay.test.js`).

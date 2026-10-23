@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildAll } from '../demo/build-data.js';
@@ -56,6 +56,29 @@ test('tunables.json mirrors DEFAULT_TUNABLES; every documented section exists', 
   for (const s of ['fighter', 'stamina', 'pools', 'damage', 'defense', 'strike', 'healthEvents', 'clinch', 'takedown', 'ground', 'submission', 'referee', 'recovery', 'scoring', 'ai']) assert.ok(d.tunables[s], s);
 });
 
+// A knob nothing reads is a trap for the next person who tunes it. Presentation-only values and per-id tables that are looked up
+// with a computed key are listed here on purpose.
+const NOT_READ_BY_NAME = [/^strike\.hitStopTicks/, /^healthEvents\.profiles\./];
+function leafPaths(o, prefix = '') {
+  return Object.entries(o).flatMap(([k, v]) => {
+    const p = prefix ? `${prefix}.${k}` : k;
+    return v && typeof v === 'object' && !Array.isArray(v) ? [p, ...leafPaths(v, p)] : [p];
+  });
+}
+function sourceText(dir) {
+  return readdirSync(dir).flatMap((n) => {
+    const p = resolve(dir, n);
+    if (statSync(p).isDirectory()) return [sourceText(p)];
+    return p.endsWith('.js') && !p.endsWith('core/tunables.js') ? [readFileSync(p, 'utf8')] : [];
+  }).join('\n');
+}
+
+test('every tunable key is read somewhere in src/ (no dead knobs)', () => {
+  const text = sourceText(resolve(here, '../src'));
+  const dead = leafPaths(DEFAULT_TUNABLES).filter((p) => !NOT_READ_BY_NAME.some((re) => re.test(p)) && !new RegExp(`\\b${p.split('.').pop()}\\b`).test(text));
+  assert.deepEqual(dead, []);
+});
+
 test('golden replay still re-simulates bit-identically (re-record deliberately with `npm run golden` if the sim changed on purpose)', () => {
   const data = read('data/replays/golden-1.json');
   const r = playReplay(data);
@@ -78,6 +101,19 @@ function expandBraces(p) {
   return m[2].split(',').flatMap((alt) => expandBraces(`${m[1]}${alt}${m[3]}`));
 }
 
+test('every tunable path named in the docs (e.g. `clinch.range`) exists in DEFAULT_TUNABLES', () => {
+  const sections = Object.keys(DEFAULT_TUNABLES).join('|');
+  const re = new RegExp('`((?:' + sections + ')(?:\\.[A-Za-z][\\w]*)+)`', 'g');
+  const known = new Set(leafPaths(DEFAULT_TUNABLES));
+  const missing = [];
+  for (const f of readdirSync(resolve(root, 'docs')).filter((n) => n.endsWith('.md'))) {
+    for (const m of readFileSync(resolve(root, 'docs', f), 'utf8').matchAll(re)) {
+      if (!/\.(js|json|md)$/.test(m[1]) && !known.has(m[1])) missing.push(`${f}: ${m[1]}`);     // `damage.js` is a file, not a tunable
+    }
+  }
+  assert.deepEqual([...new Set(missing)], []);
+});
+
 test('every reference/ file named in the docs exists', () => {
   const docs = readdirSync(resolve(root, 'docs')).filter((f) => f.endsWith('.md'));
   assert.ok(docs.length >= 20, `docs found: ${docs.length}`);
@@ -90,6 +126,17 @@ test('every reference/ file named in the docs exists', () => {
       for (const rel of expandBraces(m[1])) {
         if (!existsSync(resolve(root, 'reference', rel))) missing.push(`${f}: ${rel}`);
       }
+    }
+  }
+  assert.deepEqual([...new Set(missing)], []);
+});
+
+test('every data/ and tools/ file named in the docs and the README exists (top-level paths only, not src/data/)', () => {
+  const missing = [];
+  for (const f of ['README.md', ...readdirSync(resolve(root, 'docs')).filter((n) => n.endsWith('.md')).map((n) => `docs/${n}`)]) {
+    const text = readFileSync(resolve(root, f), 'utf8');
+    for (const m of text.matchAll(/(?<![\w./-])((?:data|tools)\/[\w./{},-]+\.(?:json|js|py|md))/g)) {
+      for (const rel of expandBraces(m[1])) if (!existsSync(resolve(root, rel))) missing.push(`${f}: ${rel}`);
     }
   }
   assert.deepEqual([...new Set(missing)], []);

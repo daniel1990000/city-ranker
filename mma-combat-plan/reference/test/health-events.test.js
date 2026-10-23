@@ -112,3 +112,22 @@ test('applyHealthEvent / tickStatus lifecycle: stun → recovered → cleared', 
   assert.ok(!f.isHelpless() && f.status.limpTicks > 0 && f.status.limpLeg === 'legL');
   assert.ok(f.moveSpeedMult() < 0.9);
 });
+
+test('ladder: an excluded event is never chosen; a strike on a fighter who is already on the ground cannot knock them out (the referee stops it)', () => {
+  const tun = mergeTunables();
+  const att = mk({ id: 'a' }, tun), def = mk({ id: 'd' }, tun);
+  const move = buildDefaultMoves().find((m) => m.id === 'ground_elbow_head');
+  const rng = new Rng(5);
+  let kos = 0, kosExcluded = 0, others = 0;
+  for (let i = 0; i < 40000; i++) {
+    // a desperate situation: a nearly empty head pool, so every hit is a huge fraction of what is left
+    const args = { attacker: att, defender: def, region: 'head', move, taken: 30, poolCurAfter: 1, seed: rng.nextInt32(), tun, strikesReceivedRound: 30 };
+    if (evaluateLadder(args).event === 'knockout') kos += 1;
+    const r = evaluateLadder({ ...args, exclude: ['knockout'] });
+    if (r.event === 'knockout') kosExcluded += 1;
+    if (r.event !== 'none') others += 1;
+  }
+  assert.ok(kos > 0, 'without the exclusion a knockout is possible');
+  assert.equal(kosExcluded, 0, 'with it, never');
+  assert.ok(others > 0, 'the weaker events still happen');
+});

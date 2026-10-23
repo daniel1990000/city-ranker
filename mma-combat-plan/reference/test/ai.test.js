@@ -193,3 +193,27 @@ test('forced goals (ability proc) override the next draw; brains with ability ba
   assert.ok(used.length >= 1, 'abilities were used');
   for (const e of used) assert.ok(['fail', 'success', 'perfect'].includes(e.result));
 });
+
+test('pounce: after a knockdown an aggressive brain closes in, follows up inside the window and finishes a defenceless victim by ground-and-pound', () => {
+  const [striker, brawler] = [DEFAULT_FIGHTERS[0], DEFAULT_FIGHTERS[1]];
+  let tried = 0, pounced = 0, stopped = 0, violations = 0;
+  for (let seed = 1; seed <= 20; seed++) {
+    const sim = new FightSim({ seed, rounds: 1, roundSeconds: 120, fighters: [brawler, striker], controllers: { [striker.id]: false }, record: true, debug: true });
+    for (let i = 0; i < 240; i++) sim.step();                       // let the fight settle, then knock the passive fighter down
+    if (sim.over) continue;
+    tried += 1;
+    const t0 = sim.world.tick;
+    sim.world.healthEvent(sim.world.fighters[1], sim.world.fighters[0], 'knockdown', 'head');
+    for (let i = 0; i < 900 && !sim.over; i++) sim.step();
+    violations += sim.violations.length;
+    const follow = sim.world.bus.log.find((e) => e.type === 'ground_position' && e.reason === 'follow_up');
+    if (follow) {
+      pounced += 1;
+      assert.ok(follow.tick - t0 <= sim.world.tun.ground.downedFollowUpTicks, 'follow-up inside the window');
+      if (sim.result?.method === 'ground_and_pound') stopped += 1;
+    }
+  }
+  assert.equal(violations, 0, 'the follow-up intent passes the legality checker');
+  assert.ok(pounced >= tried * 0.5, `a brawler pounces most of the time (${pounced}/${tried})`);
+  assert.equal(stopped, pounced, 'every pounce on a defenceless fighter ends in a ground-and-pound stoppage');
+});

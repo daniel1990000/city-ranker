@@ -1,7 +1,8 @@
 # 04 · Stand-up striking
 
 Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/combat/strike.js`, `moves.js`,
-`damage.js`.
+`damage.js` (tests: `reference/test/strike.test.js`, `reference/test/defense.test.js`); move data: `data/moves.json`
+(37 original moves: 24 stand-up, 7 clinch, 6 ground).
 
 ## 1. The strike grid **[DATA]**
 
@@ -52,15 +53,27 @@ Strikes have no start/ready/finish stage — they are single actions with intern
 implement *combo chaining*: each move exposes tagged windows where it may **branch out**, and each move declares which
 tags it can **branch in** from. A "tuner" scales the windows (rating/difficulty).
 
-**[REC] frame model (60 Hz ticks)**
+**[REC] frame model (60 Hz ticks)** — implemented in `reference/src/combat/strike.js` (`actionPhase`, `startStrike`)
 ```
 startup  → active (hitbox live) → recovery
-cancel:  branchOut window [a,b] ∩ target.branchIn tags  → skip remaining recovery (stamina cost, combo++)
-feint:   cancel allowed in startup[0..f]; cheap; provokes opponent flinch/guard reaction
+cancel:  window [startup+active, startup+active+floor(recovery*0.55))  ∩  next.tags ∈ current.cancel.into
+         → skip the remaining recovery (stamina ×1.1, combo++)
+feint:   abort during startup ticks 0..5; costs 0.8 stamina; provokes the opponent's reaction
 ```
-Typical starting values (original, tune in playtests): jab startup 5–6 / active 2–3 / recovery 10; cross 8/3/16;
-hook 10/3/20; leg kick 12/4/26; head kick 16/4/34; teep 10/3/20; spinning moves +6 startup, −recovery on hit.
-Hit-stop on connect (2–5 ticks) and "impact scale" tiers *light / medium / heavy* (see §5).
+**Lesson (cost us a failing test):** a cancel window that opens *before* the active frames lets a buffered jab→jab skip the
+hit entirely, so no strike ever lands. Windows must start after `startup+active`. `validateMove` only checks that a window
+lies inside the move; keeping it behind the active frames is a data-authoring rule.
+
+Shipped starting values (`startup/active/recovery`; original, tune in playtests): jab 5/2/9 · cross 8/3/14 · lead hook
+10/3/18 · overhand 13/3/24 · lead leg kick 11/4/22 · rear leg kick 13/4/26 · body kick 14/4/28 · head kick 17/4/34 ·
+teep 10/3/20 · flying knee 16/3/32 · spinning heel kick 20/4/40. Per-fighter frame scaling (`Fighter.scaledFrames`):
+`sp = 0.9 + 0.2·speedRating/100` (punchspeed / kickspeed) divides startup and recovery, gassed fighters are 8 % slower,
+hands-down fighters start 1 tick faster. A charged strike (`chargeTicks` 15…48) adds up to +4 startup ticks and up to
+×1.6 damage (`strike.minChargeTicks / maxChargeTicks / maxChargeMult`).
+
+**Hit-stop is presentation only.** `strike.hitStopTicks` (light 2 / medium 4 / heavy 6) is data for the renderer and the
+camera; the simulation never pauses, which keeps replays and netcode trivial. Impact tiers *light / medium / heavy* are
+defined in §5.
 
 ## 3. Hit detection **[ARCH] + [REC]**
 
@@ -75,19 +88,24 @@ volumes; **predicted impact position** + **magnets/relative IK** bend the limb s
 connects; the contact becomes an *impact record* (body part, direction, surface, magnitude) that feeds reaction
 selection and damage.
 
-**[REC] 2D/ground-plane implementation** (used by the reference code):
+**[REC] 2D/ground-plane implementation** (used by the reference code, `strike.js: hitTest / applyAimAssist`):
 ```
-for each tick where attacker.action.phase == active:
-  gap   = distance(A,B) - (A.radius + B.radius)
-  reachEff = move.reach + (A.reachRating - 1) * 0.15      # metres
-  angle = |relativeAngle(A.facing → B)|
-  hit  = gap <= reachEff && angle <= move.wedgeDeg
-  aimAssist (magnet): during startup rotate A.facing toward B ≤ magnetDegPerTick if gap <= move.reach * 1.4
-  target validity: leg strikes need B not sprawled; head strikes need B.height ≥ crouch limit; etc.
+for each tick where attacker.action.phase == active and the action is not yet resolved:
+  gap      = distance(A.pos, B.pos)                         # centre to centre (move.reach is quoted the same way)
+  reachEff = move.reach * A.reachFactor                     # reachFactor = clamp(1 + 0.12*(reachCm-180)/20, 0.9, 1.12)
+  angle    = |angleDiff(direction A→B, A.facing)|
+  hit      = move.minReach <= gap <= reachEff && angle <= move.wedgeDeg
+  aimAssist (magnet): during startup rotate A.facing toward B by ≤ strike.aimAssistDegPerTick (6°)
+                      if gap <= reachEff * strike.aimAssistReachMult (1.4)
 ```
-Then run defence resolution (`05`) → damage (`06`). Keep **hit-resolution order** deterministic: process both fighters'
-actions in a fixed order (e.g. lower id first) but resolve simultaneous hits as a *trade* (`rp_combo_trade_*` replay
-groups confirm the reference supports trades).
+The defender must be *strikable*: standing, or the attacker of a takedown in its approach phase (that is how a well-timed
+strike stops a shot, `08`). A strike whose active frames end without contact emits a `STRIKE` event with
+`outcome:'whiff'`.
+
+Then run defence resolution (`05`) → damage (`06`). Hit resolution is **two-pass** (`FightSim.#resolveContacts`): every
+contact of the tick is *decided* (guard / parry / slip / catch, counter-hit flag) against the state *before* any damage is
+applied, and only then applied. Simultaneous hits are therefore true **trades** whatever the processing order
+(`rp_combo_trade_*` replay groups confirm the reference supports trades).
 
 ## 4. Movement-linked variants and cage awareness
 
@@ -105,18 +123,25 @@ Debug-string evidence of the pipeline: `[Base] [Range] [Card Bonus] [Crit Chance
 `ActionDamageAttribute`, `DamageScale`. Crowd feedback tiers: `STRIKE_SUCCESS_{LOW,MED,HIGH}_DAMAGE`; replay tiers:
 `rp_strike_gen`, `rp_strike_huge_gen`, `rp_strike_huge_against_cage`.
 
-**[REC] formula** (see `06` for the health-event side):
+**[REC] formula** (`damage.js: rawStrikeDamage / resolveDamage`; see `06` for the health-event side):
 ```
 raw      = base + rng()*range
-power    = limbPowerRating/100   (hand or leg, left/right specific)
+power    = limbPowerRating/100           (hand or leg; lead/back resolved to left/right through the current stance)
 attrFac  = 0.6 + 0.8*power
-speedFac = 0.9 + 0.2*(speedRating/100)  (affects frame scaling, not damage, unless charged)
-crit     = rng() < critChance  → ×critMult (default 1.5, head only, higher on counter)
-strike   = raw*attrFac*scale*(crit?critMult:1)*skillMods
-blocked  = defence.resolve(...) fraction (`05`)
-taken    = strike*(1-blocked)
+strike   = raw * attrFac * (gassed ? 0.85 : 1) * (1 + 0.6*chargeFrac) * (kick off a limping leg ? 0.7 : 1)
+crit     : head strikes only; p = move.critChance + 0.04 hands-down + 0.05 victim helpless + 0.05 counter
+                                   + 0.05 failed catch + ability bonus      → strike ×= 1.5
+strike  *= regionMult{head .80, body .70, leg .65}  × (victim helpless ? 1.25)  × (counter ? 1.20)  × (counter-hit ? 1.15)
+         × position multiplier (clinch / ground, `07` `09`) × skill multiplier clamped to [1/1.35, 1.35]
+blocked  = strike * mitigation (`05`)       chip = 0.10 * blocked      taken = strike - blocked + chip
 ```
-Tiers by `taken / targetPoolMax`: light < 3 %, medium 3–7 %, heavy ≥ 7 % (tune) → crowd/replay/camera feedback.
+Tiers by `taken / targetPoolMax`: **light < 1.0 %, medium 1.0–2.2 %, heavy ≥ 2.2 %** (`damage.tiers`) → crowd / replay /
+camera feedback and the `significant` flag. The pools are large (a default fighter has head ≈ 870, body ≈ 530, each leg
+≈ 435), so these percentages are small: a clean jab is ≈ 0.4 % of the head pool, a cross ≈ 0.7 %, a rear leg kick ≈ 1.7 % of
+the struck leg, a head kick ≈ 1.3 % (default ratings, before crits). On the head only a crit stacked with a counter, a
+charge or a high power rating reaches *heavy*. Pool damage
+itself rarely decides a fight — the health-event ladder (`06`) does — but it feeds the event probabilities, the
+`damage` judging component and the AI's `opp_health_head` signal.
 
 ## 6. Stats the strike system must emit **[DATA]**
 Thrown / landed / blocked / avoided per: hand-side (left/right), limb (punch, kick, knee, elbow), target (head, body, leg),

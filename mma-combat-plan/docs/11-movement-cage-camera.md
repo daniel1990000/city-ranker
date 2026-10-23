@@ -1,7 +1,8 @@
 # 11 · Movement, input filters, cage geometry, camera
 
 Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/core/math.js`,
-`sim/cage.js`, `sim/locomotion.js`. Tests: `reference/test/math.test.js`, `cage.test.js`.
+`sim/cage.js`, `sim/locomotion.js`, `input/intent.js` (movement quantiser). Tests: `reference/test/core.test.js`
+(math, filters, RNG, statechart), `reference/test/cage.test.js` (geometry, wall sense, locomotion), `reference/test/input.test.js`.
 
 ## 1. Locomotion
 
@@ -15,7 +16,21 @@ interpolation between adjacent knots**:
 
 (`D5` is shared by +π and −π; the two lateral halves can differ — useful for stance asymmetry.)
 **[REC] defaults** (× base speed): `D1 1.00, D2 0.92, D3 0.80, D4 0.66, D5 0.55, D6 0.66, D7 0.80, D8 0.92`, base
-`2.0 m/s × (0.85 + 0.30·movement/100)`, × `0.65` when `limping`, × `0.5` when `wobbled`.
+`2.0 m/s × (0.85 + 0.30·movement/100)`, × `0.65` when `limping`, × `0.5` while `wobbled`, × `0.9` when gassed
+(`fighter.baseSpeed / movementRatingSpan / loco / limpMult / gassedSpeedMult`; the wobble factor comes from the health-event
+effect table, `06`).
+
+**Implemented rules** (`sim/locomotion.js`, `FightSim.#locomotion`):
+* Facing always tracks the opponent at ≤ `turnRateDegPerTick` (9°/tick) — even while locked.
+* **Locked** (no translation, but turning continues) during a strike's startup and active frames, a stance switch, a caught
+  kick (`trapped`), and while helpless. During recovery movement runs at ×0.5.
+* A move with `advance > 0` (lunging jab/cross, lunging knee, superman punch, flying knee) slides the fighter along their
+  facing by `advance/startup` per startup tick, so the strike closes distance instead of the player doing it.
+* Two standing discs are pushed apart equally (`separate`); every standing fighter (and a shooter in takedown phase I) is
+  clamped inside the octagon.
+* **Movement input is quantised to 16 directions × 3 magnitudes** (`MOVE_LEVELS = [0, .4, .75, 1]`, dead zone 0.12, level
+  thresholds 0.57 / 0.88) for humans and AI alike (`quantizeMove`). That is what keeps replay logs small — a held stick
+  produces the same frame for many ticks — and 22.5° / three speeds is plenty for footwork.
 
 ### 1.2 Locomotion controllers in the engine **[ARCH]**
 `StreetLocomotionController` (free movement), `SyncPointBlendSpaceMoveGroupController` (blend-space locomotion with
@@ -28,8 +43,9 @@ sync points → foot-synchronised blends), `ClinchLocoController` (pair locomoti
 ### 1.3 Stance and footwork **[DATA]**
 `FIGHTER_STANCE_CURRENT`, `STANCE_TRADITIONAL` (orthodox vs southpaw), `STANCE_SWITCH_COUNT`, action `switch_stance`,
 `switch_stance_tendency`, commentary trigger `STANCE_SWITCH`, flag `IS_CIRCLING`. Lead/back limbs flip with stance.
-**[REC]** switch = 14-tick action, cannot be interrupted except by being hit; stance mismatch (orthodox vs southpaw) gives
-an angle bonus: lead-hand strikes are slightly easier to land on an opposite-stance opponent (+3 % hit wedge).
+**[REC]** switch = 14-tick action costing 1 stamina (movement and strikes locked, `STANCE_SWITCH` event). Lead/back limbs flip
+with the stance (`Fighter.limbSide`). *Not implemented, suggested:* an opposite-stance angle bonus (lead-hand strikes
++3 % hit wedge against an opposite-stance opponent).
 
 ## 2. Input-feel filters (decoded) **[CODE]**
 
@@ -56,13 +72,16 @@ BackLeft/BackRight` and matching `AngleNormal*`): for the nearest wall, the engi
 fighter's frame and bins it into 8 sectors. Use it to choose animations/moves and to set the flags
 `back_against_cage`, `facing_cage`, `back_exposed`, `fence_dominance`:
 ```
-rel = wrap(angle(wallNormalInward) − fighter.facing) ; sector = round(rel / 45°) mod 8
-backAgainstCage = pinned ∧ sector ∈ {Back, BackLeft, BackRight}
+rel = wrapPi(angle(directionToWall = outward normal) − fighter.facing) ; sector = SECTORS[round(rel / 45°) mod 8]
+SECTORS = front, front_left, left, back_left, back, back_right, right, front_right
+backAgainstCage = pinned ∧ sector ∈ {back, back_left, back_right}      facingCage = pinned ∧ sector ∈ {front, front_left, front_right}
 ```
+(`Octagon.sense(pos, facing, radius, pinMargin = 0.12)` also returns the gap, the wall index and `pinned`.)
 Wall-related engine assets: `PrimaryWall{Contact,Normal,Position}`, `SecondaryWall*`, `HasWallContact`, `WallDistance`,
 `WallNormal`, `WallAlignmentController` (snap the pair to the fence), `WallVault{Query,Processor}` (cage run-ups: moves
 "off the cage" `flying_off_cage`) **[DATA/ARCH]**. Gameplay effects: cage strikes (`04`), sprawl-against-cage denial
-(`08`), clinch pin (`07`), wall-walk get-up (`09`), reduced retreat speed (**[REC]**: backward speed × 0.0 when pinned).
+(`08`), clinch pin (`07`), wall-walk get-up (`09`). Retreat is simply impossible into the wall (the clamp), with no extra
+speed penalty.
 
 ## 4. Camera **[ARCH]**
 * **Modes** (`cameramode_*`): `standup`, `ground`, `submission`; fight modes also split `clinch`.
@@ -83,9 +102,12 @@ Wall-related engine assets: `PrimaryWall{Contact,Normal,Position}`, `SecondaryWa
    close-up with stage-based zoom; hit-stop shake on heavy hits; slow-mo on knockdown/KO (`replay` tiers).
 5. Cheap fallback for low-end devices: fixed side-on orthographic camera with the same smoothing.
 
-## 5. Acceptance tests
-1. `locoSpeed(0)=D1`, `locoSpeed(±π)=D5`, linear at midpoints, continuous across ±π.
-2. Leash filter: output never farther than `radius` from input; idempotent when stationary; reset snaps.
-3. Octagon: `inside` true at centre, false at `a + 0.01`; `nearestWall` normals match the 8 directions; sector binning
-   is stable under facing rotation.
-4. Hysteresis: no flicker for input oscillating within `(b2,b1)`.
+## 5. Acceptance tests (`reference/test/core.test.js`, `cage.test.js`, `input.test.js`, all passing)
+1. `locoSpeedByAngle(0)=D1`, `(±π)=D5`, linear at midpoints, continuous across ±π.
+2. Leash filter: output never farther than `radius` from input; idempotent when stationary; reset snaps; `radius ≤ 0` snaps.
+3. Octagon: 30 ft across flats gives the regular-octagon apothem / circumradius / side; `inside` true at centre, false 1 cm past a
+   wall; `nearestWall` normals match the 8 directions; sector binning follows the facing and is stable under rotation.
+4. Hysteresis: no flicker for input oscillating within `(b2,b1)`; `rangeToRatio`, `pingPong`, `approachFilter` behave as decoded.
+5. Locomotion: forward is faster than sideways is faster than backward; limping and a gassed fighter slow you; locked
+   fighters turn but do not move; separation is symmetric.
+6. Movement quantiser: dead zone, three magnitudes, 16 directions, idempotent.

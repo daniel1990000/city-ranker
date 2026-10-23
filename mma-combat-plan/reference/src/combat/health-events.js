@@ -50,9 +50,9 @@ export const regionGroup = (region) => (region === 'head' ? 'head' : region === 
 
 /**
  * Evaluate the event ladder for one landed strike (most severe first; first success wins).
- * `taken` = post-block damage; `poolCurAfter` = region pool after this strike.
+ * `taken` = post-block damage; `poolCurAfter` = region pool after this strike; `exclude` = events this strike cannot cause.
  */
-export function evaluateLadder({ attacker, defender, region, move, taken, poolCurAfter, seed, tun, strikesReceivedRound, counterHit = false, bonusByEvent = null }) {
+export function evaluateLadder({ attacker, defender, region, move, taken, poolCurAfter, seed, tun, strikesReceivedRound, counterHit = false, bonusByEvent = null, exclude = null }) {
   const group = regionGroup(region);
   const ladder = tun.healthEvents.ladders[group];
   const cur = defender.status.event;
@@ -65,6 +65,7 @@ export function evaluateLadder({ attacker, defender, region, move, taken, poolCu
   const results = [];
   for (const ev of ladder) {
     if ((SEVERITY[ev] ?? 0) < curSev) continue; // never downgrade an active event
+    if (exclude && exclude.includes(ev)) continue;
     const prof = tun.healthEvents.profiles[`${group}.${ev}`];
     let p = healthEventProbability({
       probabilityMin: prof.pMin, probabilityMax: prof.pMax, fighterAttribute: attr,

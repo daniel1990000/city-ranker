@@ -1,7 +1,8 @@
 # 12 · Fight flow, referee, rounds and judging
 
 Tags: **[CODE] [DATA] [ARCH] [REC] [GAP]** (see `02`). Reference code: `reference/src/core/statechart.js`,
-`sim/match.js`, `combat/referee.js`, `combat/scoring.js`. Tests: `reference/test/scoring.test.js`, `match.test.js`.
+`sim/match.js`, `combat/referee.js`, `combat/scoring.js`, `combat/injuries.js`, `combat/stamina.js`. Tests:
+`reference/test/scoring.test.js`, `match.test.js`, `referee.test.js`.
 
 ## 1. Observed structure **[DATA]**
 
@@ -43,63 +44,84 @@ Match
 │   └─ BetweenRounds     : corner (recovery tick, cutman, advice) ── (event: next) ──▶ Round(n+1)
 └─ PostFight  : decision | stoppageAnnounce | celebration
 ```
-Transitions are events (`bell`, `ko`, `tko`, `tap`, `refStop`, `resume`, `doctorStop`, `next`) with enter/exit actions —
-the same pattern as the reference's flow engine (SCXML-style composite states).
+Transitions are events (`fightStart`, `refStop`, `resume`, `bell`, `next`, `ko`, `tko`, `tap`, `doctorStop`) with enter/exit
+actions — the same pattern as the reference's flow engine (SCXML-style composite states). `Match.state` maps the chart onto a
+small HUD/camera vocabulary (`pre_fight`, `fight`, `stopped`, `between_rounds`, `post_fight`).
 
-### Round parameters (starting values)
-Non-title: 3 × 5:00; main event/title: 5 × 5:00; rest 60 s. `seconds_out` call at 10 s. Clock **pauses** on referee
-stop, knockdown sequence, doctor check.
+### Round parameters (implemented defaults)
+3 × 5:00 by default (`FightSim({rounds: 5})` for main events), rest 60 s (`referee.roundSeconds / restSeconds`; headless
+runs skip the rest with `fastRest`). The clock **pauses** in `stopped`: on a referee stop and **during the knockdown
+sequence** — in that case the *simulation keeps running* (`Match.simRuns`: the downed fighter's event timer, the follow-up and
+the referee's count continue) while the round clock stands still. The reference has a `seconds_out` call at 10 s of rest; that
+is a presentation event and is not simulated.
 
-### Recovery between rounds **[REC]**
-`stamina += 0.40·(max − current)` (cap 100 %), `body/legs pools += 3 %` of max, `head += 1 %`, cut severity −1 with the
-cutman on `p = 0.7` (critical cuts need the doctor: `p(doctorStop) = 0.5·severity`), `strikesReceivedThisRound = 0`
-(this resets the accumulation term in `HealthEventProbability`, `06`).
+### Recovery between rounds **[REC]** (`stamina.js: recoverBetweenRounds`, `injuries.js: cutmanTreat`)
+`stamina += 0.40·(max − current)`, `body/leg pools += 10 %` of max, `head += 14 %` (`recovery.*`; the first draft restored 3–4 %
+and the per-round finish rate doubled by round 4, see `19`); the cutman lowers a *cut* or
+*worse* region by one stage with `p = 0.7` (a *critical* cut cannot be treated and goes to the doctor:
+`p(doctorStop) = referee.doctorChanceFactor (0.5) · severity`, checked once at the end of every round that is not the last).
+`strikesReceivedThisRound` resets because the stats tracker is round-scoped (`StatsTracker.startRound`) — this resets the
+accumulation term in `HealthEventProbability` (`06`). Every bout is ended at the bell (`reason:'bell'`), both fighters start
+the next round standing 1.4 m apart in the middle, and statuses other than a knockout are cleared.
 
-## 3. Referee behaviour **[REC]**
-Priority each tick: (1) `knockout` event ⇒ KO; (2) TKO rules (`06` §6); (3) doctor check; (4) **idle** rules:
- * stand-up: no strike/transition/submission attempt for 5 s → `LOW_ACTION` warning, 10 s → `BREAK`/stand-up
-   (restart at centre, "FIGHT_BACK");
- * clinch: 6 s warning, 12 s break (`07`);
- * ground: 10 s `fighters_idle` → stand-up (`09`);
-(5) bell. A stoppage while a submission is at stage ≥ 3 and the bell rings → `saved_by_bell` story event.
-Fouls are not evidenced in the reference; omit or add later as a separate module.
+## 3. Referee behaviour **[REC]** (`combat/referee.js` — an observer of the event bus plus one `update()` per tick)
+Priority each tick: (1) `knockout` health event ⇒ KO (double KO: healthier head pool wins, exact tie = no contest);
+(2) TKO rules (`06` §6: unanswered ground strikes, stunned-and-hurt, leg injury); (3) submission results (tap / choke-out /
+lock injury); (4) **idle** rules, each owned by the state that has the timer:
+ * stand-up (the referee): no strike, shot, clinch, transition or movement-to-contact for 5 s → `LOW_ACTION` warning, 10 s →
+   `BREAK` and a reset to the middle (`FIGHT_BACK`);
+ * clinch (the `ClinchBout`): 5 s warning, 8 s break — only significant strikes and pummels count as action (`07`);
+ * ground (the `GroundBout`): 5 s warning, 10 s stand-up in the middle — only significant strikes, transitions, get-ups and
+   submission attempts count (`09`);
+(5) bell. A submission at stage ≥ 3 when the bell rings counts `subs.saved_by_bell` for the defender.
+The doctor check runs between rounds (§2). Fouls are not evidenced in the reference; omit or add later as a separate module.
 
-## 4. Judging **[REC]** (components and tags above are observed; formulas are ours)
+## 4. Judging **[REC]** (components and tags above are observed; formulas are ours — `combat/scoring.js`)
 
-Each round, per fighter *f* compute 12 component values from the stats tracker, normalise each to `[0,1]` as
-`share = mine / (mine + theirs)` (0.5 when both zero), then:
+Each round, per fighter *f* compute the 12 raw component values from the stats tracker, turn each into a share
+`share_i = mine / (mine + theirs)` (0.5 when both are zero), then:
 ```
-S_f = Σ_i w_i · c_i(f)                       # weights below; normalise so Σ w = 1
+S_f = Σ_i w_i · share_i(f)                    # weights below; normalised so Σ w = 1 ; S_a + S_b = 1
+Δ   = S_a − S_b
 ```
-| Component | Raw measure | Start weight |
+| Component | Raw measure | Base weight |
 |---|---|---|
-| effective_striking | significant strikes landed (head 1.0, body 0.7, leg 0.6) × accuracy bonus | 0.26 |
-| damage | post-block damage dealt ÷ opponent pool maxima | 0.26 |
-| health_events | wobbled 1, stun 2, critical stun 3.5, knockdown 8, liver shot 2, limp 1.5 | 0.14 |
+| effective_striking | (head 1.0·sig head + body 0.7·sig body + leg 0.6·sig leg) × (0.85 + 0.3·accuracy) | 0.26 |
+| damage | post-block damage dealt ÷ the opponent's four pool maxima | 0.26 |
+| health_events | Σ value × events inflicted: wobble 1, stun 2, critical stun 3.5, knockdown 8, liver shot 2, limp 1.5 | 0.14 |
 | takedowns_performed / denied | landed · 1.0 / denied · 0.4 | 0.05 / 0.02 |
-| ground_dominance | seconds on top × (GnP landed bonus) | 0.07 |
-| clinch_dominance | dom seconds − sub seconds (+ clinch strikes) | 0.03 |
-| passes_performed / denied | improvements · 1.0 / stuffed · 0.5 | 0.02 / 0.01 |
-| submissions / escaped | Σ stage depth reached / escapes | 0.05 / 0.02 |
-| blocks_and_parries | defended ÷ attempted strikes | 0.07 |
+| ground_dominance | dominant seconds × (1 + 0.1·ground strikes landed) | 0.07 |
+| clinch_dominance | dom seconds + 2·clinch strikes landed | 0.03 |
+| passes_performed / denied | passes landed · 1.0 / denied · 0.5 | 0.02 / 0.01 |
+| submissions / escaped | stage depth + 0.5·attempts / escapes | 0.05 / 0.02 |
+| blocks_and_parries | (blocked + parried + slipped + caught + evaded) ÷ strikes the opponent threw | 0.07 |
 
-**Round card (10-point must)**: winner 10, loser 9; **10-8** if `S_win − S_lose ≥ 0.38` *or* the loser suffered a
-knockdown with ≥ 2 health events *or* ≥ 2 minutes of ground dominance with heavy GnP; **10-7** if two such criteria and
-`≥ 0.55`; `10-10` only if `|ΔS| < 0.02`. Three **judges**, each with jittered weights (±15 %) and one "style bias"
-(damage-first, grappling-first, activity-first), so scorecards occasionally disagree.
+**Round card (10-point must)**: a round with `|Δ| < 0.004` (`drawMargin`) is **10-10**; otherwise winner 10, loser 9;
+**10-8** if `|Δ| ≥ 0.38` (`ten8Margin`, the *margin* criterion) **or**, in a round the winner clearly won
+(`|Δ| ≥ 0.20`, `ten8SoftMargin`), the loser suffered a knockdown plus ≥ 2 health events (*knockdown*) or the winner had ≥ 120 s
+of dominant ground time with ≥ 10 ground strikes (*ground_dominance*); **10-7** if two criteria hold and `|Δ| ≥ 0.55`.
+Three **judges** each get the base weights jittered by ±5 % (`judgeWeightJitter`) and **one style bias** (the three biases are
+dealt out in random order, so every card has a damage-first, a grappling-first and an activity-first judge):
+damage-first ×1.18 on damage and health events; grappling-first ×1.25 on takedown / ground / pass / submission components and
+×1.12 on clinch; activity-first ×1.18 on striking and ×1.12 on blocks and parries. Scorecards therefore occasionally disagree.
 
-**Decision**: sum rounds per judge; results = `unanimous` (3–0), `majority` (2–0 + one draw), `split` (2–1), `draw`
-(1–1–1 or all equal), `majority_draw` (1 judge for A + 1 draw + 1 for B). Overtime/extra rounds only if a mode demands it.
+**Decision** (`classifyDecision`, real-world definitions): sum the rounds per judge → a verdict per judge (`a`, `b`, `draw`);
+`unanimous` (3–0), `majority` (2–0 with one draw), `split` (2–1), `draw` (all draws, or one for each and a draw),
+`majority_draw` (two draws and one judge for a fighter — an earlier draft of this document had that definition wrong).
+Overtime/extra rounds only if a mode demands it (not implemented).
+
+The AI's `score_differential` input (`13`) comes from a **neutral judge** (base weights, no bias) over the rounds so far,
+scaled to −1…+1 and refreshed once per second.
 
 ### Stats needed (emitted by `sim/stats.js`)
 Per round and per fight: strikes thrown/landed/blocked/avoided by target/limb/type/mode, significant strikes, takedown
 attempts/landed/denied, passes landed/denied, ground/clinch/stand-up seconds, submission attempts/locked/escaped/depth,
 knockdowns, stuns, wobbles, event timings (`time_since_last_*`), control percentages.
 
-## 5. Acceptance tests
-1. Statechart: legal/illegal transitions; `bell` in last round ⇒ PostFight; `ko` from any Live state ⇒ PostFight with result KO.
-2. Clock stops during `Stopped`; resumes with the same remaining time.
-3. Idle thresholds fire exactly once each and respect mode.
-4. Scoring: symmetric (swap fighters ⇒ swapped scores), monotone in each component, 10-8 rule triggers on a synthetic
-   dominant round, unanimous/split/majority classification across 3 judges with crafted cards.
-5. Recovery resets `strikesReceivedThisRound`.
+## 5. Acceptance tests (`reference/test/match.test.js`, `scoring.test.js`, `referee.test.js`, all passing)
+1. Statechart: legal/illegal transitions (illegal events are ignored); `bell` in the last round ⇒ PostFight; stoppage events end the fight from every fight state; hooks fire in order, once each.
+2. Clock runs only while `live`, resumes with the same time left, resets every round; with `fastRest` off the sim spends the rest period.
+3. Idle thresholds fire exactly once each per stall and respect the mode; activity resets them.
+4. Scoring: all 12 components are scored and each has a feeding statistic; an inactive round is 10-10; symmetric (swap fighters ⇒ swapped scores); monotone in each component; 10-8 on a dominant round and 10-7 only with two criteria and a huge margin; crafted cards classify as unanimous / majority / split / draw / majority draw; weights sum to one, biases differ, jitter is bounded.
+5. A multi-round `FightSim`: the bell breaks bouts, resets positions, restores some stamina, clears the per-round strike counter and reads the cards.
+6. Referee: KO and double KO, the three TKO rules (incl. intelligent defence keeping the fight going), submission results, doctor stoppages only for critical cuts.

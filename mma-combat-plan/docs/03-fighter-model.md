@@ -86,7 +86,11 @@ The `HealthEventProbability` expression has two skill inputs, **`SkillsProbMod` 
 `StrikeDamage` pipeline via a "card/skill bonus" term **[DATA: debug string `[Base][Range][Card Bonus][Crit Chance][Crit Damage]`]**.
 
 **[REC]** Model a skill as `{id, triggers[], modifiers[]}` where a modifier is `{stat, op, value, condition}`.
-Reference implementation: `reference/src/combat/skills.js` (6 example skills).
+Reference implementation: `reference/src/combat/skills.js` (10 example skills: `heavy_handed`, `vicious_kicks`,
+`crushing_blows`, `marathoner`, `iron_clinch`, `last_stand`, `survivalist`, `scrambler`, `attacking_the_base`,
+`weathering_storms`; the other 35 names above are vocabulary only). Stats the sim queries: `damage`, `eventProb`
+(attacker), `eventResist` (defender), `staminaCost`, `clinch`, `takedown`, `ground`. Combined skill damage is clamped to
+`[1/skillCap, skillCap]` (`damage.skillCap = 1.35`) so stacking cannot break the balance.
 
 ## 6. Injuries and cosmetic damage **[DATA]**
 
@@ -110,5 +114,8 @@ These double as **AI inputs and commentary inputs**; model them as a read-only `
 tick (reference: `reference/src/core/situation.js`).
 
 ## 8. Reference data in this repo
-* `data/fighters.json` — 8 original fictional fighters, one per archetype family, using the schema in `18`.
+* `data/fighters.json` — 8 original fictional fighters, one per archetype family, using the schema in `18`
+  (generated from `reference/src/data/default-fighters.js` by `npm run build-data`).
 * `data/taxonomy.json` — all enumerations above in machine-readable form.
+* The 12 tendency archetypes are implemented as data in `reference/src/ai/tendencies.js` (aggression band, goal weights,
+  strike preferences, preferred range); only 8 are used by the bundled fighters, the other 4 are exercised by the AI tests.
