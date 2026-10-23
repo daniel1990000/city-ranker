@@ -5,7 +5,7 @@ import type { Earned } from '../app/game';
 import { ACHIEVEMENTS, achievementReward, type AchievementDef } from '../meta/achievements';
 import { showGameAchievements } from '../platform/games';
 import { isNative } from '../platform/platform';
-import type { MenuCtx } from './menus';
+import { menu, topbar, type MenuCtx } from './menus';
 import './achievements.css';
 
 const h = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', html = ''): HTMLElementTagNameMap[K] => {
@@ -24,19 +24,6 @@ function on(el: Element | null, fn: () => void): void {
   });
 }
 
-function topbar(ctx: MenuCtx, title: string): HTMLElement {
-  const t = h('div', 'topbar');
-  const b = h('button', 'back', '‹');
-  b.setAttribute('aria-label', 'Back');
-  on(b, () => ctx.back());
-  t.appendChild(b);
-  t.appendChild(h('h1', '', esc(title)));
-  const w = h('div', 'wallet');
-  w.innerHTML = `<div class="pill" data-a="cash"><i class="ico cash"></i><span>${fmt(ctx.game.cash)}</span></div><div class="pill" data-a="gems"><i class="ico gem"></i><span>${fmt(ctx.game.gems)}</span></div>`;
-  on(w.querySelector('[data-a=gems]'), () => ctx.nav({ s: 'shop' }));
-  t.appendChild(w);
-  return t;
-}
 
 /** "1,500 cash · 20 gems · Premium Pack" */
 export function rewardText(a: AchievementDef): string {
@@ -55,7 +42,7 @@ export function earnedMessages(e: Earned): string[] {
 export function achievementsScreen(ctx: MenuCtx): HTMLElement {
   const g = ctx.game;
   const got = ACHIEVEMENTS.filter(a => g.save.achievements[a.id]).length;
-  const m = h('div', 'menu solid achievements');
+  const m = menu(ctx, 'solid achievements');
   m.appendChild(topbar(ctx, 'Achievements'));
   const head = h('div', 'ach-head');
   head.innerHTML = `<span>${got} / ${ACHIEVEMENTS.length} earned</span><div class="progress"><i style="width:${Math.round((got / ACHIEVEMENTS.length) * 100)}%"></i></div>`;

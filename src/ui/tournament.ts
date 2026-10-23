@@ -2,7 +2,7 @@
 // fight of the run, the week's best score and the prize tiers to claim. Rules: src/meta/tournament.ts, game rules:
 // Game.tournament() and friends in src/app/game.ts.
 
-import type { MenuCtx } from './menus';
+import { menu, topbar, type MenuCtx } from './menus';
 import type { TournamentView } from '../app/game';
 import { division } from '../meta/divisions';
 import { PACKS } from '../meta/packs';
@@ -35,19 +35,6 @@ function setPortrait(el: HTMLElement | null, f: FighterSpec): void {
   void portrait(rosterFighter(f.id) ?? f).then(url => (el.style.backgroundImage = `url(${url})`));
 }
 
-function topbar(ctx: MenuCtx, title: string): HTMLElement {
-  const t = h('div', 'topbar');
-  const b = h('button', 'back', '‹');
-  b.setAttribute('aria-label', 'Back');
-  on(b, () => ctx.back());
-  t.appendChild(b);
-  t.appendChild(h('h1', '', esc(title)));
-  const w = h('div', 'wallet');
-  w.innerHTML = `<div class="pill"><i class="ico cash"></i><span>${fmt(ctx.game.cash)}</span></div><div class="pill" data-a="gems"><i class="ico gem"></i><span>${fmt(ctx.game.gems)}</span></div>`;
-  on(w.querySelector('[data-a=gems]'), () => ctx.nav({ s: 'shop' }));
-  t.appendChild(w);
-  return t;
-}
 
 /** The bracket: quarter-finals, semi-finals, final. Other results show once the player's run has reached that round. */
 function bracketEl(v: TournamentView): HTMLElement {
@@ -85,7 +72,7 @@ function bracketEl(v: TournamentView): HTMLElement {
 export function tournamentScreen(ctx: MenuCtx): HTMLElement {
   const g = ctx.game;
   const v = g.tournament();
-  const m = h('div', 'menu solid tour');
+  const m = menu(ctx, 'solid tour');
   m.appendChild(topbar(ctx, 'Weekly tournament'));
   const info = h('div', 'tour-info muted');
   info.innerHTML = `<span>${esc(division(v.bracket.div).name)} · ${v.daysLeft} day${v.daysLeft === 1 ? '' : 's'} left</span><span>Best this week: <b>${fmt(v.best)}</b> points</span>`;

@@ -380,3 +380,28 @@
     display: none;
   }
 }
+/* the "Start" mark sits under the title, never over it; the setup column scrolls on short phones */
+.pr-drill b {
+  padding-right: 52px;
+}
+.pr-setup {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 720px) {
+  .practice-screen .pr-free {
+    display: none;
+  }
+  .pr-drill-list {
+    grid-template-columns: 1fr;
+  }
+  .pr-drill b {
+    font-size: 14px;
+  }
+}
+.pr-foot {
+  position: sticky;
+  bottom: 0;
+  padding-top: 6px;
+  background: linear-gradient(transparent, var(--bg, #0d0e13) 30%);
+}

@@ -2,7 +2,7 @@
 // or a drill), and the in-fight practice layer (the drill checklist and the MOVES button). Practice pays nothing and
 // saves nothing; the rules live in app/practice.ts and app/dummy.ts.
 
-import type { MenuCtx } from './menus';
+import { menu, topbar, type MenuCtx } from './menus';
 import { DRILLS, DEFAULT_PRACTICE, GROUND_STARTS, type DrillRun, type GroundStartId, type PracticeOptions } from '../app/practice';
 import { DUMMY_LABEL, DUMMY_MODES, type DummyMode } from '../app/dummy';
 import { division } from '../meta/divisions';
@@ -44,12 +44,9 @@ export function practiceScreen(ctx: MenuCtx): HTMLElement {
   if (!last.fighterId || !g.owned(last.fighterId)) last.fighterId = main?.id ?? owned[0]?.id;
   const opts: PracticeOptions = { ...last, drill: null, drillStep: 0 };
 
-  const m = el('div', 'menu solid practice-screen');
-  const top = el('div', 'topbar');
-  const back = el('button', 'back', '‹');
-  back.setAttribute('aria-label', 'Back');
-  tap(back, () => ctx.back());
-  top.append(back, el('h1', '', 'Training Room'), el('span', 'pr-free muted', 'No rewards · nothing saved · no clock'));
+  const m = menu(ctx, 'solid practice-screen');
+  const top = topbar(ctx, 'Training Room');
+  top.insertBefore(el('span', 'pr-free muted', 'No rewards · nothing saved · no clock'), top.querySelector('.wallet'));
   m.appendChild(top);
 
   const body = el('div', 'pr-body');

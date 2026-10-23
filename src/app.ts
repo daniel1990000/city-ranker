@@ -19,7 +19,8 @@ import { setPortraitRenderer } from './render/portraits';
 import { VENUE_IDS, type VenueId } from './render/arena/venues';
 import { careerScreen, dailyModal, fighterScreen, fightersScreen, hubScreen, packsScreen, revealModal, seasonScreen, settingsScreen, shopScreen, type MenuCtx, type Route } from './ui/menus';
 import { buildSettings } from './ui/settings';
-import { achievementsScreen } from './ui/achievements';
+import { achievementsScreen, earnedMessages } from './ui/achievements';
+import { missionsPanel } from './ui/missions';
 import { practiceScreen, PracticeHud } from './ui/practice';
 import { buildMoveList } from './ui/fight/movelist';
 import { PracticeRoom, PRACTICE_RULES, practicePartner, type PracticeOptions } from './app/practice';
@@ -98,7 +99,15 @@ export class App {
       settings: () => buildSettings(this.game, m => this.toast(m)),
       boards: () => void this.openBoards(),
       offerReminders: () => this.offerReminders(),
+      showMissions: () => this.showMissions(),
     };
+    // an achievement or a finished mission (already paid): a toast each, one after the other
+    this.game.onEarned(e => {
+      const msgs = earnedMessages(e);
+      if (!msgs.length) return;
+      sound.play(e.achievements.length ? 'reveal2' : 'reveal1');
+      msgs.forEach((m, i) => setTimeout(() => this.toast(m), i * 1500));
+    });
     this.game.onChange(() => {
       this.refreshWallet();
       this.applyVolumes();
@@ -294,6 +303,25 @@ export class App {
     const [c, gm] = w.querySelectorAll('span');
     if (c) c.textContent = this.game.cash.toLocaleString('en-US');
     if (gm) gm.textContent = this.game.gems.toLocaleString('en-US');
+  }
+
+  /** Today's daily missions as a card over the current screen. */
+  private showMissions(): void {
+    const back = document.createElement('div');
+    back.className = 'modal-back';
+    const card = document.createElement('div');
+    card.className = 'modal missions-modal';
+    card.appendChild(missionsPanel(this.ctx));
+    const ok = document.createElement('button');
+    ok.className = 'btn';
+    ok.textContent = 'OK';
+    ok.addEventListener('click', () => back.remove());
+    card.appendChild(ok);
+    back.appendChild(card);
+    back.addEventListener('click', e => {
+      if (e.target === back) back.remove();
+    });
+    this.ui.appendChild(back);
   }
 
   toast(msg: string): void {
