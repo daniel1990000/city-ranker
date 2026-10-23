@@ -33,44 +33,193 @@
   z-index: 25;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
+  background: radial-gradient(ellipse at 50% 40%, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.75));
 }
 .result-card {
-  padding: 18px 26px 20px;
+  --acc: var(--gold-2);
+  position: relative;
+  width: min(620px, 94vw);
+  max-height: calc(100vh - 16px - var(--safe-t) - var(--safe-b));
+  overflow: auto;
+  border-radius: 14px;
+  border: 1px solid var(--edge-2);
+  background: linear-gradient(170deg, rgba(30, 31, 41, 0.97), rgba(11, 11, 15, 0.97));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   text-align: center;
-  min-width: min(440px, 90vw);
+  animation: resultIn 0.35s ease-out;
+}
+.result-card.loss {
+  --acc: #ff5a5a;
+}
+.result-card.draw {
+  --acc: #c9ccd4;
+}
+.result-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  background: var(--acc);
+  box-shadow: 0 0 18px var(--acc);
+}
+@keyframes resultIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+}
+.rhead {
+  padding: 12px 18px 6px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--acc) 14%, transparent), transparent);
 }
 .result-head {
   font-family: var(--display);
-  font-size: 44px;
+  font-size: clamp(30px, 10vh, 46px);
   font-weight: 700;
+  font-style: italic;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  line-height: 1.05;
+  color: var(--acc);
+  text-shadow: 0 0 24px color-mix(in srgb, var(--acc) 40%, transparent);
 }
-.result-head.win {
-  color: var(--gold-2);
+.result-card.belt .result-head {
+  background: var(--m-legend);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
-.result-head.loss {
-  color: #ff5a5a;
-}
-.result-card .stats {
-  width: 100%;
-  margin: 12px 0 16px;
-  border-collapse: collapse;
-  font-size: 15px;
-}
-.result-card .stats th {
+.rsub {
   color: var(--muted);
-  font-weight: 500;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.rbody {
+  display: flex;
+  gap: 14px;
+  padding: 8px 18px 4px;
+  text-align: left;
+}
+.rstats {
+  flex: 1.2;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rnames {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--display);
   font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.rnames span:first-child {
+  color: var(--red-2);
+}
+.rnames span:last-child {
+  color: var(--blue-2);
+}
+.rstat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rstat > b {
+  font-family: var(--display);
+  font-size: 20px;
+  min-width: 28px;
+  text-align: center;
+}
+.rmid {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+.rmid span {
+  display: block;
+  color: var(--muted);
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.result-card .stats td {
-  font-family: var(--display);
-  font-size: 20px;
-  padding: 4px 10px;
+.rbar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  margin-top: 3px;
 }
-.result-card .row {
+.rbar .me {
+  background: linear-gradient(90deg, #a52020, var(--red-2));
+}
+.rbar .op {
+  margin-left: auto;
+  background: linear-gradient(90deg, var(--blue-2), #1d4fa8);
+}
+.rrewards {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid var(--edge);
+  padding-left: 14px;
+}
+.rlabel {
+  font-family: var(--display);
+  font-size: 12px;
+  color: var(--gold-2);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 6px;
+}
+.rchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--edge);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.rchip b {
+  font-family: var(--display);
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.rchip em {
+  font-style: normal;
+  color: var(--gold-2);
+}
+.rchip.hot {
+  border-color: color-mix(in srgb, var(--gold) 60%, transparent);
+}
+.rchip .cur {
+  width: 18px;
+  height: 18px;
+}
+.ractions {
   justify-content: center;
+  padding: 10px 18px 14px;
+  gap: 10px;
+}
+@media (max-width: 600px) {
+  .rbody {
+    flex-direction: column;
+  }
+  .rrewards {
+    border-left: 0;
+    padding-left: 0;
+  }
 }

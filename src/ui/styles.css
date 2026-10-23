@@ -218,11 +218,20 @@ canvas#game {
 .muted {
   color: var(--muted);
 }
-.toast {
+.toasts {
   position: fixed;
   left: 50%;
-  bottom: calc(20px + var(--safe-b));
+  top: calc(10px + var(--safe-t));
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 40;
+  pointer-events: none;
+}
+.toast {
+  position: relative;
   background: linear-gradient(180deg, rgba(30, 31, 40, 0.97), rgba(14, 14, 19, 0.97));
   border: 1px solid var(--edge-2);
   border-left: 3px solid var(--gold);
@@ -238,12 +247,12 @@ canvas#game {
 @keyframes toast {
   0% {
     opacity: 0;
-    transform: translate(-50%, 10px);
+    transform: translateY(-10px);
   }
   10%,
   85% {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0);
   }
   100% {
     opacity: 0;

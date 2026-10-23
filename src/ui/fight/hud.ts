@@ -126,11 +126,30 @@ export class FightHud {
     this.banner.className = 'banner';
   }
 
-  private pop(text: string, side: Side): void {
+  /** Live pop words per side: a new one goes below the ones still showing (never on top of them). */
+  private pops: [HTMLElement[], HTMLElement[]] = [[], []];
+
+  private pop(text: string, side: Side, key = ''): void {
+    const live = this.pops[side];
+    // a counting pop (the combo) replaces its last number instead of stacking under it
+    if (key) {
+      const old = live.find(x => x.dataset.key === key);
+      if (old) {
+        old.remove();
+        live.splice(live.indexOf(old), 1);
+      }
+    }
+    if (live.length >= 3) live.shift()?.remove();
     const p = el('div', 'pop', this.root, text);
+    if (key) p.dataset.key = key;
     p.style.left = side === 0 ? '30%' : '70%';
-    p.style.top = '24%';
-    setTimeout(() => p.remove(), 950);
+    p.style.top = `${24 + live.length * 7}%`;
+    live.push(p);
+    setTimeout(() => {
+      p.remove();
+      const i = live.indexOf(p);
+      if (i >= 0) live.splice(i, 1);
+    }, 950);
   }
 
   onEvents(events: FightEvent[], specs: [FighterSpec, FighterSpec]): void {
@@ -146,7 +165,7 @@ export class FightHud {
           this.pop('Counter!', e.side);
           break;
         case 'hit':
-          if (e.chain >= 2 && !e.blocked) this.pop(`${e.chain + 1}-hit combo`, e.side);
+          if (e.chain >= 2 && !e.blocked) this.pop(`${e.chain + 1}-hit combo`, e.side, 'combo');
           break;
         case 'evade':
           if (e.perfect) this.pop('Perfect slip', e.side);

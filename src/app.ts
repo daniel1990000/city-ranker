@@ -28,6 +28,7 @@ import { DUMMY_LABEL } from './app/dummy';
 import { effectiveDifficulty } from './meta/difficulty';
 import { sound } from './audio/sound';
 import { track } from './platform/telemetry';
+import { CASH_ICON, GEM_ICON } from './ui/icons';
 import { AutoQuality } from './render/autoQuality';
 import { Post } from './render/post/post';
 import { setEnvRenderer } from './render/env';
@@ -107,7 +108,7 @@ export class App {
       const msgs = earnedMessages(e);
       if (!msgs.length) return;
       sound.play(e.achievements.length ? 'achievement' : 'mission', { bus: 'music' });
-      msgs.forEach((m, i) => setTimeout(() => this.toast(m), i * 1500));
+      msgs.forEach((m, i) => setTimeout(() => this.toast(m), i * 400));
     });
     this.game.onChange(() => {
       this.refreshWallet();
@@ -345,10 +346,18 @@ export class App {
   }
 
   toast(msg: string): void {
+    // toasts stack at the top of the screen (never over the buttons, never on top of each other)
+    let box = document.querySelector<HTMLElement>('.toasts');
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'toasts';
+      document.body.appendChild(box);
+    }
+    while (box.children.length >= 3) box.firstElementChild?.remove();
     const t = document.createElement('div');
     t.className = 'toast';
     t.textContent = msg;
-    document.body.appendChild(t);
+    box.appendChild(t);
     setTimeout(() => t.remove(), 2700);
   }
 
@@ -633,35 +642,46 @@ export class App {
       this.game.persist();
       setTimeout(() => requestReview(), 1500);
     }
-    this.showRewards(o, rewards, step);
+    this.showRewards(o, rewards, step, [me.name, opp.name].map(n => n.replace(/[&<>"']/g, '')) as [string, string]);
   }
 
-  private showRewards(o: FightOutcome, r: FightRewards, step: CareerStep | null): void {
+  private showRewards(o: FightOutcome, r: FightRewards, step: CareerStep | null, names: [string, string]): void {
     const won = o.result.winner === 0;
     sound.play(r.belt || r.tournament?.champion ? 'trophy' : won ? 'win' : 'lose', { bus: 'music', gain: 0.8 });
     const t = o.totals;
     const p = document.createElement('div');
     p.className = 'screen result-screen';
     const method = o.result.method === 'DEC' ? `${o.result.decision ?? ''} decision` : o.result.method === 'SUB' ? 'submission' : o.result.method;
+    const bar = (a: number, b: number) => {
+      const tot = Math.max(1, a + b);
+      return `<div class="rbar"><i class="me" style="width:${Math.round((a / tot) * 100)}%"></i><i class="op" style="width:${Math.round((b / tot) * 100)}%"></i></div>`;
+    };
+    const row = (label: string, a: number, b: number, fa = String(a), fb = String(b)) =>
+      `<div class="rstat"><b>${fa}</b><div class="rmid"><span>${label}</span>${bar(a, b)}</div><b>${fb}</b></div>`;
+    const head = r.belt ? 'New champion!' : won ? 'Victory' : o.result.winner === null ? 'Draw' : 'Defeat';
+    const chip = (html: string, cls = '') => `<span class="rchip ${cls}">${html}</span>`;
+    const chips = [
+      chip(`${CASH_ICON}+${r.cash.toLocaleString('en-US')}`),
+      r.gems ? chip(`${GEM_ICON}+${r.gems}`) : '',
+      chip(`<b>XP</b>+${r.xp}${r.levels ? ' · <em>level up!</em>' : ''}`),
+      r.pack ? chip(`<b>Pack</b>+1 ${r.pack}`, 'hot') : '',
+      r.score ? chip(`<b>Score</b>${r.score.toLocaleString('en-US')}${r.best ? ' · <em>best!</em>' : ''}`) : '',
+      ...r.legacy.map(l => chip(`<b>Legacy</b>${l}`, 'hot')),
+      r.tournament ? chip(`<b>Weekly</b>+${r.tournament.score.toLocaleString('en-US')} pts${r.tournament.champion ? ' · <em>champion!</em>' : r.tournament.out ? ' · out' : ''}`) : '',
+    ].join('');
     p.innerHTML = `
-      <div class="result-card panel">
-        <div class="result-head ${won ? 'win' : 'loss'}">${r.belt ? 'New champion!' : won ? 'Victory' : o.result.winner === null ? 'Draw' : 'Defeat'}</div>
-        <div class="muted">${method} · round ${o.result.round}${step ? ` · ${step.label}` : ''}</div>
-        <table class="stats">
-          <tr><td>${t.landed[0]} / ${t.thrown[0]}</td><th>Strikes landed</th><td>${t.landed[1]} / ${t.thrown[1]}</td></tr>
-          <tr><td>${t.knockdowns[0]}</td><th>Knockdowns</th><td>${t.knockdowns[1]}</td></tr>
-          <tr><td>${t.takedowns[0]}</td><th>Takedowns</th><td>${t.takedowns[1]}</td></tr>
-        </table>
-        <div class="row" style="justify-content:center;gap:14px;margin-bottom:12px;flex-wrap:wrap">
-          <span class="pill"><i class="ico cash"></i>+${r.cash.toLocaleString('en-US')}</span>
-          ${r.gems ? `<span class="pill"><i class="ico gem"></i>+${r.gems}</span>` : ''}
-          <span class="pill">+${r.xp} xp${r.levels ? ` · level up!` : ''}</span>
-          ${r.pack ? `<span class="pill">+1 ${r.pack} pack</span>` : ''}
-          ${r.score ? `<span class="pill">Fight score ${r.score.toLocaleString('en-US')}${r.best ? ' · new best!' : ''}</span>` : ''}
-          ${r.legacy.map(l => `<span class="pill">Legacy: ${l}</span>`).join('')}
-          ${r.tournament ? `<span class="pill">Tournament +${r.tournament.score.toLocaleString('en-US')} pts · run ${r.tournament.total.toLocaleString('en-US')}${r.tournament.champion ? ' · champion!' : r.tournament.out ? ' · out' : ''}</span>` : ''}
+      <div class="result-card ${won ? 'win' : o.result.winner === null ? 'draw' : 'loss'}${r.belt ? ' belt' : ''}">
+        <div class="rhead"><div class="result-head">${head}</div><div class="rsub">${method} · round ${o.result.round}${step ? ` · ${step.label}` : ''}</div></div>
+        <div class="rbody">
+          <div class="rstats">
+            <div class="rnames"><span>${names[0]}</span><span>${names[1]}</span></div>
+            ${row('Strikes landed', t.landed[0], t.landed[1])}
+            ${row('Knockdowns', t.knockdowns[0], t.knockdowns[1])}
+            ${row('Takedowns', t.takedowns[0], t.takedowns[1])}
+          </div>
+          <div class="rrewards"><div class="rlabel">Rewards</div><div class="rchips">${chips}</div></div>
         </div>
-        <div class="row">
+        <div class="row ractions">
           ${r.doubleOffer > 0 && this.game.rewardedReady() ? `<button class="btn ghost" data-a="double">Watch ad: +${r.doubleOffer.toLocaleString('en-US')} cash</button>` : ''}
           <button class="btn" data-a="next">Continue</button>
         </div>
