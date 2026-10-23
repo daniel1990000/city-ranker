@@ -19,6 +19,7 @@ export function testFighter(archetype: Archetype, bonus = 0, id: string = archet
 export const ARCHETYPES: Archetype[] = ['brawler', 'boxer', 'kicker', 'wrestler', 'grappler'];
 
 import { GROUND } from '../src/game/fight/ground';
+import { CLINCH } from '../src/game/fight/clinch';
 import type { Controller, FightInput, FightView, MoveId, Side } from '../src/game/fight/types';
 import { NO_INPUT } from '../src/game/fight/types';
 
@@ -54,12 +55,55 @@ export class Masher implements Controller {
       if (v.takedown.ticksLeft < 8) out.shoot = true;
       return out;
     }
+    if (clinchReflexes(v, out)) return out;
     if (v.dist > 1050) {
       out.move = 1;
       return out;
     }
     const seq: MoveId[] = ['cross', 'hookL', 'hookR', 'uppercut', 'jab', 'cross'];
     out.strike = seq[this.n++ % seq.length] as FightInput['strike'];
+    return out;
+  }
+}
+
+/**
+ * A person's reflexes in the clinch: flicks the contest arrow half a second after it appears and fights a trip late.
+ * Returns true when it decided this tick's input.
+ */
+function clinchReflexes(v: FightView, out: FightInput): boolean {
+  const c = v.clinch;
+  if (!c) return false;
+  if (c.contest) {
+    if (CLINCH.contestWindow - c.contest.ticksLeft === 30) out.evade = c.contest.need;
+    return true;
+  }
+  if (c.trip) {
+    if (!c.trip.mine && c.trip.ticksLeft === 10) out.shoot = true;
+    return true;
+  }
+  return false;
+}
+
+/**
+ * A clinch-spammer: walks in and grabs at every chance; in control it throws only knees (or only trips), held it
+ * tries to break away at once. Person-paced in contests, like the Masher.
+ */
+export class ClinchSpamBot implements Controller {
+  private readonly human = new Masher();
+  constructor(private readonly mode: 'knee' | 'trip' | 'elbow' = 'knee') {}
+  next(v: FightView, side: Side): FightInput {
+    if (v.phase !== 'fight' || v.ground || v.takedown || v.me.action === 'downed') return this.human.next(v, side);
+    const out: FightInput = { ...NO_INPUT };
+    const c = v.clinch;
+    if (c) {
+      if (clinchReflexes(v, out)) return out;
+      if (!c.mine) out.evade = 'back';
+      else if (this.mode === 'trip') out.shoot = true;
+      else out.strike = this.mode === 'knee' ? 'jab' : 'cross';
+      return out;
+    }
+    if (v.dist > 950) out.move = 1;
+    else out.clinch = true;
     return out;
   }
 }

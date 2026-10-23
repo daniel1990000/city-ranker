@@ -35,6 +35,10 @@ const MOVE_WORD: Record<MoveId | 'pound' | 'legs', string> = {
   superman: 'superman punch',
   flyingKnee: 'flying knee',
   spinBackfist: 'spinning back fist',
+  clinchKnee: 'knee to the body',
+  clinchKneeHead: 'knee up the middle',
+  clinchElbow: 'short elbow',
+  clinchUpper: 'uppercut in close',
   pound: 'ground strikes',
   legs: 'leg kicks',
 };

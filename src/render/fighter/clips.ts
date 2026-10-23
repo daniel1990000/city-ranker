@@ -719,6 +719,17 @@ export const CLIPS: Record<ActionId, Clip> = {
   subArmbarAtk,
   subArmbarDef,
   tapOut,
+  // the clinch: placeholders built from the standing clips (to be replaced by real clinch poses)
+  clinchEnter: shoot,
+  clinchHold: block,
+  clinchHeld: block,
+  clinchPummel: block,
+  clinchBreak: walkBack,
+  clinchTrip: shoot,
+  clinchKnee: bodyKick,
+  clinchKneeHead: flyingKnee,
+  clinchElbow: hookR,
+  clinchUpper: uppercut,
 };
 
 /** Where a fighter is on the ground (remembered by the animator to pick the right variant of a clip). */

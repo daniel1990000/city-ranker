@@ -10,7 +10,13 @@
 //     up-back or back = lead hook; down = body shot; a LONG swipe down = takedown. Two fingers at once = a kick
 //     (direction picks it: up = head, down = low, otherwise body). KICK button: tap = body kick, swipe up from it =
 //     head kick, swipe down = low kick; holding KICK turns the other finger's strike into a kick by direction.
-//     TAKEDOWN button = shoot. SPECIAL button (only when the meter is full) = special.
+//     TAKEDOWN button = shoot. SPECIAL button (only when the meter is full) = special. Holding one finger still for
+//     `grabHoldMs` (0.3 s) = grab (a clinch attempt; the simulation ignores it out of range). The finger re-arms, so a
+//     resting thumb can still swipe afterwards.
+//   In the clinch the same gestures mean clinch things (the simulation maps them, see CLINCH_STRIKE_FOR in
+//     src/game/fight/clinch.ts): tap or swipe down = knee to the body, KICK up = knee to the head, swipe forward or
+//     sideways = elbow, swipe up = uppercut, long swipe down / TAKEDOWN = trip; a defence flick breaks away and
+//     answers the contest arrow (up = flick up, down = flick down, back = flick back); hold the defence half = block.
 //   LEFT half (defence): hold = block (instantly, and it comes back after a dodge if the thumb stays down); flick =
 //     dodge: back (away from the opponent) = sway back, up = slip left, down = slip right, forward = slip (alternating).
 //     The MOVE pad in the bottom-left corner: drag left/right from where the thumb lands to step.
@@ -79,6 +85,7 @@ function channelOf(a: Action): Channel {
     case 'strike':
     case 'special':
     case 'shoot':
+    case 'clinch':
       return 'attack';
     case 'evade':
       return 'evade';
@@ -126,6 +133,8 @@ interface Track {
   partner: number;
   /** Started while the KICK button was held: strikes from this finger are kicks. */
   kickMod: boolean;
+  /** Already grabbed with this finger (one grab per touch). */
+  grabbed: boolean;
   /** Move pad: floating origin x and the current screen direction. */
   ox: number;
   moveX: -1 | 0 | 1;
@@ -315,6 +324,9 @@ export class InputRecognizer {
       case 'tap':
         out.tap = true;
         break;
+      case 'clinch':
+        out.clinch = true;
+        break;
     }
   }
 
@@ -411,6 +423,7 @@ export class InputRecognizer {
       down: null,
       partner: -1,
       kickMod: false,
+      grabbed: false,
       ox: x,
       moveX: 0,
     };
@@ -711,6 +724,23 @@ export class InputRecognizer {
         this.emit({ k: 'strike', strike: 'bodyShot' }, 'swipe', tr, dir, now);
         continue;
       }
+      if (
+        this.mode === 'stand' &&
+        tr.zone === 'offence' &&
+        !tr.grabbed &&
+        !tr.fired &&
+        !tr.down &&
+        !tr.kickMod &&
+        tr.partner === -1 &&
+        tr.maxD <= this.cfg.tapSlop &&
+        now - tr.t0 >= this.cfg.grabHoldMs
+      ) {
+        // a finger held still: a grab. It counts as fired (its release is no jab) and re-arms when it settles.
+        tr.grabbed = true;
+        this.fired(tr);
+        this.emit({ k: 'clinch' }, 'hold', tr, null, now);
+        continue;
+      }
       if (!tr.armed && !tr.down && (tr.zone === 'offence' || tr.zone === 'defence') && now - tr.stillT >= this.cfg.settleMs) {
         // the finger settled after a swipe: it may swipe again (block, slip, block, slip without lifting)
         tr.armed = true;
@@ -779,6 +809,9 @@ export class InputRecognizer {
             break;
           case 'evade':
             this.emit({ k: 'evade', evade: b.evade }, 'key', null, null, t);
+            break;
+          case 'clinch':
+            this.emit({ k: 'clinch' }, 'key', null, null, t);
             break;
           case 'block':
           case 'move':

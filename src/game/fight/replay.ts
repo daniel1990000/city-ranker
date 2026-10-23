@@ -1,4 +1,4 @@
-// Replays: a fight is its seed, the two fighters, the rules and both players' inputs. Inputs pack into a 16-bit code
+// Replays: a fight is its seed, the two fighters, the rules and both players' inputs. Inputs pack into a 17-bit code
 // per tick and run-length encode well (most ticks repeat). The same format is what a network match will send.
 
 import { type Fight, createFight, hashState, stepFight } from './sim';
@@ -6,13 +6,14 @@ import type { Controller, Evade, FighterSpec, FightInput, FightRules, FightView,
 import { NO_INPUT } from './types';
 import { STRIKES, SPECIALS } from './moves';
 
-export const REPLAY_VERSION = 1;
+/** 2: a 17th input bit (the clinch grab). Version 1 replays decode the same (the bit is 0). */
+export const REPLAY_VERSION = 2;
 
 const EVADES: readonly (Evade | null)[] = [null, 'left', 'right', 'back'];
 const GROUND: readonly (GroundDir | null)[] = [null, 'up', 'down', 'left', 'right'];
 void SPECIALS;
 
-/** Pack one input into an integer (bits: strike 4, special 1, block 1, evade 2, move 2, shoot 1, ground 3, tap 1, taunt 1). */
+/** Pack one input into an integer (bits: strike 4, special 1, block 1, evade 2, move 2, shoot 1, ground 3, tap 1, taunt 1, clinch 1). */
 export function encodeInput(i: FightInput): number {
   const strike = i.strike ? STRIKES.indexOf(i.strike) + 1 : 0;
   const evade = EVADES.indexOf(i.evade);
@@ -26,7 +27,8 @@ export function encodeInput(i: FightInput): number {
     ((i.shoot ? 1 : 0) << 10) |
     (ground << 11) |
     ((i.tap ? 1 : 0) << 14) |
-    ((i.taunt ? 1 : 0) << 15)
+    ((i.taunt ? 1 : 0) << 15) |
+    ((i.clinch ? 1 : 0) << 16)
   );
 }
 
@@ -42,6 +44,7 @@ export function decodeInput(c: number): FightInput {
     ground: GROUND[(c >> 11) & 7] ?? null,
     tap: ((c >> 14) & 1) === 1,
     taunt: ((c >> 15) & 1) === 1,
+    clinch: ((c >> 16) & 1) === 1,
   };
 }
 

@@ -33,7 +33,7 @@ export interface Fight {
   events: FightEvent[];
 }
 
-export const SIM_VERSION = 2;
+export const SIM_VERSION = 3;
 
 export const DEFAULT_RULES: FightRules = {
   rounds: 3,
@@ -258,6 +258,7 @@ export function newFighter(x: number, facing: 1 | -1): FighterState {
     hurtFlags: 0,
     lastMove: null,
     repeats: 0,
+    clinchCooldown: 0,
     prompt: null,
   };
 }
@@ -301,6 +302,10 @@ export function endFight(
   s.phase = 'ended';
   s.phaseTick = 0;
   s.takedown = null;
+  if (s.clinch) {
+    s.clinch = null;
+    emit(f, { type: 'clinchBreak', tick: s.tick, side: 0, reason: 'end' });
+  }
   for (const me of s.fighters) {
     me.prompt = null;
     me.bufMove = null;
@@ -318,4 +323,72 @@ export function endFight(
     }
   }
   emit(f, { type: 'fightEnd', tick: s.tick, result: s.result });
+}
+
+// ---- the clinch: shared state changes (the rules are in clinch.ts) -----------------------------------------------
+
+/** Centre-to-centre distance while tied up in the clinch. */
+export const CLINCH_GAP = MIN_GAP;
+/** Extra room between the fighters when a clinch breaks. */
+export const CLINCH_BREAK_GAP = 300;
+
+/** Put the pair at `mid`, CLINCH_GAP apart, fighter 0 on the left, inside the cage. */
+export function placeClinchPair(f: Fight, mid: number, gap = CLINCH_GAP): void {
+  const [a, b] = f.state.fighters;
+  a.x = clampi(mid - (gap >> 1), -WALL, WALL - gap);
+  b.x = a.x + gap;
+}
+
+/** Is the held fighter's back on the cage? */
+export function clinchPinned(f: Fight): boolean {
+  const c = f.state.clinch;
+  if (!c) return false;
+  const held = f.state.fighters[opp(c.ctl)];
+  return held.facing > 0 ? held.x <= -WALL + 20 : held.x >= WALL - 20;
+}
+
+/** The hold poses: the fighter in control and the one held. */
+export function clinchHoldPose(f: Fight, side: Side): void {
+  const c = f.state.clinch;
+  if (!c) return;
+  const me = f.state.fighters[side];
+  clearMove(me);
+  setAction(me, side === c.ctl ? 'clinchHold' : 'clinchHeld', 0);
+}
+
+/** Tie the fighters up in the clinch with `ctl` in control (from a grab, or a shot stopped on the cage). */
+export function beginClinch(f: Fight, ctl: Side, from: 'grab' | 'shot'): void {
+  const s = f.state;
+  s.takedown = null;
+  for (const me of s.fighters) {
+    clearMove(me);
+    me.prompt = null;
+    me.bufMove = null;
+    me.bufEvade = null;
+    me.bufTicks = 0;
+    me.sprawlReady = false;
+  }
+  placeClinchPair(f, (s.fighters[0].x + s.fighters[1].x) >> 1);
+  s.clinch = { ctl, tick: 0, idle: 0, wall: false, contest: null, trip: null };
+  s.clinch.wall = clinchPinned(f);
+  clinchHoldPose(f, 0);
+  clinchHoldPose(f, 1);
+  emit(f, { type: 'clinchStart', tick: s.tick, side: ctl, wall: s.clinch.wall, from });
+}
+
+/** The clinch is over. `apart`: push the fighters to a little more than striking distance. */
+export function endClinch(
+  f: Fight,
+  reason: 'escape' | 'release' | 'ref' | 'trip' | 'knockdown' | 'round' | 'end',
+  apart = true,
+): void {
+  const s = f.state;
+  const c = s.clinch;
+  if (!c) return;
+  s.clinch = null;
+  for (const me of s.fighters) {
+    if (me.prompt && (me.prompt.kind === 'clinch' || me.prompt.kind === 'sprawl')) me.prompt = null;
+  }
+  if (apart) placeClinchPair(f, (s.fighters[0].x + s.fighters[1].x) >> 1, CLINCH_GAP + CLINCH_BREAK_GAP);
+  emit(f, { type: 'clinchBreak', tick: s.tick, side: c.ctl, reason });
 }

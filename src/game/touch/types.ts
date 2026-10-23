@@ -93,10 +93,12 @@ export type Action =
   | { k: 'shoot' }
   | { k: 'evade'; evade: Evade }
   | { k: 'ground'; dir: GroundDir }
-  | { k: 'tap' };
+  | { k: 'tap' }
+  /** A grab: a clinch attempt standing at close range (FightInput.clinch). */
+  | { k: 'clinch' };
 
 /** How a gesture was made (for feedback and the HUD lab readout). */
-export type GestureKind = 'tap' | 'swipe' | 'twoFinger' | 'kickMod' | 'button' | 'flick' | 'mash' | 'key';
+export type GestureKind = 'tap' | 'swipe' | 'twoFinger' | 'kickMod' | 'button' | 'flick' | 'mash' | 'key' | 'hold';
 
 /** A recognised gesture, for on-screen feedback (swipe streaks, labels) and the lab readout. Not fight input. */
 export interface GestureEvent {
@@ -153,6 +155,8 @@ export interface TouchConfig {
   downSettleMs: number;
   /** A second offence finger landing within this time of the first makes a two-finger kick. */
   twoFingerMs: number;
+  /** One offence finger held still this long is a grab (a clinch attempt); must be longer than tapMaxMs. */
+  grabHoldMs: number;
   /** Half-width of the straight (non-diagonal) direction sectors, in degrees: wider = fewer accidental hooks. */
   straightHalfAngleDeg: number;
   /** A finger that has fired a swipe re-arms once it has stayed within the tap slop for this long. */

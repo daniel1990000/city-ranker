@@ -5,6 +5,7 @@
 import { clampi, muldiv, rngChance, rngInt, rngNoise, rngWeighted, seedRng } from './math';
 import { MOVES, STRIKES } from './moves';
 import { GROUND } from './ground';
+import { CLINCH } from './clinch';
 
 const GROUND_SCRAMBLE_WINDOW = GROUND.scrambleWindow;
 import type { Archetype, Controller, Evade, FightInput, FightView, GroundDir, MoveId, Side, Strike } from './types';
@@ -24,16 +25,27 @@ interface Style {
   /** Ground: chance per decision to try to improve position / submit. */
   advance: number;
   submit: number;
+  /** Clinch: chance per decision to grab when close, to trip from the clinch (in control), to break away and to
+   *  reverse (when held), and clinch strike weights [knee to the body, knee to the head, elbow, uppercut]. */
+  clinch: number;
+  trip: number;
+  breakAway: number;
+  reverse: number;
+  clinchWeights: [number, number, number, number];
 }
 
 //                         jab cross hookL hookR upper body lowK bodyK headK
+//                                                                                                                       knee kneeH elbow upper
 const STYLES: Record<Archetype, Style> = {
-  brawler: { range: 880, weights: [10, 16, 18, 22, 14, 10, 4, 3, 3], shoot: 300, aggression: 6200, combo: 4, advance: 1200, submit: 300 },
-  boxer: { range: 1000, weights: [20, 26, 16, 16, 10, 12, 2, 0, 0], shoot: 150, aggression: 5200, combo: 4, advance: 800, submit: 300 },
-  kicker: { range: 1200, weights: [14, 10, 4, 4, 2, 4, 26, 20, 16], shoot: 250, aggression: 4800, combo: 3, advance: 900, submit: 500 },
-  wrestler: { range: 1100, weights: [20, 18, 10, 12, 6, 12, 10, 6, 2], shoot: 1100, aggression: 4200, combo: 2, advance: 3000, submit: 900 },
-  grappler: { range: 1100, weights: [22, 16, 8, 8, 4, 8, 14, 8, 4], shoot: 1100, aggression: 3800, combo: 2, advance: 2600, submit: 3200 },
+  brawler: { range: 880, weights: [10, 16, 18, 22, 14, 10, 4, 3, 3], shoot: 300, aggression: 5600, combo: 3, advance: 1200, submit: 300, clinch: 300, trip: 300, breakAway: 2200, reverse: 300, clinchWeights: [20, 8, 34, 38] },
+  boxer: { range: 1000, weights: [20, 26, 16, 16, 10, 12, 2, 0, 0], shoot: 150, aggression: 5200, combo: 4, advance: 800, submit: 300, clinch: 120, trip: 100, breakAway: 4500, reverse: 200, clinchWeights: [18, 4, 28, 50] },
+  kicker: { range: 1200, weights: [14, 10, 4, 4, 2, 4, 26, 20, 16], shoot: 250, aggression: 4800, combo: 3, advance: 900, submit: 500, clinch: 220, trip: 150, breakAway: 7200, reverse: 300, clinchWeights: [38, 32, 18, 12] },
+  wrestler: { range: 1100, weights: [20, 18, 10, 12, 6, 12, 10, 6, 2], shoot: 1100, aggression: 4200, combo: 2, advance: 3000, submit: 900, clinch: 500, trip: 1200, breakAway: 1800, reverse: 1500, clinchWeights: [46, 10, 22, 22] },
+  grappler: { range: 1100, weights: [22, 16, 8, 8, 4, 8, 14, 8, 4], shoot: 1100, aggression: 3800, combo: 2, advance: 2600, submit: 3200, clinch: 450, trip: 1300, breakAway: 2600, reverse: 2000, clinchWeights: [44, 12, 24, 20] },
 };
+
+/** What to press for each clinch strike (the simulation turns the press into the clinch strike). */
+const CLINCH_PRESS: readonly Strike[] = ['bodyShot', 'headKick', 'hookR', 'uppercut'];
 
 export interface AIOptions {
   /** 0 (a beginner) .. 1000 (a champion). */
@@ -81,6 +93,20 @@ export class AIController implements Controller {
   private oppShots = 0;
   private seenTotal = 0;
   private punishThis = false;
+  /** Clinch: no grab before this tick; the clinch contest / trip / strike already decided about. */
+  private clinchAfter = 0;
+  private wasClinch = false;
+  private oppGrabs = 0;
+  private seenGrab = -1;
+  private seenContest = -1;
+  private contestAt = -1;
+  private contestDir: Evade | null = null;
+  private seenTrip = -1;
+  private tripDefendAt = -1;
+  private clinchBlockFrom = -1;
+  private clinchBlockUntil = -1;
+  private clinchSeenStrike = -1;
+  private grabPunishAt = -1;
 
   constructor(opts: AIOptions) {
     this.difficulty = clampi(opts.difficulty | 0, 0, 1000);
@@ -122,8 +148,12 @@ export class AIController implements Controller {
     if (this.wasGround && !view.ground) this.shootAfter = Math.max(this.shootAfter, t + 660 + rngInt(this.rng, 300));
     this.wasGround = !!view.ground;
 
+    if (this.wasClinch && !view.clinch) this.clinchAfter = Math.max(this.clinchAfter, t + 240 + rngInt(this.rng, 240));
+    this.wasClinch = !!view.clinch;
+
     if (view.ground) return this.ground(view, input);
     if (view.takedown) return this.takedown(view, input);
+    if (view.clinch) return this.clinchPlay(view, input);
     return this.standing(view, input);
   }
 
@@ -281,6 +311,28 @@ export class AIController implements Controller {
       }
     }
 
+    // they keep grabbing: when they walk in close, meet them with a jab (walking in gets countered) or step off
+    if (them.action === 'clinchEnter' && them.actionTick <= 2 && t - them.actionTick !== this.seenGrab) {
+      this.seenGrab = t - them.actionTick;
+      this.oppGrabs++;
+      // a reach for the clinch is a target: a sharp fighter sees it and punches into it (decided once per grab)
+      this.grabPunishAt = !isAttack(me.action) && this.chance(800 + muldiv(d, 7, 1) + Math.min(1200, this.oppGrabs * 200)) ? t + this.reactTicks() - 4 : -1;
+    }
+    if (this.grabPunishAt >= 0 && t >= this.grabPunishAt) {
+      this.grabPunishAt = -1;
+      if (them.action === 'clinchEnter' && them.actionTick < CLINCH.enterStartup - 2 && !isAttack(me.action)) {
+        input.strike = view.dist < 820 ? 'uppercut' : 'jab';
+        this.lastPress = t;
+        return input;
+      }
+    }
+    if (this.oppGrabs >= 2 && them.action === 'walkFwd' && view.dist <= 1250 && view.dist > 700 && !isAttack(me.action) && t - this.lastPress > 10 && this.chance(muldiv(d, 4, 1) + Math.min(1500, this.oppGrabs * 250))) {
+      this.lastPress = t;
+      if (view.myRoom > 600 && this.chance(3000)) input.move = -1;
+      else input.strike = 'jab';
+      return input;
+    }
+
     // a counter window after a perfect evade: punish right now
     if (me.counter && this.chance(4000 + muldiv(d, 6, 1))) {
       input.strike = view.dist < 950 ? 'hookR' : 'cross';
@@ -305,6 +357,17 @@ export class AIController implements Controller {
     if (special && view.dist <= 1300 && this.chance(5000 + muldiv(d, 4, 1))) {
       input.special = true;
       return input;
+    }
+    // the clinch: grab when close (more against the cage, a turtle or a wobbled opponent)
+    if (view.dist <= 1150 && !tired && t >= this.clinchAfter) {
+      let c = st.clinch;
+      if (view.oppRoom < 900) c += st.clinch >> 1;
+      if (them.action === 'block' || them.stunned) c += 600;
+      if (this.chance(c)) {
+        input.clinch = true;
+        this.clinchAfter = t + 300 + rngInt(this.rng, 300);
+        return input;
+      }
     }
     // takedown
     if (view.dist <= 1450 && !tired && t >= this.shootAfter && this.chance(st.shoot - (view.oppSpec.stats.wrestling - 50) * 10)) {
@@ -354,8 +417,113 @@ export class AIController implements Controller {
     for (const [m, c] of this.seenMoves) if (MOVES[m].kind === 'kick' || MOVES[m].kind === 'lowKick') kicks += c;
     if (this.seenTotal >= 6 && kicks * 2 >= this.seenTotal && this.skill > 150) want = Math.min(want, 860);
     if (view.dist > want + 140) input.move = 1;
-    else if (view.dist < want - 220) input.move = view.myRoom > 450 ? -1 : 1;
+    // too close: back off to the range it likes, unless the cage is right behind (then stand and fight; walking
+    // forward into them would only feed their takedowns)
+    else if (view.dist < want - 220 && view.myRoom > 450) input.move = -1;
     else if (fresh && this.chance(1800)) input.move = rngInt(this.rng, 2) === 0 ? 1 : -1;
+    return input;
+  }
+
+  // ---- the clinch ---------------------------------------------------------------------------------------------------
+
+  private clinchPlay(view: FightView, input: FightInput): FightInput {
+    const c = view.clinch;
+    if (!c) return input;
+    const t = view.tick;
+    const d = this.skill;
+    const st = this.style as Style;
+    const me = view.me;
+    const them = view.opp;
+    const stats = view.mySpec.stats;
+
+    // the position contest: read the arrow and flick it at a person's pace (like a ground scramble)
+    if (c.contest) {
+      const startTick = t - (CLINCH.contestWindow - c.contest.ticksLeft);
+      if (startTick !== this.seenContest) {
+        this.seenContest = startTick;
+        this.contestAt = t + 22 + muldiv(1000 - this.difficulty, 16, 1000) + rngNoise(this.rng, 4);
+        const right = this.chance(6500 + muldiv(d, 33, 10));
+        const others = (['left', 'right', 'back'] as Evade[]).filter(x => x !== c.contest?.need);
+        this.contestDir = right ? c.contest.need : others[rngInt(this.rng, 2)];
+      }
+      if (t >= this.contestAt && this.contestDir) {
+        input.evade = this.contestDir;
+        this.contestDir = null;
+      }
+      return input;
+    }
+    // a trip coming: fight it (once decided, at a person's reaction time)
+    if (c.trip) {
+      if (!c.trip.mine) {
+        const startTick = t - (CLINCH.tripTicks - c.trip.ticksLeft);
+        if (startTick !== this.seenTrip) {
+          this.seenTrip = startTick;
+          const chance = 3000 + muldiv(d, 9, 1) + (stats.wrestling - 50) * 40;
+          this.tripDefendAt = this.chance(chance) ? t + this.reactTicks() : -1;
+        }
+        if (this.tripDefendAt >= 0 && t >= this.tripDefendAt) {
+          input.shoot = true;
+          this.tripDefendAt = -1;
+        }
+      }
+      return input;
+    }
+    // their strike: cover up (decided once per strike)
+    if (isAttack(them.action) && them.actionTick <= 2 && t - them.actionTick !== this.clinchSeenStrike) {
+      this.clinchSeenStrike = t - them.actionTick;
+      if (this.chance(1500 + muldiv(d, 9, 1) + (stats.defense - 50) * 25)) {
+        this.clinchBlockFrom = t + this.reactTicks() - 4;
+        this.clinchBlockUntil = t + Math.max(1, them.actionImpact - them.actionTick) + 8;
+      }
+    }
+    if (t >= this.clinchBlockFrom && t < this.clinchBlockUntil && !isAttack(me.action)) {
+      input.block = true;
+      return input;
+    }
+    // keep a combo going
+    if (isAttack(me.action) && this.plan.length > 0 && me.actionTick > me.actionImpact + 2 && t - this.lastPress > 4) {
+      input.strike = this.plan.shift() as Strike;
+      this.lastPress = t;
+      return input;
+    }
+    if (t < this.nextThink) return input;
+    this.nextThink = t + 10 + rngInt(this.rng, 12) - muldiv(d, 4, 1000);
+    const tired = me.stamina < 2000;
+    const hurt = me.stunned || me.hurt > 6000;
+    if (c.mine) {
+      // in control: knees and elbows, the trip, or let go to breathe
+      if ((tired || hurt) && this.chance(3500)) {
+        input.move = -1;
+        return input;
+      }
+      if (!tired && this.chance(st.trip + (c.wall ? 600 : 0) + (them.stunned ? 1500 : 0) + (them.gassed ? 800 : 0))) {
+        input.shoot = true;
+        return input;
+      }
+      if (this.chance(5200 + muldiv(d, 2, 1) - (tired ? 2500 : 0))) return this.clinchStrike(input, d > 500 ? 2 : 1, t);
+      return input;
+    }
+    // held: get out, turn it around, or fight back
+    if (this.chance(st.breakAway + (c.wall ? 1500 : 0) + (hurt ? 2500 : 0) + (tired ? 1500 : 0) + muldiv(d, 2, 1))) {
+      input.evade = 'back';
+      return input;
+    }
+    if (!tired && this.chance(st.reverse)) {
+      input.shoot = true;
+      return input;
+    }
+    if (this.chance(3200 + muldiv(d, 2, 1) - (tired ? 2000 : 0))) return this.clinchStrike(input, 1, t);
+    return input;
+  }
+
+  /** Throw a clinch strike by the style's weights, with a short follow-up plan. */
+  private clinchStrike(input: FightInput, follow: number, t: number): FightInput {
+    const st = this.style as Style;
+    input.strike = rngWeighted(this.rng, CLINCH_PRESS, st.clinchWeights);
+    this.lastPress = t;
+    this.plan = [];
+    const n = rngInt(this.rng, follow + 1);
+    for (let i = 0; i < n; i++) this.plan.push(rngWeighted(this.rng, CLINCH_PRESS, st.clinchWeights));
     return input;
   }
 

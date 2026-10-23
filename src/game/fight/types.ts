@@ -66,6 +66,12 @@ export type Strike =
 
 export type Special = 'superman' | 'flyingKnee' | 'spinBackfist';
 
+/**
+ * Strikes thrown from the clinch. Nobody presses these directly: a strike pressed in the clinch becomes one of them
+ * (CLINCH_STRIKE_FOR in clinch.ts): knees to the body and head, short elbows and dirty-boxing uppercuts.
+ */
+export type ClinchStrike = 'clinchKnee' | 'clinchKneeHead' | 'clinchElbow' | 'clinchUpper';
+
 export type Evade = 'left' | 'right' | 'back';
 
 export type GroundDir = 'up' | 'down' | 'left' | 'right';
@@ -83,6 +89,11 @@ export interface FightInput {
   tap: boolean;
   /** Optional showboat (edge-triggered): a risky second of taunting that fills the special meter. */
   taunt?: boolean;
+  /**
+   * Optional grab (edge-triggered): standing at close range it is a clinch attempt; in the clinch, the held fighter
+   * uses it to start a break-away (like a flick).
+   */
+  clinch?: boolean;
 }
 
 export const NO_INPUT: Readonly<FightInput> = Object.freeze({
@@ -126,7 +137,21 @@ export type StandingAction =
   | 'taunt'
   | 'victory'
   | 'defeat'
-  | 'walkout';
+  | 'walkout'
+  | ClinchAction;
+
+/**
+ * The clinch (clinch.ts): the grab attempt, the two holds (the fighter in control and the one held), the strikes,
+ * the pummelling contest for position, pushing off when it breaks, and the trip / body-lock takedown.
+ */
+export type ClinchAction =
+  | ClinchStrike
+  | 'clinchEnter'
+  | 'clinchHold'
+  | 'clinchHeld'
+  | 'clinchPummel'
+  | 'clinchBreak'
+  | 'clinchTrip';
 
 export type GroundAction =
   | 'gndGuardTop'
@@ -153,8 +178,8 @@ export type ActionId = StandingAction | GroundAction;
 // All numbers in the state are integers, so the state is plain JSON and the same on every device.
 // =================================================================================================================
 
-/** The standing attacks: the nine strikes and the three specials. */
-export type MoveId = Strike | Special;
+/** The standing attacks: the nine strikes, the three specials and the four clinch strikes. */
+export type MoveId = Strike | Special | ClinchStrike;
 
 /** What a hit lands on. Each move hits exactly one zone (see MOVES in moves.ts). */
 export type Zone = 'head' | 'body' | 'legs';
@@ -199,8 +224,10 @@ export type ScramblePurpose = 'advance' | 'escape' | 'standUp';
  * - `scramble`: a ground scramble; input `dir` before the other fighter does (both fighters see the same arrow).
  * - `mash`: a submission tug-of-war; tap fast.
  * - `getUp`: knocked down; tap to get up sooner.
+ * - `clinch`: a clinch position contest (break-away or reversal); flick `dir` (screen up, down, or back away from the
+ *   opponent) before the other fighter does. The trip from the clinch uses `sprawl` (swipe down to stop it).
  */
-export type PromptKind = 'sprawl' | 'scramble' | 'mash' | 'getUp';
+export type PromptKind = 'sprawl' | 'scramble' | 'mash' | 'getUp' | 'clinch';
 
 export interface FighterPrompt {
   kind: PromptKind;
@@ -312,6 +339,8 @@ export interface FighterState {
   /** The last strike started and how many times in a row it has been repeated (predictable = slower, weaker). */
   lastMove: MoveId | null;
   repeats: number;
+  /** Ticks before this fighter may grab again (after a clinch ends) or start another clinch contest / trip. */
+  clinchCooldown: number;
 
   /** What the HUD should prompt this fighter to do, or null. */
   prompt: FighterPrompt | null;
@@ -353,6 +382,36 @@ export interface GroundState {
   idle: number;
   scramble: ScrambleState | null;
   sub: SubState | null;
+}
+
+/** What a clinch contest decides: the held fighter breaks away, or swaps into control (a reversal). */
+export type ClinchPurpose = 'break' | 'reverse';
+
+/** A clinch position contest in progress (like a ground scramble, answered with a flick: up, down or back). */
+export interface ClinchContest {
+  initiator: Side;
+  purpose: ClinchPurpose;
+  /** The flick to answer with ('left' = screen up, 'right' = screen down, 'back' = away from the opponent). */
+  need: Evade;
+  tick: number;
+  window: number;
+  arrive: [number, number];
+  locked: [boolean, boolean];
+}
+
+/** Two fighters tied up standing (clinch.ts). */
+export interface ClinchState {
+  /** The fighter in control (pushes the other toward the cage, may trip). */
+  ctl: Side;
+  /** Ticks in this clinch. */
+  tick: number;
+  /** Ticks without work (a landed or blocked clinch strike, a trip, a contest); the referee separates at the limit. */
+  idle: number;
+  /** The held fighter's back is on the cage: control time counts for the judges. */
+  wall: boolean;
+  contest: ClinchContest | null;
+  /** A trip in progress: ticks since it started and the tick the defender fought it (-1 = not yet). */
+  trip: { tick: number; defendAt: number } | null;
 }
 
 /** A takedown shot that made contact and waits for the sprawl window to close. */
@@ -413,6 +472,8 @@ export interface FightState {
   fighters: [FighterState, FighterState];
   ground: GroundState | null;
   takedown: TakedownState | null;
+  /** Tied up in the clinch (standing), or null. */
+  clinch: ClinchState | null;
   /** Per round: [fighter 0, fighter 1] stats; index 0 = round 1. */
   stats: [RoundStats, RoundStats][];
   /** Each judge's leaning (seeded): per mille weights for striking and grappling, and a tie-break nudge. */
@@ -480,6 +541,22 @@ export type FightEvent =
   | { type: 'subStart'; tick: number; side: Side; sub: SubKind }
   | { type: 'subEscape'; tick: number; side: Side; sub: SubKind }
   | { type: 'tapOut'; tick: number; side: Side; sub: SubKind }
+  /** `side` went for a grab (a clinch attempt). */
+  | { type: 'clinchAttempt'; tick: number; side: Side }
+  /** `side` grabbed and is in control (`wall`: the other is on the cage; `from` a grab or a shot stopped on the cage). */
+  | { type: 'clinchStart'; tick: number; side: Side; wall: boolean; from: 'grab' | 'shot' }
+  /** `side`'s grab missed or was shrugged off. */
+  | { type: 'clinchMiss'; tick: number; side: Side }
+  /** The held fighter got pinned on the cage (`side` = the one in control). */
+  | { type: 'clinchWall'; tick: number; side: Side }
+  /** A clinch contest started by `side` (the arrow to flick is in each fighter's prompt). */
+  | { type: 'clinchContest'; tick: number; side: Side; purpose: ClinchPurpose }
+  | { type: 'clinchContestEnd'; tick: number; side: Side; purpose: ClinchPurpose; success: boolean }
+  /** `side` tries to trip from the clinch; `clinchTripEnd` says if it worked (a 'takedown' event follows if it did). */
+  | { type: 'clinchTrip'; tick: number; side: Side }
+  | { type: 'clinchTripEnd'; tick: number; side: Side; success: boolean }
+  /** The clinch is over. `side` = who was in control. */
+  | { type: 'clinchBreak'; tick: number; side: Side; reason: 'escape' | 'release' | 'ref' | 'trip' | 'knockdown' | 'round' | 'end' }
   | { type: 'fightEnd'; tick: number; result: FightResult };
 
 export type FightEventType = FightEvent['type'];
@@ -534,6 +611,14 @@ export interface FightView {
     sub: { kind: SubKind; mine: boolean; progress: number } | null;
   } | null;
   takedown: { mine: boolean; ticksLeft: number } | null;
+  /** Tied up in the clinch: `mine` = I am in control; `wall` = the held fighter is on the cage. */
+  clinch: {
+    mine: boolean;
+    wall: boolean;
+    contest: { purpose: ClinchPurpose; need: Evade; mine: boolean; ticksLeft: number } | null;
+    /** A trip in progress (`mine` = I am tripping). */
+    trip: { mine: boolean; ticksLeft: number } | null;
+  } | null;
   result: FightResult | null;
 }
 

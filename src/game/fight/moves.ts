@@ -1,10 +1,10 @@
 // Frame data for every standing attack. Times are ticks at 60 Hz, distances millimetres, damage and stamina on the
 // 0..10000 meter scale. docs/FIGHT-DESIGN.md explains the numbers; tests/fight-*.test.ts pin the behaviour.
 
-import type { Archetype, MoveId, Special, Strike, Zone } from './types';
+import type { Archetype, ClinchStrike, MoveId, Special, Strike, Zone } from './types';
 
 /** How a move travels: decides which evasions beat it. */
-export type MoveKind = 'straight' | 'hook' | 'upper' | 'kick' | 'lowKick' | 'lunge' | 'spin';
+export type MoveKind = 'straight' | 'hook' | 'upper' | 'kick' | 'lowKick' | 'lunge' | 'spin' | 'knee' | 'elbow';
 
 export interface MoveData {
   id: MoveId;
@@ -48,10 +48,21 @@ export const MOVES: Record<MoveId, MoveData> = {
   superman: M({ id: 'superman', zone: 'head', kind: 'lunge', startup: 16, active: 4, recovery: 22, reach: 1250, lunge: 520, cost: 900, dmg: 1600, hitstun: 26, blockstun: 14, chip: 300, blockable: true, skill: 'striking' }),
   flyingKnee: M({ id: 'flyingKnee', zone: 'head', kind: 'lunge', startup: 18, active: 4, recovery: 24, reach: 1050, lunge: 640, cost: 1100, dmg: 2000, hitstun: 30, blockstun: 16, chip: 350, blockable: true, skill: 'kicking' }),
   spinBackfist: M({ id: 'spinBackfist', zone: 'head', kind: 'spin', startup: 15, active: 4, recovery: 22, reach: 1150, lunge: 120, cost: 900, dmg: 1500, hitstun: 26, blockstun: 14, chip: 300, blockable: true, skill: 'striking' }),
+  // the clinch (thrown only from the clinch, at arm's length: no lunge, short reach)
+  clinchUpper: M({ id: 'clinchUpper', zone: 'head', kind: 'upper', startup: 8, active: 3, recovery: 12, reach: 820, lunge: 0, cost: 320, dmg: 500, hitstun: 12, blockstun: 8, chip: 180, blockable: true, skill: 'striking' }),
+  clinchElbow: M({ id: 'clinchElbow', zone: 'head', kind: 'elbow', startup: 10, active: 3, recovery: 15, reach: 800, lunge: 0, cost: 440, dmg: 720, hitstun: 16, blockstun: 10, chip: 240, blockable: true, skill: 'striking' }),
+  clinchKnee: M({ id: 'clinchKnee', zone: 'body', kind: 'knee', startup: 10, active: 3, recovery: 15, reach: 820, lunge: 0, cost: 520, dmg: 820, hitstun: 16, blockstun: 10, chip: 300, blockable: true, skill: 'kicking' }),
+  clinchKneeHead: M({ id: 'clinchKneeHead', zone: 'head', kind: 'knee', startup: 15, active: 3, recovery: 21, reach: 820, lunge: 0, cost: 820, dmg: 1150, hitstun: 22, blockstun: 12, chip: 260, blockable: true, skill: 'kicking' }),
 };
 
 export const STRIKES: readonly Strike[] = ['jab', 'cross', 'hookL', 'hookR', 'uppercut', 'bodyShot', 'lowKick', 'bodyKick', 'headKick'];
 export const SPECIALS: readonly Special[] = ['superman', 'flyingKnee', 'spinBackfist'];
+export const CLINCH_STRIKES: readonly ClinchStrike[] = ['clinchKnee', 'clinchKneeHead', 'clinchElbow', 'clinchUpper'];
+
+/** Is `move` thrown from the clinch? */
+export function isClinchStrike(move: MoveId): move is ClinchStrike {
+  return move === 'clinchKnee' || move === 'clinchKneeHead' || move === 'clinchElbow' || move === 'clinchUpper';
+}
 
 export const SIGNATURE_BY_ARCHETYPE: Record<Archetype, Special> = {
   brawler: 'superman',

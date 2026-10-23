@@ -23,6 +23,10 @@ export const MOVE_NAMES: Record<MoveId, string> = {
   superman: 'Superman punch',
   flyingKnee: 'Flying knee',
   spinBackfist: 'Spinning back fist',
+  clinchKnee: 'Knee to the body',
+  clinchKneeHead: 'Knee to the head',
+  clinchElbow: 'Short elbow',
+  clinchUpper: 'Clinch uppercut',
 };
 
 /** Screen arrows for swipe directions (the opponent is always to the right: F = →). */
@@ -145,6 +149,20 @@ export function moveList(opts: MoveListOptions = {}): MoveSection[] {
       rows: [
         defRow('Takedown', 'TAKEDOWN, or a long swipe ↓', keysFor(v => v.k === 'shoot'), 'Shoot from close range'),
         defRow('Sprawl', 'Swipe ↓ or TAKEDOWN as they shoot', keysFor(v => v.k === 'shoot'), 'Early is best'),
+      ],
+    },
+    {
+      title: 'Clinch',
+      sub: 'Tie them up at close range; the same gestures become clinch strikes',
+      rows: [
+        defRow('Grab', 'Hold a finger still on the attack side', keysFor(v => v.k === 'clinch'), 'Only up close; a punch beats a grab'),
+        { ...strikeRow('jab', 'Tap or swipe ↓', 'Wears down their body'), name: MOVE_NAMES.clinchKnee, power: powerPips('clinchKnee'), speed: speedPips('clinchKnee') },
+        { ...strikeRow('headKick', 'Swipe ↑ from KICK', 'Big damage, slow'), name: MOVE_NAMES.clinchKneeHead, power: powerPips('clinchKneeHead'), speed: speedPips('clinchKneeHead') },
+        { ...strikeRow('cross', `Swipe ${arrows(swipeDirs('cross'))} or a hook swipe`, 'Fast and sharp'), name: MOVE_NAMES.clinchElbow, power: powerPips('clinchElbow'), speed: speedPips('clinchElbow') },
+        { ...strikeRow('uppercut', `Swipe ${arrows(swipeDirs('uppercut'))}`, 'The quickest shot in close'), name: MOVE_NAMES.clinchUpper, power: powerPips('clinchUpper'), speed: speedPips('clinchUpper') },
+        defRow('Trip', 'TAKEDOWN, or a long swipe ↓ (in control)', keysFor(v => v.k === 'shoot'), 'Easier with them on the cage'),
+        defRow('Break away / turn it', 'Flick on the defence side (held)', keysFor(v => v.k === 'evade'), 'Then flick the arrow shown before they do'),
+        defRow('Let go', 'Step back with the pad (in control)', keysFor(v => v.k === 'move'), 'Breathe, then go again'),
       ],
     },
     {

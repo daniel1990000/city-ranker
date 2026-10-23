@@ -8,9 +8,11 @@ import {
   applyZoneDamage,
   attackPm,
   clearMove,
+  clinchHoldPose,
   costFor,
   DEFAULT_RULES,
   emit,
+  endClinch,
   emptyRoundStats,
   endFight,
   type Fight,
@@ -30,8 +32,9 @@ import {
   walkSpeed,
 } from './core';
 import { enterGround, GROUND, pounce, standUp, startShoot, stepGround, stepShoot, stepTakedown } from './ground';
+import { canGrab, CLINCH, holdClinch, startGrab, stepClinch, stepGrab } from './clinch';
 import { clampi, cloneData, hashValue, muldiv, rngInt, rngRange, seedRng } from './math';
-import { CANCEL_AFTER, CHAIN_MAX, CHAIN_SPEEDUP, EVADE, evades, isSpecial, MOVES, SIGNATURE_BY_ARCHETYPE } from './moves';
+import { CANCEL_AFTER, CHAIN_MAX, CHAIN_SPEEDUP, EVADE, evades, isClinchStrike, isSpecial, MOVES, SIGNATURE_BY_ARCHETYPE } from './moves';
 import type {
   FightEvent,
   FighterSpec,
@@ -107,6 +110,7 @@ export function createFight(setup: FightSetup): Fight {
     fighters: [newFighter(-START_X, 1), newFighter(START_X, -1)],
     ground: null,
     takedown: null,
+    clinch: null,
     stats: [[emptyRoundStats(), emptyRoundStats()]],
     judges,
     result: null,
@@ -196,6 +200,7 @@ function endRound(f: Fight): void {
   emit(f, { type: 'roundEnd', tick: s.tick, round: s.round });
   if (s.ground) standUp(f, 'round');
   s.takedown = null;
+  endClinch(f, 'round', false);
   if (s.round >= f.rules.rounds) {
     endFight(f, null, 'DEC');
     return;
@@ -221,6 +226,7 @@ function endRound(f: Fight): void {
     me.hurtFlags = 0;
     me.lastMove = null;
     me.repeats = 0;
+    me.clinchCooldown = 0;
     me.guard = METER_MAX;
     me.head = Math.max(0, me.head - 900);
     me.body = Math.max(0, me.body - 700);
@@ -264,6 +270,7 @@ function decay(f: Fight): void {
     if (me.counterTicks > 0) me.counterTicks--;
     if (me.guardBrokenTicks > 0) me.guardBrokenTicks--;
     if (me.groundCooldown > 0) me.groundCooldown--;
+    if (me.clinchCooldown > 0) me.clinchCooldown--;
     if (me.bufTicks > 0 && --me.bufTicks === 0) {
       me.bufMove = null;
       me.bufEvade = null;
@@ -297,7 +304,11 @@ function decay(f: Fight): void {
       case 'block':
       case 'gndGuardBottom':
       case 'gndMountBottom':
+      case 'clinchHold':
         regen = 10;
+        break;
+      case 'clinchHeld':
+        regen = 6;
         break;
       default:
         regen = 0;
@@ -320,12 +331,18 @@ function stepStanding(f: Fight, inputs: [FightInput, FightInput]): void {
     if (s.ground || s.result) return;
   }
 
-  for (const i of [0, 1] as const) stepFighterIntent(f, i, inputs[i]);
-  if (s.ground || s.result) return;
-
-  for (const i of [0, 1] as const) {
-    if (s.fighters[i].action === 'shoot' && !s.takedown) stepShoot(f, i);
+  if (s.clinch) {
+    stepClinch(f, inputs, startMove);
     if (s.ground || s.result) return;
+  } else {
+    for (const i of [0, 1] as const) stepFighterIntent(f, i, inputs[i]);
+    if (s.ground || s.result) return;
+    for (const i of [0, 1] as const) {
+      const a = s.fighters[i].action;
+      if (a === 'shoot' && !s.takedown) stepShoot(f, i);
+      else if (a === 'clinchEnter' && !s.clinch) stepGrab(f, i);
+      if (s.ground || s.result) return;
+    }
   }
 
   // attacks: lunge, then resolve both sides against the same moment (trades are possible)
@@ -341,7 +358,8 @@ function stepStanding(f: Fight, inputs: [FightInput, FightInput]): void {
   if (s.result || s.ground) return;
 
   for (const i of [0, 1] as const) endActions(f, i);
-  separate(f);
+  if (s.clinch) holdClinch(f);
+  else separate(f);
 }
 
 /** Read the input: buffer it, then start whatever the fighter is free to start. */
@@ -415,6 +433,11 @@ function stepFighterIntent(f: Fight, side: Side, input: FightInput): void {
       return;
     }
     startShoot(f, side);
+    return;
+  }
+  // a grab at close range: a clinch attempt (pressed from further away it does nothing)
+  if (input.clinch && s.phase === 'fight' && canGrab(f, side)) {
+    startGrab(f, side);
     return;
   }
   if (input.taunt) {
@@ -554,7 +577,9 @@ function checkAttack(f: Fight, side: Side): Outcome | null {
   if (guarding && d.blockable) return { kind: 'block', parry: them.action === 'block' && them.actionTick <= PARRY_TICKS && them.stunTicks === 0 };
   // caught: they were winding up their own attack, walking into it, or showboating
   // walking onto a head shot is a counter; a kick to the leg or body of someone stepping in is just a kick
-  const caught = d.zone === 'head' && ((them.move !== null && them.actionTick < them.moveStartup) || them.action === 'walkFwd' || them.action === 'taunt');
+  // reaching in for a grab is walking into it too: strikes beat grabs
+  const caught =
+    d.zone === 'head' && ((them.move !== null && them.actionTick < them.moveStartup) || them.action === 'walkFwd' || them.action === 'taunt' || them.action === 'clinchEnter');
   return { kind: 'hit', counter: me.moveCounter || caught, window: me.moveCounter };
 }
 
@@ -568,6 +593,8 @@ function applyOutcome(f: Fight, side: Side, o: Outcome, move: MoveId, chain: num
   const d = MOVES[move];
   const other = opp(side);
   const them = s.fighters[other];
+  // work in the clinch keeps the referee out
+  if (s.clinch && isClinchStrike(move) && (o.kind === 'hit' || o.kind === 'block')) s.clinch.idle = 0;
 
   switch (o.kind) {
     case 'whiff': {
@@ -657,6 +684,8 @@ function landHit(f: Fight, side: Side, move: MoveId, counter: boolean, window: b
   if (counter) dmg = muldiv(dmg, window ? 16 : 14, 10);
   dmg = muldiv(dmg, 100 - predictable(me, move) * REPEAT_DMG_PCT, 100);
   dmg = muldiv(dmg, 100 + Math.min(chain, CHAIN_MAX) * 5, 100);
+  // the held fighter has no room and no control: their clinch strikes land softer
+  if (s.clinch && s.clinch.ctl !== side) dmg = muldiv(dmg, CLINCH.heldDmgPm, 1000);
   // defense: a sharp defender rolls with shots (half damage), a wobbled one cannot
   if (them.stunTicks === 0 && !counter) {
     const glance = clampi(900 + stat(f, other, 'defense') * 38 - stat(f, side, d.skill) * 22, 300, 4200);
@@ -770,6 +799,7 @@ function knockdown(f: Fight, side: Side, by: MoveId, counter: boolean, legs = fa
   const s = f.state;
   const me = s.fighters[side];
   const attacker = opp(side);
+  endClinch(f, 'knockdown');
   me.knockdowns++;
   roundStats(f, attacker).knockdowns++;
   const severity = muldiv(me.head, 1, 100) + me.knockdowns * 16 + (counter ? 15 : 0) + rngInt(s, 25);
@@ -804,6 +834,11 @@ function endActions(f: Fight, side: Side): void {
   const s = f.state;
   const me = s.fighters[side];
   if (me.actionLength === 0 || me.actionTick < me.actionLength) return;
+  // in the clinch everything ends back in the hold
+  if (s.clinch && me.action !== 'knockdown' && me.action !== 'downed') {
+    clinchHoldPose(f, side);
+    return;
+  }
   switch (me.action) {
     case 'knockdown':
       if (s.result) return;
@@ -891,8 +926,9 @@ export function viewFor(f: Fight, side: Side): FightView {
     mySpec: f.specs[side],
     oppSpec: f.specs[opp(side)],
     dist: Math.abs(them.x - me.x),
-    myRoom: WALL - me.x * me.facing,
-    oppRoom: WALL - them.x * them.facing,
+    // room behind each fighter (they face each other: behind is -facing)
+    myRoom: WALL + me.x * me.facing,
+    oppRoom: WALL + them.x * them.facing,
     ground: g
       ? {
           pos: g.pos,
@@ -904,6 +940,16 @@ export function viewFor(f: Fight, side: Side): FightView {
         }
       : null,
     takedown: s.takedown ? { mine: s.takedown.atk === side, ticksLeft: s.takedown.window - s.takedown.tick } : null,
+    clinch: s.clinch
+      ? {
+          mine: s.clinch.ctl === side,
+          wall: s.clinch.wall,
+          contest: s.clinch.contest
+            ? { purpose: s.clinch.contest.purpose, need: s.clinch.contest.need, mine: s.clinch.contest.initiator === side, ticksLeft: s.clinch.contest.window - s.clinch.contest.tick }
+            : null,
+          trip: s.clinch.trip ? { mine: s.clinch.ctl === side, ticksLeft: CLINCH.tripTicks - s.clinch.trip.tick } : null,
+        }
+      : null,
     result: s.result,
   };
 }

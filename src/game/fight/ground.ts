@@ -4,10 +4,12 @@
 import {
   addSpecial,
   applyZoneDamage,
+  beginClinch,
   attackPm,
   clearMove,
   costFor,
   emit,
+  endClinch,
   endFight,
   type Fight,
   MIN_GAP,
@@ -58,6 +60,8 @@ export const GROUND = {
   /** Unanswered ground strikes on a hurt fighter before the referee stops it. */
   groundTko: 9,
   pounceReach: 1500,
+  /** A shot stuffed with the defender's back this close to the cage can become a clinch there (clinch.ts). */
+  cageClinchRoom: 700,
 } as const;
 
 const DIRS: readonly GroundDir[] = ['up', 'down', 'left', 'right'];
@@ -148,6 +152,14 @@ export function stepTakedown(f: Fight, inputs: [FightInput, FightInput]): void {
   defF.prompt = null;
   atkF.prompt = null;
   if (rngInt(s, 10000) < chance) {
+    // stuffed against the cage: the shooter may stay on them and tie them up there instead of being pushed off
+    const behind = defF.facing > 0 ? defF.x + WALL : WALL - defF.x;
+    if (behind < GROUND.cageClinchRoom && rngInt(s, 10000) < cageClinchChance(f, td.atk)) {
+      roundStats(f, def).defended++;
+      emit(f, { type: 'sprawl', tick: s.tick, side: def, success: true });
+      beginClinch(f, td.atk, 'shot');
+      return;
+    }
     // stuffed
     setAction(defF, 'sprawl', GROUND.sprawlRecovery);
     setAction(atkF, 'getUp', GROUND.stuffedRecovery);
@@ -166,7 +178,15 @@ export function stepTakedown(f: Fight, inputs: [FightInput, FightInput]): void {
   completeTakedown(f, td.atk, false);
 }
 
-function completeTakedown(f: Fight, atk: Side, caughtKick: boolean): void {
+/** The chance (per 10000) that a shot stuffed against the cage becomes a clinch there. */
+function cageClinchChance(f: Fight, atk: Side): number {
+  const def = opp(atk);
+  const s = f.state;
+  return clampi(3400 + (stat(f, atk, 'wrestling') - stat(f, def, 'wrestling')) * 50 + muldiv(s.fighters[atk].stamina - s.fighters[def].stamina, 1, 8), 1000, 7000);
+}
+
+/** A takedown that worked (a shot, a caught kick or a trip from the clinch): both to the ground, attacker in guard. */
+export function completeTakedown(f: Fight, atk: Side, caughtKick: boolean): void {
   const s = f.state;
   roundStats(f, atk).takedowns++;
   addSpecial(f, atk, 1200);
@@ -194,6 +214,7 @@ export function enterGround(f: Fight, top: Side, pos: GroundPos): void {
     me.downTicks = 0;
   }
   s.takedown = null;
+  if (s.clinch) endClinch(f, 'trip', false);
   s.ground = { pos, top, x, dir: s.fighters[top].facing, tick: 0, idle: 0, scramble: null, sub: null };
   holdPose(f);
   emit(f, { type: 'position', tick: s.tick, pos, top });

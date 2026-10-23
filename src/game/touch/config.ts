@@ -15,6 +15,7 @@ export const DEFAULT_TOUCH_CONFIG: Readonly<TouchConfig> = Object.freeze({
   takedownMaxFrac: 0.36,
   downSettleMs: 90,
   twoFingerMs: 140,
+  grabHoldMs: 300,
   straightHalfAngleDeg: 24,
   settleMs: 70,
   moveDeadDp: 10,
@@ -35,6 +36,7 @@ export interface ScaledConfig {
   takedown: number;
   downSettleMs: number;
   twoFingerMs: number;
+  grabHoldMs: number;
   /** tan(straight half-angle): |minor| <= |major| * this means a straight (non-diagonal) direction. */
   straightTan: number;
   settleMs: number;
@@ -65,6 +67,8 @@ export function scaleConfig(cfg: Readonly<TouchConfig>, pxPerDp: number, screenH
     takedown: Math.max(commit * 1.6, Math.min(cfg.takedownDp * k, h * cfg.takedownMaxFrac)),
     downSettleMs: cfg.downSettleMs,
     twoFingerMs: cfg.twoFingerMs,
+    // a grab is never a slow tap
+    grabHoldMs: Math.max(cfg.grabHoldMs, cfg.tapMaxMs + 20),
     straightTan: Math.tan((Math.min(44, Math.max(10, cfg.straightHalfAngleDeg)) * Math.PI) / 180),
     settleMs: cfg.settleMs,
     moveDead: cfg.moveDeadDp * k,

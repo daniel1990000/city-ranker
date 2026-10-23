@@ -6,6 +6,10 @@
 //   S or ↓ (hold)   block                   K  cross          O  uppercut       L  body shot
 //   Q / E           slip left / right       N  low kick       M  body kick      ,  head kick
 //   W               sway back               H  special        Space  takedown (sprawl when they shoot)
+//                                           G  grab (clinch, at close range)
+//   In the clinch the same keys do clinch things: J / L / N / M knee to the body, Comma knee to the head, K / U / I
+//   elbow, O uppercut, Space trip (or fight a trip), Q / E / W (or G) break away and answer the contest arrow
+//   (Q = up, E = down, W = back), S blocks; the fighter in control lets go by stepping back (A / ←).
 //   Ground: arrows or W/A/S/D answer the prompts, J / K / Space strike (ground-and-pound), Shift blocks.
 //   Submission: any of J, K, L, F, Space, Enter mashes.
 //   Esc / P pauses (handled by the UI, not here).
@@ -19,6 +23,7 @@ export type StandKey =
   | { k: 'shoot' }
   | { k: 'evade'; evade: Evade }
   | { k: 'block' }
+  | { k: 'clinch' }
   /** Screen direction: -1 left, +1 right (converted to toward/away from the opponent). */
   | { k: 'move'; x: -1 | 1 };
 
@@ -33,6 +38,7 @@ export const STAND_KEYS: Readonly<Record<string, StandKey>> = Object.freeze({
   KeyM: { k: 'strike', strike: 'bodyKick' },
   Comma: { k: 'strike', strike: 'headKick' },
   KeyH: { k: 'special' },
+  KeyG: { k: 'clinch' },
   Space: { k: 'shoot' },
   KeyQ: { k: 'evade', evade: 'left' },
   KeyE: { k: 'evade', evade: 'right' },

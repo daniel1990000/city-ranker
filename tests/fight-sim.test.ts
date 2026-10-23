@@ -126,8 +126,9 @@ describe('determinism', () => {
       I(),
       I({ strike: 'headKick', block: true, move: -1 }),
       I({ special: true, evade: 'back', ground: 'right', tap: true, taunt: true, shoot: true, move: 1 }),
+      I({ strike: 'uppercut', clinch: true, move: -1 }),
     ];
-    for (const s of samples) expect(decodeInput(encodeInput(s))).toEqual({ ...s, taunt: !!s.taunt });
+    for (const s of samples) expect(decodeInput(encodeInput(s))).toEqual({ ...s, taunt: !!s.taunt, clinch: !!s.clinch });
   });
 });
 
@@ -511,7 +512,8 @@ describe('owner playtest (October 2026): mashing, rocked moments, takedowns, sub
   });
 
   it('a person-paced bottom player gets up against a medium opponent, and the AI mashes at a human pace', () => {
-    const { events } = vsAI(500, 20, s => testFighter(s % 2 ? 'wrestler' : 'grappler'));
+    // (50 fights: since the clinch, wrestlers take some of their fights to the cage instead of shooting)
+    const { events } = vsAI(500, 50, s => testFighter(s % 2 ? 'wrestler' : 'grappler'));
     const mine = events.filter(e => e.type === 'scrambleEnd' && e.side === 0);
     expect(mine.length).toBeGreaterThan(5);
     expect(mine.filter(e => e.type === 'scrambleEnd' && e.success).length * 100).toBeGreaterThan(mine.length * 35);

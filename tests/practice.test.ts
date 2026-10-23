@@ -340,9 +340,11 @@ describe('move list', () => {
       const named = rows.filter(r => r.gesture.includes(arrow) && r.gesture.startsWith('Swipe') && r.power > 0);
       expect(named.length, `${dir} -> ${strike}`).toBeGreaterThan(0);
     }
-    // all nine strikes, each with damage and speed tiers; the jab is the fastest, the head kick the hardest
+    // all nine strikes, the special and the four clinch strikes, each with damage and speed tiers; the jab is the
+    // fastest, the head kick the hardest
     const strikeRows = rows.filter(r => r.power > 0);
-    expect(strikeRows.length).toBe(STRIKES.length + 1);
+    expect(strikeRows.length).toBe(STRIKES.length + 1 + 4);
+    expect(list.find(s => s.title === 'Clinch')?.rows.find(r => r.name === 'Grab')?.key).toBe('G');
     expect(row('Jab')?.speed).toBe(5);
     expect(row('Head kick')?.power).toBe(5);
     expect(row('Jab')?.key).toBe('J');
