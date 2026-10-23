@@ -1,0 +1,448 @@
+{
+  "schema": "mma.taxonomy",
+  "version": 1,
+  "ratings": [
+    "lefthandpower",
+    "righthandpower",
+    "leftlegpower",
+    "rightlegpower",
+    "punchspeed",
+    "kickspeed",
+    "blocking",
+    "toughness",
+    "chinhealth",
+    "bodyhealth",
+    "leghealth",
+    "cuts",
+    "movement",
+    "stamina",
+    "clinchcontrol",
+    "clinchpassing",
+    "clinchthrows",
+    "takedown",
+    "takedowndefense",
+    "groundcontrol",
+    "groundpassing",
+    "chokesubmission",
+    "jointsubmission",
+    "chokedefense",
+    "jointdefense"
+  ],
+  "tendencies": [
+    "adaptive_finisher",
+    "attrition_specialist",
+    "bjj_fighter",
+    "brawler",
+    "chess_master",
+    "damage_specialist",
+    "dirty_boxer",
+    "dominance_specialist",
+    "off_the_back_specialist",
+    "rounded_clincher",
+    "striking_purist",
+    "thai_clincher"
+  ],
+  "fightingStyles": [
+    "boxer",
+    "freestyle_wrestler",
+    "greco_roman_wrestler",
+    "jeet_kune_do",
+    "jiu_jutsu",
+    "judo",
+    "karate",
+    "kickboxer",
+    "muay_thai",
+    "tae_kwon_do"
+  ],
+  "weightClasses": [
+    "flyweight",
+    "bantamweight",
+    "featherweight",
+    "lightweight",
+    "welterweight",
+    "middleweight",
+    "lightheavyweight",
+    "heavyweight"
+  ],
+  "slots": [
+    "basic",
+    "fwd",
+    "bwd",
+    "sig",
+    "sig_fwd",
+    "sig_bwd",
+    "tech",
+    "tech_fwd",
+    "tech_bwd",
+    "tech_sig"
+  ],
+  "limbs": [
+    "punch",
+    "kick"
+  ],
+  "sides": [
+    "lead",
+    "back"
+  ],
+  "targets": [
+    "head",
+    "body",
+    "leg"
+  ],
+  "contacts": [
+    "fist",
+    "elbow",
+    "foot_shin",
+    "knee",
+    "shoulder",
+    "none"
+  ],
+  "healthEvents": [
+    "none",
+    "wobbled_shot",
+    "stun",
+    "critical_stun",
+    "knockdown",
+    "knockout",
+    "liver_shot",
+    "limping"
+  ],
+  "regions": [
+    "head",
+    "body",
+    "legL",
+    "legR"
+  ],
+  "clinchPositions": [
+    "over_under",
+    "double_under",
+    "single_collar",
+    "thai",
+    "back_clinch"
+  ],
+  "clinchStrikes": [
+    "knee",
+    "elbow",
+    "uppercut",
+    "hook",
+    "shoulder",
+    "stomp"
+  ],
+  "clinchTakedowns": {
+    "over_under": {
+      "dom": [
+        "hip_throw_high",
+        "hip_throw_low",
+        "judo_throw",
+        "doubleleg_high",
+        "doubleleg_low",
+        "singleleg_high",
+        "singleleg_low",
+        "throw_low"
+      ],
+      "sub": [
+        "hip_throw_high",
+        "hip_throw_low",
+        "judo_throw",
+        "inside_trip_left",
+        "inside_trip_right",
+        "outside_trip",
+        "doubleleg_high",
+        "doubleleg_low",
+        "singleleg_high",
+        "singleleg_low",
+        "throw_left",
+        "throw_right"
+      ]
+    },
+    "double_under": {
+      "dom": [
+        "bodylock_throw_high",
+        "bodylock_throw_low",
+        "doubleleg_high",
+        "doubleleg_low",
+        "singleleg_high",
+        "singleleg_low",
+        "throw_low"
+      ],
+      "sub": []
+    },
+    "single_collar": {
+      "dom": [
+        "inside_trip",
+        "inside_trip_left",
+        "inside_trip_right",
+        "outside_trip",
+        "leg_grab",
+        "doubleleg_high",
+        "doubleleg_low",
+        "singleleg_high",
+        "singleleg_low"
+      ],
+      "sub": [
+        "outside_trip",
+        "outside_trip_left",
+        "outside_trip_right",
+        "leg_grab",
+        "doubleleg_high",
+        "doubleleg_low",
+        "singleleg_high",
+        "singleleg_low"
+      ]
+    },
+    "thai": {
+      "dom": [
+        "inside_trip",
+        "outside_trip"
+      ],
+      "sub": []
+    },
+    "back_clinch": {
+      "dom": [
+        "suplex_high",
+        "suplex_low"
+      ],
+      "sub": []
+    }
+  },
+  "standupTakedowns": {
+    "fwd": {
+      "major": "singleleg_high",
+      "minor": "singleleg_low"
+    },
+    "bwd": {
+      "major": "doubleleg_high",
+      "minor": "doubleleg_low"
+    }
+  },
+  "takedownDenials": [
+    "countered_punch",
+    "countered_knee",
+    "countered_kick",
+    "sprawl",
+    "sprawl_against_cage",
+    "missed",
+    "unknown"
+  ],
+  "groundPositions": [
+    "none",
+    "downed",
+    "guard",
+    "halfguard",
+    "stacked_guard",
+    "rubber_guard",
+    "sidecontrol",
+    "sidesaddle",
+    "northsouth",
+    "crucifix",
+    "fullmount",
+    "backmount",
+    "back_sidemount",
+    "sprawl"
+  ],
+  "floorPostures": [
+    "back",
+    "face",
+    "turtle",
+    "left_fetal",
+    "right_fetal",
+    "butt_scoot"
+  ],
+  "groundStrikes": [
+    "elbow",
+    "hammer",
+    "hook",
+    "knee",
+    "straight"
+  ],
+  "submissions": {
+    "rear_naked_choke": {
+      "category": "choke",
+      "from": {
+        "backmount": "dom"
+      }
+    },
+    "armbar": {
+      "category": "lock",
+      "from": {
+        "backmount": "dom",
+        "crucifix": "dom",
+        "fullmount": "dom",
+        "guard": "sub",
+        "rubber_guard": "sub"
+      }
+    },
+    "heel_hook": {
+      "category": "lock",
+      "from": {
+        "guard": "dom",
+        "stacked_guard": "dom"
+      }
+    },
+    "kneebar": {
+      "category": "lock",
+      "from": {
+        "halfguard": "dom",
+        "stacked_guard": "dom"
+      }
+    },
+    "gogoplata": {
+      "category": "choke",
+      "from": {
+        "fullmount": "dom",
+        "rubber_guard": "sub"
+      }
+    },
+    "triangle_armbar": {
+      "category": "lock",
+      "from": {
+        "fullmount": "dom"
+      }
+    },
+    "triangle": {
+      "category": "choke",
+      "from": {
+        "guard": "sub"
+      }
+    },
+    "omoplata": {
+      "category": "lock",
+      "from": {
+        "guard": "sub",
+        "rubber_guard": "sub"
+      }
+    },
+    "guillotine": {
+      "category": "choke",
+      "from": {
+        "guard": "sub"
+      }
+    },
+    "arm_triangle": {
+      "category": "choke",
+      "from": {
+        "halfguard": "dom",
+        "sidesaddle": "dom"
+      }
+    },
+    "kimura": {
+      "category": "lock",
+      "from": {
+        "sidecontrol": "dom",
+        "halfguard": "sub"
+      }
+    },
+    "twister": {
+      "category": "lock",
+      "from": {
+        "halfguard": "sub"
+      }
+    },
+    "americana": {
+      "category": "lock",
+      "from": {
+        "sidecontrol": "dom"
+      }
+    },
+    "inverted_triangle": {
+      "category": "choke",
+      "from": {
+        "sidecontrol": "dom"
+      }
+    },
+    "darce_choke": {
+      "category": "choke",
+      "from": {
+        "sidecontrol": "sub",
+        "halfguard": "dom"
+      }
+    },
+    "windshield_choke": {
+      "category": "choke",
+      "from": {
+        "northsouth": "dom"
+      }
+    },
+    "anaconda": {
+      "category": "choke",
+      "from": {
+        "sprawl": "dom"
+      }
+    },
+    "japanese_neck_tie": {
+      "category": "choke",
+      "from": {
+        "sprawl": "dom"
+      }
+    },
+    "peruvian_neck_tie": {
+      "category": "choke",
+      "from": {
+        "sprawl": "dom"
+      }
+    },
+    "rolling_kneebar": {
+      "category": "lock",
+      "from": {
+        "back_sidemount": "sub"
+      }
+    }
+  },
+  "judgeComponents": [
+    "effective_striking",
+    "damage",
+    "health_events",
+    "blocks_and_parries",
+    "clinch_dominance",
+    "ground_dominance",
+    "takedowns_performed",
+    "takedowns_denied",
+    "passes_performed",
+    "passes_denied",
+    "submissions",
+    "submissions_escaped"
+  ],
+  "aggressionFactors": [
+    "health_head",
+    "health_body",
+    "health_leftleg",
+    "health_rightleg",
+    "delta_health",
+    "in_hit_reaction",
+    "idle",
+    "stamina",
+    "opp_health_head",
+    "opp_health_body",
+    "opp_health_leftleg",
+    "opp_health_rightleg",
+    "opp_delta_health",
+    "opp_in_hit_reaction",
+    "opp_idle",
+    "opp_stamina",
+    "opp_strike_activity",
+    "planner",
+    "round_num",
+    "round_time",
+    "score_differential"
+  ],
+  "goalTypes": [
+    "strike",
+    "special_strike",
+    "loco",
+    "transition",
+    "takedown",
+    "clinch",
+    "submission"
+  ],
+  "resultTypes": [
+    "ko",
+    "tko",
+    "submission",
+    "unanimous_decision",
+    "majority_decision",
+    "split_decision",
+    "draw",
+    "majority_draw",
+    "undecided"
+  ]
+}

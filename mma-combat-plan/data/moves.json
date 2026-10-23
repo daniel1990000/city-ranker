@@ -1,0 +1,1724 @@
+{
+  "schema": "mma.moves",
+  "version": 1,
+  "moves": [
+    {
+      "id": "lead_jab_head",
+      "label": "Jab",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "lead",
+      "slot": "basic",
+      "target": "head",
+      "type": "straight",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "light",
+      "frames": {
+        "startup": 5,
+        "active": 2,
+        "recovery": 9
+      },
+      "reach": 1.05,
+      "wedgeDeg": 22,
+      "advance": 0,
+      "damage": {
+        "base": 3.4,
+        "range": 1.2
+      },
+      "stamina": 1.6,
+      "eventMult": 0.7,
+      "critChance": 0.02,
+      "blockHeight": "high",
+      "tags": [
+        "jab",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            4,
+            11
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "bodykick",
+          "overhand",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "lead_jab_body",
+      "label": "Body jab",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "lead",
+      "slot": "basic",
+      "target": "body",
+      "type": "straight",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "light",
+      "frames": {
+        "startup": 6,
+        "active": 2,
+        "recovery": 10
+      },
+      "reach": 1,
+      "wedgeDeg": 22,
+      "advance": 0,
+      "damage": {
+        "base": 3,
+        "range": 1
+      },
+      "stamina": 1.7,
+      "eventMult": 0.7,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "jab",
+        "punch",
+        "body"
+      ],
+      "cancel": {
+        "out": [
+          [
+            5,
+            13
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "bodykick",
+          "overhand",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_cross_head",
+      "label": "Cross",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "straight",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 8,
+        "active": 3,
+        "recovery": 14
+      },
+      "reach": 1.1,
+      "wedgeDeg": 22,
+      "advance": 0,
+      "damage": {
+        "base": 6.8,
+        "range": 2.2
+      },
+      "stamina": 3,
+      "eventMult": 1,
+      "critChance": 0.04,
+      "blockHeight": "high",
+      "tags": [
+        "cross",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            7,
+            18
+          ]
+        ],
+        "into": [
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_cross_body",
+      "label": "Body cross",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "body",
+      "type": "straight",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 9,
+        "active": 3,
+        "recovery": 15
+      },
+      "reach": 1.05,
+      "wedgeDeg": 22,
+      "advance": 0,
+      "damage": {
+        "base": 6,
+        "range": 2
+      },
+      "stamina": 3,
+      "eventMult": 1,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "cross",
+        "punch",
+        "body"
+      ],
+      "cancel": {
+        "out": [
+          [
+            8,
+            20
+          ]
+        ],
+        "into": [
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "lead_hook_head",
+      "label": "Lead hook",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "lead",
+      "slot": "tech",
+      "target": "head",
+      "type": "hook",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 10,
+        "active": 3,
+        "recovery": 18
+      },
+      "reach": 0.95,
+      "wedgeDeg": 30,
+      "advance": 0,
+      "damage": {
+        "base": 7.4,
+        "range": 2.4
+      },
+      "stamina": 3.4,
+      "eventMult": 1.1,
+      "critChance": 0.05,
+      "blockHeight": "high",
+      "tags": [
+        "hook",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            9,
+            22
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "lead_hook_body",
+      "label": "Lead body hook",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "lead",
+      "slot": "tech",
+      "target": "body",
+      "type": "hook",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 11,
+        "active": 3,
+        "recovery": 19
+      },
+      "reach": 0.95,
+      "wedgeDeg": 30,
+      "advance": 0,
+      "damage": {
+        "base": 7,
+        "range": 2.2
+      },
+      "stamina": 3.4,
+      "eventMult": 1.2,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "hook",
+        "punch",
+        "body"
+      ],
+      "cancel": {
+        "out": [
+          [
+            10,
+            24
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_overhand_head",
+      "label": "Overhand",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "tech",
+      "target": "head",
+      "type": "overhand",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "heavy",
+      "frames": {
+        "startup": 13,
+        "active": 3,
+        "recovery": 24
+      },
+      "reach": 1.05,
+      "wedgeDeg": 28,
+      "advance": 0,
+      "damage": {
+        "base": 10.5,
+        "range": 3
+      },
+      "stamina": 4.8,
+      "eventMult": 1.3,
+      "critChance": 0.07,
+      "blockHeight": "high",
+      "tags": [
+        "overhand",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            12,
+            29
+          ]
+        ],
+        "into": [
+          "jab",
+          "legkick"
+        ]
+      }
+    },
+    {
+      "id": "back_hook_body",
+      "label": "Rear body hook",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "tech",
+      "target": "body",
+      "type": "hook",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "heavy",
+      "frames": {
+        "startup": 12,
+        "active": 3,
+        "recovery": 22
+      },
+      "reach": 0.95,
+      "wedgeDeg": 30,
+      "advance": 0,
+      "damage": {
+        "base": 9.2,
+        "range": 2.6
+      },
+      "stamina": 4.4,
+      "eventMult": 1.3,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "hook",
+        "punch",
+        "body"
+      ],
+      "cancel": {
+        "out": [
+          [
+            11,
+            27
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "lead_uppercut_head",
+      "label": "Uppercut",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "lead",
+      "slot": "sig",
+      "target": "head",
+      "type": "uppercut",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 9,
+        "active": 3,
+        "recovery": 17
+      },
+      "reach": 0.8,
+      "wedgeDeg": 26,
+      "advance": 0,
+      "damage": {
+        "base": 7.6,
+        "range": 2.4
+      },
+      "stamina": 3.4,
+      "eventMult": 1.15,
+      "critChance": 0.05,
+      "blockHeight": "high",
+      "tags": [
+        "uppercut",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            8,
+            21
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "legkick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_uppercut_body",
+      "label": "Rear uppercut",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "sig",
+      "target": "body",
+      "type": "uppercut",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 10,
+        "active": 3,
+        "recovery": 18
+      },
+      "reach": 0.8,
+      "wedgeDeg": 26,
+      "advance": 0,
+      "damage": {
+        "base": 7,
+        "range": 2.2
+      },
+      "stamina": 3.6,
+      "eventMult": 1.2,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "uppercut",
+        "punch",
+        "body"
+      ],
+      "cancel": {
+        "out": [
+          [
+            9,
+            22
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "legkick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_superman_head",
+      "label": "Superman punch",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "sig",
+      "target": "head",
+      "type": "superman",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "heavy",
+      "frames": {
+        "startup": 15,
+        "active": 3,
+        "recovery": 26
+      },
+      "reach": 1.55,
+      "wedgeDeg": 20,
+      "advance": 0.5,
+      "damage": {
+        "base": 10.8,
+        "range": 3
+      },
+      "stamina": 5.6,
+      "eventMult": 1.3,
+      "critChance": 0.08,
+      "blockHeight": "high",
+      "tags": [
+        "cross",
+        "punch",
+        "flashy"
+      ],
+      "cancel": {
+        "out": [
+          [
+            14,
+            32
+          ]
+        ],
+        "into": [
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "lead_jab_lunge",
+      "label": "Lunging jab",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "lead",
+      "slot": "fwd",
+      "target": "head",
+      "type": "straight",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "light",
+      "frames": {
+        "startup": 7,
+        "active": 2,
+        "recovery": 12
+      },
+      "reach": 1.4,
+      "wedgeDeg": 20,
+      "advance": 0.35,
+      "damage": {
+        "base": 3.8,
+        "range": 1.2
+      },
+      "stamina": 2.2,
+      "eventMult": 0.8,
+      "critChance": 0.02,
+      "blockHeight": "high",
+      "tags": [
+        "jab",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            6,
+            15
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "bodykick",
+          "overhand",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_cross_lunge",
+      "label": "Lunging cross",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "fwd",
+      "target": "head",
+      "type": "straight",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 10,
+        "active": 3,
+        "recovery": 17
+      },
+      "reach": 1.5,
+      "wedgeDeg": 20,
+      "advance": 0.45,
+      "damage": {
+        "base": 7,
+        "range": 2.2
+      },
+      "stamina": 3.4,
+      "eventMult": 1,
+      "critChance": 0.04,
+      "blockHeight": "high",
+      "tags": [
+        "cross",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            9,
+            22
+          ]
+        ],
+        "into": [
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_elbow_head",
+      "label": "Elbow",
+      "mode": "standup",
+      "limb": "punch",
+      "side": "back",
+      "slot": "tech",
+      "target": "head",
+      "type": "elbow",
+      "kind": "elbow",
+      "contact": "elbow",
+      "power": "medium",
+      "frames": {
+        "startup": 9,
+        "active": 3,
+        "recovery": 17
+      },
+      "reach": 0.72,
+      "wedgeDeg": 30,
+      "advance": 0,
+      "damage": {
+        "base": 7.8,
+        "range": 2.4
+      },
+      "stamina": 3.2,
+      "eventMult": 1.2,
+      "critChance": 0.07,
+      "blockHeight": "high",
+      "tags": [
+        "elbow",
+        "punch"
+      ],
+      "cancel": {
+        "out": [
+          [
+            8,
+            21
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross",
+          "knee"
+        ]
+      }
+    },
+    {
+      "id": "lead_legkick_leg",
+      "label": "Lead leg kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "lead",
+      "slot": "basic",
+      "target": "leg",
+      "type": "leg_kick",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "medium",
+      "frames": {
+        "startup": 11,
+        "active": 4,
+        "recovery": 22
+      },
+      "reach": 1.35,
+      "wedgeDeg": 24,
+      "advance": 0,
+      "damage": {
+        "base": 7,
+        "range": 2
+      },
+      "stamina": 3.8,
+      "eventMult": 1,
+      "critChance": 0,
+      "blockHeight": "low",
+      "tags": [
+        "legkick",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            10,
+            27
+          ]
+        ],
+        "into": [
+          "cross",
+          "jab",
+          "hook",
+          "headkick"
+        ]
+      }
+    },
+    {
+      "id": "back_legkick_leg",
+      "label": "Rear leg kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "leg",
+      "type": "leg_kick",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "heavy",
+      "frames": {
+        "startup": 13,
+        "active": 4,
+        "recovery": 26
+      },
+      "reach": 1.4,
+      "wedgeDeg": 24,
+      "advance": 0,
+      "damage": {
+        "base": 9.8,
+        "range": 2.8
+      },
+      "stamina": 4.8,
+      "eventMult": 1.2,
+      "critChance": 0,
+      "blockHeight": "low",
+      "tags": [
+        "legkick",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            12,
+            31
+          ]
+        ],
+        "into": [
+          "cross",
+          "jab",
+          "hook",
+          "headkick"
+        ]
+      }
+    },
+    {
+      "id": "back_kick_body",
+      "label": "Body kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "body",
+      "type": "roundhouse",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "heavy",
+      "frames": {
+        "startup": 14,
+        "active": 4,
+        "recovery": 28
+      },
+      "reach": 1.4,
+      "wedgeDeg": 26,
+      "advance": 0,
+      "damage": {
+        "base": 9.8,
+        "range": 2.8
+      },
+      "stamina": 5,
+      "eventMult": 1.3,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "bodykick",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            13,
+            33
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_kick_head",
+      "label": "Head kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "roundhouse",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "heavy",
+      "frames": {
+        "startup": 17,
+        "active": 4,
+        "recovery": 34
+      },
+      "reach": 1.5,
+      "wedgeDeg": 24,
+      "advance": 0,
+      "damage": {
+        "base": 12.5,
+        "range": 3.4
+      },
+      "stamina": 5.8,
+      "eventMult": 1.6,
+      "critChance": 0.09,
+      "blockHeight": "high",
+      "tags": [
+        "headkick",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            16,
+            39
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook"
+        ]
+      }
+    },
+    {
+      "id": "lead_teep_body",
+      "label": "Teep",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "lead",
+      "slot": "basic",
+      "target": "body",
+      "type": "teep",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "light",
+      "frames": {
+        "startup": 10,
+        "active": 3,
+        "recovery": 20
+      },
+      "reach": 1.4,
+      "wedgeDeg": 20,
+      "advance": 0,
+      "damage": {
+        "base": 3.8,
+        "range": 1.2
+      },
+      "stamina": 2.6,
+      "eventMult": 0.8,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "teep",
+        "kick",
+        "bodykick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            9,
+            24
+          ]
+        ],
+        "into": [
+          "cross",
+          "jab",
+          "legkick"
+        ]
+      }
+    },
+    {
+      "id": "lead_front_head",
+      "label": "Front kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "lead",
+      "slot": "basic",
+      "target": "head",
+      "type": "front_kick",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "medium",
+      "frames": {
+        "startup": 12,
+        "active": 3,
+        "recovery": 24
+      },
+      "reach": 1.5,
+      "wedgeDeg": 18,
+      "advance": 0,
+      "damage": {
+        "base": 6.8,
+        "range": 2
+      },
+      "stamina": 3.8,
+      "eventMult": 1.1,
+      "critChance": 0.05,
+      "blockHeight": "high",
+      "tags": [
+        "headkick",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            11,
+            28
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook"
+        ]
+      }
+    },
+    {
+      "id": "lead_side_body",
+      "label": "Side kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "lead",
+      "slot": "tech",
+      "target": "body",
+      "type": "side_kick",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "medium",
+      "frames": {
+        "startup": 12,
+        "active": 3,
+        "recovery": 22
+      },
+      "reach": 1.45,
+      "wedgeDeg": 18,
+      "advance": 0,
+      "damage": {
+        "base": 6.4,
+        "range": 2
+      },
+      "stamina": 3.8,
+      "eventMult": 1,
+      "critChance": 0,
+      "blockHeight": "high",
+      "tags": [
+        "bodykick",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            11,
+            27
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "back_spinheel_head",
+      "label": "Spinning heel kick",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "back",
+      "slot": "sig",
+      "target": "head",
+      "type": "spinning_heel_kick",
+      "kind": "kick",
+      "contact": "foot_shin",
+      "power": "heavy",
+      "frames": {
+        "startup": 20,
+        "active": 4,
+        "recovery": 40
+      },
+      "reach": 1.55,
+      "wedgeDeg": 22,
+      "advance": 0,
+      "damage": {
+        "base": 13.5,
+        "range": 3.6
+      },
+      "stamina": 7,
+      "eventMult": 1.8,
+      "critChance": 0.12,
+      "blockHeight": "high",
+      "tags": [
+        "headkick",
+        "kick",
+        "flashy"
+      ],
+      "cancel": {
+        "out": [
+          [
+            19,
+            46
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook"
+        ]
+      }
+    },
+    {
+      "id": "back_knee_body",
+      "label": "Lunging knee",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "back",
+      "slot": "fwd",
+      "target": "body",
+      "type": "knee",
+      "kind": "knee",
+      "contact": "knee",
+      "power": "medium",
+      "frames": {
+        "startup": 11,
+        "active": 3,
+        "recovery": 20
+      },
+      "reach": 1,
+      "wedgeDeg": 24,
+      "advance": 0.4,
+      "damage": {
+        "base": 7.4,
+        "range": 2.2
+      },
+      "stamina": 4,
+      "eventMult": 1.1,
+      "critChance": 0.03,
+      "blockHeight": "high",
+      "tags": [
+        "knee",
+        "kick"
+      ],
+      "cancel": {
+        "out": [
+          [
+            10,
+            25
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross"
+        ]
+      }
+    },
+    {
+      "id": "back_knee_head",
+      "label": "Flying knee",
+      "mode": "standup",
+      "limb": "kick",
+      "side": "back",
+      "slot": "sig",
+      "target": "head",
+      "type": "flying_knee",
+      "kind": "knee",
+      "contact": "knee",
+      "power": "heavy",
+      "frames": {
+        "startup": 16,
+        "active": 3,
+        "recovery": 32
+      },
+      "reach": 1.5,
+      "wedgeDeg": 20,
+      "advance": 0.7,
+      "damage": {
+        "base": 12,
+        "range": 3.2
+      },
+      "stamina": 6.4,
+      "eventMult": 1.6,
+      "critChance": 0.1,
+      "blockHeight": "high",
+      "tags": [
+        "knee",
+        "kick",
+        "flashy"
+      ],
+      "cancel": {
+        "out": [
+          [
+            15,
+            36
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross"
+        ]
+      }
+    },
+    {
+      "id": "clinch_knee_body",
+      "label": "Clinch knee (body)",
+      "mode": "clinch",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "body",
+      "type": "knee",
+      "kind": "knee",
+      "contact": "knee",
+      "power": "medium",
+      "frames": {
+        "startup": 8,
+        "active": 3,
+        "recovery": 14
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 6,
+        "range": 2
+      },
+      "stamina": 2.8,
+      "eventMult": 1,
+      "critChance": 0.03,
+      "blockHeight": "high",
+      "tags": [
+        "knee"
+      ],
+      "cancel": {
+        "out": [
+          [
+            7,
+            18
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross"
+        ]
+      }
+    },
+    {
+      "id": "clinch_knee_head",
+      "label": "Clinch knee (head)",
+      "mode": "clinch",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "knee",
+      "kind": "knee",
+      "contact": "knee",
+      "power": "heavy",
+      "frames": {
+        "startup": 10,
+        "active": 3,
+        "recovery": 18
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 9,
+        "range": 2.6
+      },
+      "stamina": 3.6,
+      "eventMult": 1.4,
+      "critChance": 0.06,
+      "blockHeight": "high",
+      "tags": [
+        "knee"
+      ],
+      "cancel": {
+        "out": [
+          [
+            9,
+            22
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross"
+        ]
+      }
+    },
+    {
+      "id": "clinch_elbow_head",
+      "label": "Clinch elbow",
+      "mode": "clinch",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "elbow",
+      "kind": "elbow",
+      "contact": "elbow",
+      "power": "medium",
+      "frames": {
+        "startup": 7,
+        "active": 3,
+        "recovery": 14
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 7.2,
+        "range": 2.2
+      },
+      "stamina": 2.8,
+      "eventMult": 1.2,
+      "critChance": 0.08,
+      "blockHeight": "high",
+      "tags": [
+        "elbow"
+      ],
+      "cancel": {
+        "out": [
+          [
+            6,
+            17
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross",
+          "knee"
+        ]
+      }
+    },
+    {
+      "id": "clinch_uppercut_head",
+      "label": "Clinch uppercut",
+      "mode": "clinch",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "uppercut",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 8,
+        "active": 3,
+        "recovery": 14
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 6.8,
+        "range": 2
+      },
+      "stamina": 2.8,
+      "eventMult": 1.1,
+      "critChance": 0.05,
+      "blockHeight": "high",
+      "tags": [
+        "uppercut"
+      ],
+      "cancel": {
+        "out": [
+          [
+            7,
+            18
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "legkick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "clinch_hook_head",
+      "label": "Clinch hook",
+      "mode": "clinch",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "hook",
+      "kind": "punch",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 8,
+        "active": 3,
+        "recovery": 14
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 6.4,
+        "range": 2
+      },
+      "stamina": 2.6,
+      "eventMult": 1,
+      "critChance": 0.04,
+      "blockHeight": "high",
+      "tags": [
+        "hook"
+      ],
+      "cancel": {
+        "out": [
+          [
+            7,
+            18
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "clinch_shoulder_body",
+      "label": "Shoulder strike",
+      "mode": "clinch",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "body",
+      "type": "shoulder",
+      "kind": "shoulder",
+      "contact": "shoulder",
+      "power": "light",
+      "frames": {
+        "startup": 6,
+        "active": 2,
+        "recovery": 12
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 3.6,
+        "range": 1.2
+      },
+      "stamina": 1.8,
+      "eventMult": 0.7,
+      "critChance": 0.03,
+      "blockHeight": "high",
+      "tags": [
+        "shoulder"
+      ],
+      "cancel": {
+        "out": [
+          [
+            5,
+            14
+          ]
+        ],
+        "into": []
+      }
+    },
+    {
+      "id": "clinch_stomp_leg",
+      "label": "Foot stomp",
+      "mode": "clinch",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "leg",
+      "type": "stomp",
+      "kind": "stomp",
+      "contact": "foot_shin",
+      "power": "light",
+      "frames": {
+        "startup": 6,
+        "active": 2,
+        "recovery": 12
+      },
+      "reach": 0.9,
+      "wedgeDeg": 60,
+      "advance": 0,
+      "damage": {
+        "base": 3.2,
+        "range": 1
+      },
+      "stamina": 1.8,
+      "eventMult": 0.6,
+      "critChance": 0.03,
+      "blockHeight": "low",
+      "tags": [
+        "stomp"
+      ],
+      "cancel": {
+        "out": [
+          [
+            5,
+            14
+          ]
+        ],
+        "into": []
+      }
+    },
+    {
+      "id": "ground_hammer_head",
+      "label": "Hammerfist",
+      "mode": "ground",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "hammer",
+      "kind": "hammer",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 7,
+        "active": 3,
+        "recovery": 12
+      },
+      "reach": 0.9,
+      "wedgeDeg": 180,
+      "advance": 0,
+      "damage": {
+        "base": 6.4,
+        "range": 2
+      },
+      "stamina": 2.5,
+      "eventMult": 1,
+      "critChance": 0.05,
+      "blockHeight": "high",
+      "tags": [
+        "hammer"
+      ],
+      "cancel": {
+        "out": [
+          [
+            6,
+            16
+          ]
+        ],
+        "into": []
+      }
+    },
+    {
+      "id": "ground_straight_head",
+      "label": "Ground straight",
+      "mode": "ground",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "straight",
+      "kind": "straight",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 7,
+        "active": 3,
+        "recovery": 12
+      },
+      "reach": 0.9,
+      "wedgeDeg": 180,
+      "advance": 0,
+      "damage": {
+        "base": 6,
+        "range": 2
+      },
+      "stamina": 2.5,
+      "eventMult": 1,
+      "critChance": 0.04,
+      "blockHeight": "high",
+      "tags": [
+        "straight"
+      ],
+      "cancel": {
+        "out": [
+          [
+            6,
+            16
+          ]
+        ],
+        "into": []
+      }
+    },
+    {
+      "id": "ground_hook_head",
+      "label": "Ground hook",
+      "mode": "ground",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "hook",
+      "kind": "hook",
+      "contact": "fist",
+      "power": "medium",
+      "frames": {
+        "startup": 8,
+        "active": 3,
+        "recovery": 13
+      },
+      "reach": 0.9,
+      "wedgeDeg": 180,
+      "advance": 0,
+      "damage": {
+        "base": 6.6,
+        "range": 2
+      },
+      "stamina": 2.6,
+      "eventMult": 1.05,
+      "critChance": 0.05,
+      "blockHeight": "high",
+      "tags": [
+        "hook"
+      ],
+      "cancel": {
+        "out": [
+          [
+            7,
+            18
+          ]
+        ],
+        "into": [
+          "cross",
+          "hook",
+          "uppercut",
+          "legkick",
+          "headkick",
+          "bodykick",
+          "jab"
+        ]
+      }
+    },
+    {
+      "id": "ground_elbow_head",
+      "label": "Ground elbow",
+      "mode": "ground",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "head",
+      "type": "elbow",
+      "kind": "elbow",
+      "contact": "elbow",
+      "power": "heavy",
+      "frames": {
+        "startup": 8,
+        "active": 3,
+        "recovery": 14
+      },
+      "reach": 0.9,
+      "wedgeDeg": 180,
+      "advance": 0,
+      "damage": {
+        "base": 8.4,
+        "range": 2.4
+      },
+      "stamina": 3,
+      "eventMult": 1.3,
+      "critChance": 0.1,
+      "blockHeight": "high",
+      "tags": [
+        "elbow"
+      ],
+      "cancel": {
+        "out": [
+          [
+            7,
+            18
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross",
+          "knee"
+        ]
+      }
+    },
+    {
+      "id": "ground_knee_body",
+      "label": "Ground knee",
+      "mode": "ground",
+      "limb": "kick",
+      "side": "back",
+      "slot": "basic",
+      "target": "body",
+      "type": "knee",
+      "kind": "knee",
+      "contact": "knee",
+      "power": "medium",
+      "frames": {
+        "startup": 9,
+        "active": 3,
+        "recovery": 15
+      },
+      "reach": 0.9,
+      "wedgeDeg": 180,
+      "advance": 0,
+      "damage": {
+        "base": 6.4,
+        "range": 2
+      },
+      "stamina": 3,
+      "eventMult": 1.1,
+      "critChance": 0.03,
+      "blockHeight": "high",
+      "tags": [
+        "knee"
+      ],
+      "cancel": {
+        "out": [
+          [
+            8,
+            20
+          ]
+        ],
+        "into": [
+          "hook",
+          "cross"
+        ]
+      }
+    },
+    {
+      "id": "ground_body_punch",
+      "label": "Body punch",
+      "mode": "ground",
+      "limb": "punch",
+      "side": "back",
+      "slot": "basic",
+      "target": "body",
+      "type": "straight",
+      "kind": "straight",
+      "contact": "fist",
+      "power": "light",
+      "frames": {
+        "startup": 7,
+        "active": 3,
+        "recovery": 12
+      },
+      "reach": 0.9,
+      "wedgeDeg": 180,
+      "advance": 0,
+      "damage": {
+        "base": 4.4,
+        "range": 1.4
+      },
+      "stamina": 2.2,
+      "eventMult": 0.9,
+      "critChance": 0.03,
+      "blockHeight": "high",
+      "tags": [
+        "straight"
+      ],
+      "cancel": {
+        "out": [
+          [
+            6,
+            16
+          ]
+        ],
+        "into": []
+      }
+    }
+  ]
+}
