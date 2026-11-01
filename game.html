@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outback Dash</title>
+<style>
+  body{margin:0;background:#1e3c72;color:#fff;font-family:'Segoe UI',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh}
+  canvas{background:#87ceeb;border-radius:12px;max-width:96vw;touch-action:manipulation}
+  p{opacity:.8;margin:10px}
+</style>
+</head>
+<body>
+<h1>🦘 Outback Dash</h1>
+<canvas id="c" width="800" height="300"></canvas>
+<p>Space / click / tap to jump. Dodge the cacti and rocks!</p>
+<script>
+const c=document.getElementById('c'),x=c.getContext('2d');
+const G=240; // ground y
+let roo,obs,score,speed,over,started,frame,best=+localStorage.getItem('roobest')||0;
+function reset(){roo={x:80,y:G-40,vy:0,w:34,h:40};obs=[];score=0;speed=5;over=false;frame=0;}
+reset();started=false;
+function jump(){
+  if(!started){started=true;return;}
+  if(over){reset();return;}
+  if(roo.y>=G-roo.h)roo.vy=-13.5;
+}
+addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}});
+c.addEventListener('pointerdown',jump);
+function update(){
+  if(!started||over)return;
+  frame++;score+=speed/50;speed+=0.0015;
+  roo.vy+=0.75;roo.y+=roo.vy;
+  if(roo.y>G-roo.h){roo.y=G-roo.h;roo.vy=0;}
+  if(frame%Math.max(45,Math.floor(100-speed*4))===0&&Math.random()<.9){
+    const cactus=Math.random()<.6,h=cactus?30+Math.random()*30:22;
+    obs.push({x:c.width,w:cactus?20:36,h,type:cactus?'🌵':'🪨'});
+  }
+  obs.forEach(o=>o.x-=speed);
+  obs=obs.filter(o=>o.x+o.w>0);
+  for(const o of obs){
+    if(roo.x+roo.w-6>o.x+3&&roo.x+6<o.x+o.w-3&&roo.y+roo.h-4>G-o.h){
+      over=true;
+      if(score>best){best=score;try{localStorage.setItem('roobest',Math.floor(best))}catch(e){}}
+    }
+  }
+}
+function draw(){
+  x.clearRect(0,0,c.width,c.height);
+  x.fillStyle='#ffd54f';x.beginPath();x.arc(700,60,28,0,7);x.fill();
+  x.fillStyle='#d2a05a';x.fillRect(0,G,c.width,c.height-G);
+  x.fillStyle='#b8864a';
+  for(let i=0;i<20;i++)x.fillRect(((i*97-frame*speed)%c.width+c.width)%c.width,G+15+(i%3)*18,30,3);
+  x.textBaseline='bottom';
+  obs.forEach(o=>{x.font=o.h*1.1+'px serif';x.fillText(o.type,o.x,G+4);});
+  x.font='48px serif';x.save();x.translate(roo.x+roo.w+4,0);x.scale(-1,1);x.fillText('🦘',0,roo.y+roo.h+6);x.restore();
+  x.fillStyle='#333';x.font='bold 18px sans-serif';x.textBaseline='top';
+  x.fillText('Score '+Math.floor(score)+'   Best '+Math.floor(best),14,12);
+  x.textAlign='center';x.font='bold 28px sans-serif';
+  if(!started)x.fillText('Press Space to start',c.width/2,110);
+  if(over){x.fillText('Game over! Press Space to retry',c.width/2,110);}
+  x.textAlign='left';
+}
+(function loop(){update();draw();requestAnimationFrame(loop);})();
+</script>
+</body>
+</html>
